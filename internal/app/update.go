@@ -2116,7 +2116,7 @@ func (m Model) handleYAMLKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.yamlSearchMode = false
 			m.updateYAMLSearchMatches()
 			if len(m.yamlMatchLines) > 0 {
-				m.yamlMatchIdx = 0
+				m.yamlMatchIdx = m.findYAMLMatchFromCursor()
 				m.yamlScrollToMatchFolded(viewportLines)
 			}
 			return m, nil
@@ -2374,7 +2374,8 @@ func (m *Model) yamlScrollToMatchFolded(viewportLines int) {
 		maxScroll = 0
 	}
 
-	// Center the match in the viewport.
+	// Move cursor to the match and center it in the viewport.
+	m.yamlCursor = visIdx
 	m.yamlScroll = visIdx - viewportLines/2
 	if m.yamlScroll > maxScroll {
 		m.yamlScroll = maxScroll
@@ -2396,6 +2397,22 @@ func (m *Model) updateYAMLSearchMatches() {
 			m.yamlMatchLines = append(m.yamlMatchLines, i)
 		}
 	}
+}
+
+// findYAMLMatchFromCursor returns the index of the first match at or after the
+// current cursor position. Wraps to 0 if no match is found after the cursor.
+func (m *Model) findYAMLMatchFromCursor() int {
+	_, mapping := buildVisibleLines(m.yamlContent, m.yamlSections, m.yamlCollapsed)
+	origLine := 0
+	if m.yamlCursor >= 0 && m.yamlCursor < len(mapping) {
+		origLine = mapping[m.yamlCursor]
+	}
+	for i, matchLine := range m.yamlMatchLines {
+		if matchLine >= origLine {
+			return i
+		}
+	}
+	return 0
 }
 
 func (m Model) handleDescribeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
