@@ -25,11 +25,15 @@ FROM alpine:3.21
 
 RUN apk add --no-cache kubectl helm ca-certificates
 
+RUN addgroup -S lfk && adduser -S lfk -G lfk
+
 COPY --from=builder /lfk /usr/local/bin/lfk
 ENV TERM=xterm-256color
 ENV COLORTERM=truecolor
 
+USER lfk
+
 # Default kubeconfig mount point
-VOLUME ["/root/.kube"]
+VOLUME ["/home/lfk/.kube"]
 
 ENTRYPOINT ["lfk"]

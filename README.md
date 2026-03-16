@@ -111,7 +111,7 @@ go build -o lfk .
 
 ```bash
 docker run -it --rm \
-  -v ~/.kube:/root/.kube:ro \
+  -v ~/.kube:/home/lfk/.kube:ro \
   janosmiko/lfk
 ```
 
@@ -119,7 +119,7 @@ To use a specific kubeconfig:
 
 ```bash
 docker run -it --rm \
-  -v /path/to/kubeconfig:/root/.kube/config:ro \
+  -v /path/to/kubeconfig:/home/lfk/.kube/config:ro \
   janosmiko/lfk
 ```
 
@@ -128,7 +128,7 @@ For port forwarding, add `--net=host`:
 ```bash
 docker run -it --rm \
   --net=host \
-  -v ~/.kube:/root/.kube:ro \
+  -v ~/.kube:/home/lfk/.kube:ro \
   janosmiko/lfk
 ```
 
