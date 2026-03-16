@@ -749,9 +749,24 @@ func (r ResourceTypeEntry) ResourceRef() string {
 // FindResourceTypeByKind searches for a ResourceTypeEntry matching the given kind
 // across all built-in types and the provided CRDs.
 func FindResourceTypeByKind(kind string, crds []ResourceTypeEntry) (ResourceTypeEntry, bool) {
+	// Build lookup of discovered CRDs by group/resource for version override and enrichment.
+	discoveredByGR := make(map[string]*ResourceTypeEntry, len(crds))
+	for i := range crds {
+		key := crds[i].APIGroup + "/" + crds[i].Resource
+		discoveredByGR[key] = &crds[i]
+	}
+
 	for _, cat := range TopLevelResourceTypes() {
 		for _, rt := range cat.Types {
 			if rt.Kind == kind {
+				// Override version and enrich with PrinterColumns from discovered CRDs.
+				grKey := rt.APIGroup + "/" + rt.Resource
+				if crd, ok := discoveredByGR[grKey]; ok {
+					rt.APIVersion = crd.APIVersion
+					if len(crd.PrinterColumns) > 0 {
+						rt.PrinterColumns = crd.PrinterColumns
+					}
+				}
 				return rt, true
 			}
 		}
