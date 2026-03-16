@@ -1202,8 +1202,8 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		case "t":
 			if m.mode != modeHelp { // 't' is not used as a regular key in fullscreen modes
-				if len(m.tabs) >= 10 {
-					m.setStatusMessage("Max 10 tabs", true)
+				if len(m.tabs) >= 9 {
+					m.setStatusMessage("Max 9 tabs", true)
 					return m, scheduleStatusClear()
 				}
 				m.saveCurrentTab()
@@ -1913,9 +1913,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, m.applyFromClipboard()
 
 	case "t":
-		// Create new tab (clone current state, max 10).
-		if len(m.tabs) >= 10 {
-			m.setStatusMessage("Max 10 tabs", true)
+		// Create new tab (clone current state, max 9).
+		if len(m.tabs) >= 9 {
+			m.setStatusMessage("Max 9 tabs", true)
 			return m, scheduleStatusClear()
 		}
 		m.saveCurrentTab()
