@@ -108,8 +108,8 @@ func (m *Model) restorePortForwards() []tea.Cmd {
 	for _, pf := range m.pendingPortForwards.PortForwards {
 		pf := pf // capture loop variable
 		cmds = append(cmds, func() tea.Msg {
-			// Use random port to avoid conflicts with previously used ports.
-			id, err := mgr.Start(kubectlPath, kubeconfigPaths, pf.ResourceKind, pf.ResourceName, pf.Namespace, pf.Context, "0", pf.RemotePort)
+			// Reuse the saved local port so users get the same port on restart.
+			id, err := mgr.Start(kubectlPath, kubeconfigPaths, pf.ResourceKind, pf.ResourceName, pf.Namespace, pf.Context, pf.LocalPort, pf.RemotePort)
 			if err != nil {
 				logger.Error("Failed to restore port forward",
 					"resource", fmt.Sprintf("%s/%s", pf.ResourceKind, pf.ResourceName),
