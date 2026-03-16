@@ -286,6 +286,45 @@ func (c *Client) SyncArgoApp(contextName, namespace, name string) error {
 	return nil
 }
 
+// TerminateArgoSync terminates a running sync operation on an ArgoCD Application
+// by setting status.operationState.phase to "Terminating".
+func (c *Client) TerminateArgoSync(contextName, namespace, name string) error {
+	dynClient, err := c.dynamicForContext(contextName)
+	if err != nil {
+		return err
+	}
+
+	appGVR := schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "applications"}
+
+	app, err := dynClient.Resource(appGVR).Namespace(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("getting application %s: %w", name, err)
+	}
+
+	status, _ := app.Object["status"].(map[string]interface{})
+	if status == nil {
+		return fmt.Errorf("no sync operation in progress")
+	}
+	opState, _ := status["operationState"].(map[string]interface{})
+	if opState == nil {
+		return fmt.Errorf("no sync operation in progress")
+	}
+	phase, _ := opState["phase"].(string)
+	if phase != "Running" {
+		return fmt.Errorf("no running sync operation to terminate (phase: %s)", phase)
+	}
+
+	// Set phase to Terminating and update the full object.
+	opState["phase"] = "Terminating"
+	_, err = dynClient.Resource(appGVR).Namespace(namespace).Update(
+		context.Background(), app, metav1.UpdateOptions{},
+	)
+	if err != nil {
+		return fmt.Errorf("terminating sync for %s: %w", name, err)
+	}
+	return nil
+}
+
 // RefreshArgoApp triggers a hard refresh on an ArgoCD Application by setting
 // the argocd.argoproj.io/refresh annotation to "hard".
 func (c *Client) RefreshArgoApp(contextName, namespace, name string) error {

@@ -1564,6 +1564,62 @@ func populateResourceDetails(ti *model.Item, obj map[string]interface{}, kind st
 					}
 				}
 			}
+
+			// Extract conditions for generic CRDs.
+			// Prefer "Ready" condition; fall back to the last condition in the array.
+			if conditions, ok := status["conditions"].([]interface{}); ok && len(conditions) > 0 {
+				extractGenericConditions(ti, conditions)
+			}
+		}
+	}
+}
+
+// extractGenericConditions extracts condition information from a status.conditions
+// array for generic CRD resources. It prefers the "Ready" condition; if not found,
+// it falls back to the last condition in the array.
+func extractGenericConditions(ti *model.Item, conditions []interface{}) {
+	var readyCond, lastCond map[string]interface{}
+	for _, c := range conditions {
+		cond, ok := c.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		lastCond = cond
+		if condType, _ := cond["type"].(string); condType == "Ready" {
+			readyCond = cond
+		}
+	}
+
+	// Prefer Ready condition, fall back to last condition.
+	chosen := readyCond
+	if chosen == nil {
+		chosen = lastCond
+	}
+	if chosen == nil {
+		return
+	}
+
+	condType, _ := chosen["type"].(string)
+	condStatus, _ := chosen["status"].(string)
+	condReason, _ := chosen["reason"].(string)
+	condMessage, _ := chosen["message"].(string)
+
+	if condType != "" && condStatus != "" {
+		ti.Columns = append(ti.Columns, model.KeyValue{Key: condType, Value: condStatus})
+	}
+	if condReason != "" {
+		ti.Columns = append(ti.Columns, model.KeyValue{Key: "Reason", Value: condReason})
+	}
+	if condMessage != "" && condStatus != "True" {
+		// Truncate long messages for table display.
+		if len(condMessage) > 80 {
+			condMessage = condMessage[:77] + "..."
+		}
+		ti.Columns = append(ti.Columns, model.KeyValue{Key: "Message", Value: condMessage})
+	}
+	if lastTransition, ok := chosen["lastTransitionTime"].(string); ok && lastTransition != "" {
+		if t, err := time.Parse(time.RFC3339, lastTransition); err == nil {
+			ti.Columns = append(ti.Columns, model.KeyValue{Key: "Last Transition", Value: formatRelativeTime(t)})
 		}
 	}
 }

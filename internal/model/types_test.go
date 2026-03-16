@@ -746,6 +746,7 @@ func TestActionsForKind(t *testing.T) {
 		actions := ActionsForKind("Application")
 		labels := actionLabels(actions)
 		assert.Contains(t, labels, "Sync")
+		assert.Contains(t, labels, "Terminate Sync")
 		assert.Contains(t, labels, "Refresh")
 	})
 

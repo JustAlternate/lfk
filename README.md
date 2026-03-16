@@ -64,7 +64,7 @@
 
 ### Integrations
 
-- **ArgoCD integration**: Browse Applications, sync, refresh, view managed resources
+- **ArgoCD integration**: Browse Applications, sync, terminate sync, refresh, view managed resources
 - **Helm integration**: Browse releases, view managed resources, uninstall
 - **CRD discovery**: Automatically discovers installed CRDs and groups them by API group
 

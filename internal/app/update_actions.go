@@ -425,10 +425,6 @@ func (m Model) executeAction(actionLabel string) (tea.Model, tea.Cmd) {
 		m.setStatusMessage("Loading events...", false)
 		m.addLogEntry("DBG", fmt.Sprintf("Loading event timeline for %s/%s in %s", m.actionCtx.kind, name, ns))
 		return m, m.loadEventTimeline()
-	case "Diff":
-		m.addLogEntry("DBG", fmt.Sprintf("$ argocd app diff %s", name))
-		m.loading = true
-		return m, m.diffArgoApp()
 	case "Sync":
 		m.addLogEntry("DBG", fmt.Sprintf("$ kubectl patch app %s --type merge -p '{\"operation\":{\"sync\":{\"syncStrategy\":{\"hook\":{}}}}}' -n %s --context %s", name, ns, ctx))
 		m.loading = true
@@ -437,6 +433,10 @@ func (m Model) executeAction(actionLabel string) (tea.Model, tea.Cmd) {
 		m.addLogEntry("DBG", fmt.Sprintf("$ kubectl patch app %s --type merge -p '{\"metadata\":{\"annotations\":{\"argocd.argoproj.io/refresh\":\"hard\"}}}' -n %s --context %s", name, ns, ctx))
 		m.loading = true
 		return m, m.refreshArgoApp()
+	case "Terminate Sync":
+		m.addLogEntry("DBG", fmt.Sprintf("Terminating sync operation for %s in %s (context: %s)", name, ns, ctx))
+		m.loading = true
+		return m, m.terminateArgoSync()
 	case "Reconcile":
 		m.addLogEntry("DBG", fmt.Sprintf("Reconciling %s/%s in %s", m.actionCtx.kind, name, ns))
 		m.loading = true

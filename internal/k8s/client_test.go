@@ -1,6 +1,8 @@
 package k8s
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -694,5 +696,83 @@ func TestExtractCRDPrinterColumns(t *testing.T) {
 		cols := extractCRDPrinterColumns(spec, "v1")
 		assert.Len(t, cols, 1)
 		assert.Equal(t, "Valid", cols[0].Name)
+	})
+}
+
+// --- extractGenericConditions ---
+
+func TestExtractGenericConditions(t *testing.T) {
+	t.Run("prefers Ready condition", func(t *testing.T) {
+		ti := &model.Item{}
+		conditions := []interface{}{
+			map[string]interface{}{
+				"type":   "Initialized",
+				"status": "True",
+				"reason": "InitDone",
+			},
+			map[string]interface{}{
+				"type":               "Ready",
+				"status":             "True",
+				"reason":             "AllGood",
+				"lastTransitionTime": "2026-01-01T00:00:00Z",
+			},
+		}
+		extractGenericConditions(ti, conditions)
+		assert.Len(t, ti.Columns, 3) // Ready, Reason, Last Transition (no Message since status=True)
+		assert.Equal(t, "Ready", ti.Columns[0].Key)
+		assert.Equal(t, "True", ti.Columns[0].Value)
+		assert.Equal(t, "Reason", ti.Columns[1].Key)
+		assert.Equal(t, "AllGood", ti.Columns[1].Value)
+	})
+
+	t.Run("falls back to last condition", func(t *testing.T) {
+		ti := &model.Item{}
+		conditions := []interface{}{
+			map[string]interface{}{
+				"type":   "Initialized",
+				"status": "True",
+			},
+			map[string]interface{}{
+				"type":    "Available",
+				"status":  "False",
+				"reason":  "MinimumReplicasUnavailable",
+				"message": "Deployment does not have minimum availability.",
+			},
+		}
+		extractGenericConditions(ti, conditions)
+		assert.Equal(t, "Available", ti.Columns[0].Key)
+		assert.Equal(t, "False", ti.Columns[0].Value)
+		assert.Equal(t, "Reason", ti.Columns[1].Key)
+		assert.Equal(t, "MinimumReplicasUnavailable", ti.Columns[1].Value)
+		assert.Equal(t, "Message", ti.Columns[2].Key)
+	})
+
+	t.Run("truncates long messages", func(t *testing.T) {
+		ti := &model.Item{}
+		longMsg := ""
+		for i := range 100 {
+			longMsg += fmt.Sprintf("x%d", i)
+		}
+		conditions := []interface{}{
+			map[string]interface{}{
+				"type":    "Ready",
+				"status":  "False",
+				"message": longMsg,
+			},
+		}
+		extractGenericConditions(ti, conditions)
+		// Find message column.
+		for _, kv := range ti.Columns {
+			if kv.Key == "Message" {
+				assert.LessOrEqual(t, len(kv.Value), 80)
+				assert.True(t, strings.HasSuffix(kv.Value, "..."))
+			}
+		}
+	})
+
+	t.Run("empty conditions", func(t *testing.T) {
+		ti := &model.Item{}
+		extractGenericConditions(ti, []interface{}{})
+		assert.Empty(t, ti.Columns)
 	})
 }

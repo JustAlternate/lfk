@@ -981,7 +981,7 @@ func ActionsForKind(kind string) []ActionMenuItem {
 	case "Application":
 		return []ActionMenuItem{
 			{Label: "Sync", Description: "Sync application", Key: "s"},
-			{Label: "Diff", Description: "Diff live vs desired state", Key: "f"},
+			{Label: "Terminate Sync", Description: "Terminate running sync operation", Key: "T"},
 			{Label: "Refresh", Description: "Hard refresh application", Key: "R"},
 			{Label: "Describe", Description: "Describe resource", Key: "d"},
 			{Label: "Edit", Description: "Edit resource YAML", Key: "E"},
