@@ -523,6 +523,7 @@ Contributions are welcome! Here is how to get started.
 - Go 1.26 or later
 - Access to a Kubernetes cluster (for testing)
 - `kubectl` configured and working
+- `golangci-lint` ([install](https://golangci-lint.run/welcome/install/))
 
 ### Development Setup
 
@@ -531,11 +532,12 @@ Contributions are welcome! Here is how to get started.
 git clone https://github.com/janosmiko/lfk.git
 cd lfk
 
-# Install dependencies
+# Set up git hooks and install dependencies
+make setup
 go mod download
 
 # Build the binary
-go build -o lfk .
+make build
 
 # Run it
 ./lfk
