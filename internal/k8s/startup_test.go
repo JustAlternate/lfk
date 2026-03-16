@@ -34,13 +34,13 @@ func TestComputeImagePullTime(t *testing.T) {
 		now := time.Now()
 		events := []corev1.Event{
 			{
-				Reason:  "Pulling",
-				Message: `Pulling image "nginx:latest"`,
+				Reason:        "Pulling",
+				Message:       `Pulling image "nginx:latest"`,
 				LastTimestamp: metav1.Time{Time: now},
 			},
 			{
-				Reason:  "Pulled",
-				Message: `Successfully pulled image "nginx:latest" in 3s`,
+				Reason:        "Pulled",
+				Message:       `Successfully pulled image "nginx:latest" in 3s`,
 				LastTimestamp: metav1.Time{Time: now.Add(3 * time.Second)},
 			},
 		}
@@ -52,23 +52,23 @@ func TestComputeImagePullTime(t *testing.T) {
 		now := time.Now()
 		events := []corev1.Event{
 			{
-				Reason:  "Pulling",
-				Message: `Pulling image "nginx:latest"`,
+				Reason:        "Pulling",
+				Message:       `Pulling image "nginx:latest"`,
 				LastTimestamp: metav1.Time{Time: now},
 			},
 			{
-				Reason:  "Pulled",
-				Message: `Successfully pulled image "nginx:latest"`,
+				Reason:        "Pulled",
+				Message:       `Successfully pulled image "nginx:latest"`,
 				LastTimestamp: metav1.Time{Time: now.Add(2 * time.Second)},
 			},
 			{
-				Reason:  "Pulling",
-				Message: `Pulling image "redis:7"`,
+				Reason:        "Pulling",
+				Message:       `Pulling image "redis:7"`,
 				LastTimestamp: metav1.Time{Time: now.Add(2 * time.Second)},
 			},
 			{
-				Reason:  "Pulled",
-				Message: `Successfully pulled image "redis:7"`,
+				Reason:        "Pulled",
+				Message:       `Successfully pulled image "redis:7"`,
 				LastTimestamp: metav1.Time{Time: now.Add(5 * time.Second)},
 			},
 		}
@@ -85,8 +85,8 @@ func TestComputeImagePullTime(t *testing.T) {
 		now := time.Now()
 		events := []corev1.Event{
 			{
-				Reason:  "Pulling",
-				Message: `Pulling image "nginx:latest"`,
+				Reason:        "Pulling",
+				Message:       `Pulling image "nginx:latest"`,
 				LastTimestamp: metav1.Time{Time: now},
 			},
 		}
@@ -98,13 +98,13 @@ func TestComputeImagePullTime(t *testing.T) {
 		now := time.Now()
 		events := []corev1.Event{
 			{
-				Reason:  "Scheduled",
-				Message: "Successfully assigned pod",
+				Reason:        "Scheduled",
+				Message:       "Successfully assigned pod",
 				LastTimestamp: metav1.Time{Time: now},
 			},
 			{
-				Reason:  "Created",
-				Message: "Created container",
+				Reason:        "Created",
+				Message:       "Created container",
 				LastTimestamp: metav1.Time{Time: now.Add(1 * time.Second)},
 			},
 		}

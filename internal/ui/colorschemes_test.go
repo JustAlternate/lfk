@@ -96,4 +96,3 @@ func TestGroupedSchemeEntries(t *testing.T) {
 		}
 	}
 }
-

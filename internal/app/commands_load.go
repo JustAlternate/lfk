@@ -654,7 +654,7 @@ func (m Model) loadHelmRevisions() tea.Cmd {
 		output, cmdErr := cmd.CombinedOutput()
 		if cmdErr != nil {
 			logger.Error("helm history failed", "cmd", cmd.String(), "error", cmdErr, "output", string(output))
-			return helmRevisionListMsg{err: fmt.Errorf("%s: %s", cmdErr, strings.TrimSpace(string(output)))}
+			return helmRevisionListMsg{err: fmt.Errorf("%w: %s", cmdErr, strings.TrimSpace(string(output)))}
 		}
 
 		var entries []struct {
@@ -934,7 +934,7 @@ func (m Model) loadHelmValues(allValues bool) tea.Cmd {
 			logger.Error("helm get values failed", "cmd", cmd.String(), "error", cmdErr, "output", string(output))
 			return helmValuesLoadedMsg{
 				title: title,
-				err:   fmt.Errorf("%s: %s", cmdErr, strings.TrimSpace(string(output))),
+				err:   fmt.Errorf("%w: %s", cmdErr, strings.TrimSpace(string(output))),
 			}
 		}
 		content := strings.TrimSpace(string(output))

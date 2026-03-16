@@ -218,7 +218,6 @@ func (m *Model) startMultiLogStream(items []model.Item) (tea.Model, tea.Cmd) {
 
 	var wg sync.WaitGroup
 	for _, item := range items {
-		item := item // capture loop variable
 		itemNs := ns
 		if item.Namespace != "" {
 			itemNs = item.Namespace
@@ -406,7 +405,7 @@ func (m Model) execKubectlDescribe() tea.Cmd {
 			logger.Error("kubectl describe failed", "cmd", cmd.String(), "error", err, "output", string(output))
 			return describeLoadedMsg{
 				title: title,
-				err:   fmt.Errorf("%s: %s", err, strings.TrimSpace(string(output))),
+				err:   fmt.Errorf("%w: %s", err, strings.TrimSpace(string(output))),
 			}
 		}
 		return describeLoadedMsg{
@@ -689,7 +688,7 @@ func (m Model) forceDeleteResource() tea.Cmd {
 		logger.Info("Running kubectl command", "cmd", cmd.String())
 		if output, err := cmd.CombinedOutput(); err != nil {
 			logger.Error("kubectl force delete failed", "cmd", cmd.String(), "error", err, "output", string(output))
-			return actionResultMsg{err: fmt.Errorf("%s: %s", err, strings.TrimSpace(string(output)))}
+			return actionResultMsg{err: fmt.Errorf("%w: %s", err, strings.TrimSpace(string(output)))}
 		}
 		return actionResultMsg{message: fmt.Sprintf("Force deleted %s/%s", rt.Resource, name)}
 	}
@@ -869,7 +868,7 @@ func (m Model) rollbackHelmRelease(revision int) tea.Cmd {
 		output, cmdErr := cmd.CombinedOutput()
 		if cmdErr != nil {
 			logger.Error("helm rollback failed", "cmd", cmd.String(), "error", cmdErr, "output", string(output))
-			return helmRollbackDoneMsg{err: fmt.Errorf("%s: %s", cmdErr, strings.TrimSpace(string(output)))}
+			return helmRollbackDoneMsg{err: fmt.Errorf("%w: %s", cmdErr, strings.TrimSpace(string(output)))}
 		}
 		return helmRollbackDoneMsg{}
 	}

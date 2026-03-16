@@ -127,10 +127,10 @@ var ActiveSchemeName = "tokyonight"
 type configFile struct {
 	// Colorscheme selects a built-in color scheme by name (e.g. "dracula", "nord").
 	// Custom theme overrides in the "theme" section are applied on top.
-	Colorscheme string            `json:"colorscheme" yaml:"colorscheme"`
-	Theme       Theme             `json:"theme" yaml:"theme"`
-	Keybindings Keybindings       `json:"keybindings" yaml:"keybindings"`
-	LogPath     string            `json:"log_path" yaml:"log_path"`
+	Colorscheme   string            `json:"colorscheme" yaml:"colorscheme"`
+	Theme         Theme             `json:"theme" yaml:"theme"`
+	Keybindings   Keybindings       `json:"keybindings" yaml:"keybindings"`
+	LogPath       string            `json:"log_path" yaml:"log_path"`
 	Abbreviations map[string]string `json:"abbreviations" yaml:"abbreviations"`
 	// Icons controls icon display mode: "unicode" (default), "simple" (ASCII labels), "emoji" (emoji), "none" (no icons).
 	Icons string `json:"icons" yaml:"icons"`

@@ -78,7 +78,7 @@ const (
 type sortMode int
 
 const (
-	sortByName   sortMode = iota
+	sortByName sortMode = iota
 	sortByAge
 	sortByStatus
 )
@@ -96,32 +96,32 @@ type actionContext struct {
 
 // TabState holds per-tab navigation state so each tab is fully independent.
 type TabState struct {
-	nav              model.NavigationState
-	leftItems        []model.Item
-	middleItems      []model.Item
-	rightItems       []model.Item
-	leftItemsHistory [][]model.Item
-	cursors          [5]int
-	cursorMemory     map[string]int
-	itemCache        map[string][]model.Item
-	yamlContent      string
-	yamlScroll       int
-	yamlCursor       int // cursor position in visible lines (relative to scroll)
-	yamlSearchText   TextInput
-	yamlMatchLines   []int
-	yamlMatchIdx     int
-	yamlCollapsed    map[string]bool // collapsed state for YAML sections
-	splitPreview     bool
-	fullYAMLPreview  bool
-	previewYAML      string
-	namespace          string
-	allNamespaces      bool
-	selectedNamespaces map[string]bool
-	sortBy             sortMode
-	filterText       string
-	watchMode        bool
-	requestGen       uint64
-	selectedItems    map[string]bool
+	nav                 model.NavigationState
+	leftItems           []model.Item
+	middleItems         []model.Item
+	rightItems          []model.Item
+	leftItemsHistory    [][]model.Item
+	cursors             [5]int
+	cursorMemory        map[string]int
+	itemCache           map[string][]model.Item
+	yamlContent         string
+	yamlScroll          int
+	yamlCursor          int // cursor position in visible lines (relative to scroll)
+	yamlSearchText      TextInput
+	yamlMatchLines      []int
+	yamlMatchIdx        int
+	yamlCollapsed       map[string]bool // collapsed state for YAML sections
+	splitPreview        bool
+	fullYAMLPreview     bool
+	previewYAML         string
+	namespace           string
+	allNamespaces       bool
+	selectedNamespaces  map[string]bool
+	sortBy              sortMode
+	filterText          string
+	watchMode           bool
+	requestGen          uint64
+	selectedItems       map[string]bool
 	fullscreenMiddle    bool
 	fullscreenDashboard bool
 	dashboardPreview    string
@@ -131,8 +131,8 @@ type TabState struct {
 	warningEventsOnly bool
 
 	// Collapsible tree view state for resource types.
-	expandedGroup    string // currently expanded category (accordion behavior)
-	allGroupsExpanded bool  // override: show all groups expanded (toggled by hotkey)
+	expandedGroup     string // currently expanded category (accordion behavior)
+	allGroupsExpanded bool   // override: show all groups expanded (toggled by hotkey)
 
 	// Per-tab view mode and fullscreen state.
 	mode           viewMode
@@ -198,15 +198,15 @@ type Model struct {
 	// Preview / YAML content for the right column or full screen view.
 	yamlContent    string
 	yamlScroll     int
-	yamlCursor     int    // cursor line in visible-line space
+	yamlCursor     int       // cursor line in visible-line space
 	yamlSearchMode bool      // true when typing in the search bar
 	yamlSearchText TextInput // current search query
-	yamlMatchLines []int  // line indices matching the search
-	yamlMatchIdx   int    // current match index in yamlMatchLines
+	yamlMatchLines []int     // line indices matching the search
+	yamlMatchIdx   int       // current match index in yamlMatchLines
 
 	// Collapsible YAML sections.
-	yamlSections  []yamlSection    // parsed hierarchical sections
-	yamlCollapsed map[string]bool  // collapsed state per section key (persists across resources)
+	yamlSections  []yamlSection   // parsed hierarchical sections
+	yamlCollapsed map[string]bool // collapsed state per section key (persists across resources)
 
 	// Split preview: show children in top 1/3 + YAML in bottom 2/3 of right column.
 	splitPreview bool
@@ -257,8 +257,8 @@ type Model struct {
 	allNamespaces bool
 
 	// Multi-select namespace state.
-	selectedNamespaces map[string]bool
-	nsFilterMode       bool
+	selectedNamespaces  map[string]bool
+	nsFilterMode        bool
 	nsSelectionModified bool // tracks if Space was pressed in current ns overlay session
 
 	// Fullscreen middle column: hides left and right columns.
@@ -274,7 +274,6 @@ type Model struct {
 	statusMessage    string
 	statusMessageErr bool
 	statusMessageExp time.Time // when message expires
-
 
 	// Pending target: when set, after resources load, find and select this item by name.
 	pendingTarget string
@@ -294,8 +293,8 @@ type Model struct {
 	helpSearchInput  textinput.Model
 
 	// Resource filter state (/ key).
-	filterText   string // applied filter for middle column
-	filterActive bool   // whether the filter input is being typed
+	filterText   string    // applied filter for middle column
+	filterActive bool      // whether the filter input is being typed
 	filterInput  TextInput // what user is currently typing
 
 	// Search state (s key).
@@ -311,7 +310,7 @@ type Model struct {
 	logLineNumbers bool               // show line numbers
 	logTitle       string             // title for the log overlay
 	logCancel      context.CancelFunc // cancel the kubectl log process
-	logCh          chan string         // channel for streaming log lines
+	logCh          chan string        // channel for streaming log lines
 
 	// Log viewer: parent resource context for pod re-selection.
 	logParentKind string // original parent resource kind (e.g., "Deployment")
@@ -323,7 +322,7 @@ type Model struct {
 	// Log viewer: search state.
 	logSearchActive bool
 	logSearchInput  TextInput
-	logSearchQuery string // applied search
+	logSearchQuery  string // applied search
 
 	// Describe viewer state.
 	describeContent string
@@ -331,21 +330,21 @@ type Model struct {
 	describeTitle   string
 
 	// Diff viewer state.
-	diffLeft      string // YAML content of first resource
-	diffRight     string // YAML content of second resource
-	diffLeftName  string // name of first resource
-	diffRightName string // name of second resource
+	diffLeft        string // YAML content of first resource
+	diffRight       string // YAML content of second resource
+	diffLeftName    string // name of first resource
+	diffRightName   string // name of second resource
 	diffScroll      int    // scroll position in diff view
 	diffUnified     bool   // true = unified diff, false = side-by-side
 	diffLineNumbers bool   // show line numbers in diff view
 	diffLineInput   string // digit accumulator for jump-to-line (digits + G)
 
 	// Embedded terminal state (PTY mode).
-	execPTY   *os.File         // PTY master file descriptor
-	execTerm  vt10x.Terminal   // Virtual terminal emulator
-	execTitle string           // Title for the exec session
-	execDone  *atomic.Bool     // Process has exited (shared across copies)
-	execMu    *sync.Mutex      // Protects execTerm access
+	execPTY   *os.File       // PTY master file descriptor
+	execTerm  vt10x.Terminal // Virtual terminal emulator
+	execTitle string         // Title for the exec session
+	execDone  *atomic.Bool   // Process has exited (shared across copies)
+	execMu    *sync.Mutex    // Protects execTerm access
 
 	// Multi-selection state: maps "namespace/name" keys to selected status.
 	selectedItems map[string]bool
@@ -376,7 +375,7 @@ type Model struct {
 
 	// Bookmarks: saved navigation paths for quick access.
 	bookmarks          []model.Bookmark
-	bookmarkFilter     TextInput        // filter text (f mode) for bookmark overlay
+	bookmarkFilter     TextInput           // filter text (f mode) for bookmark overlay
 	bookmarkSearchMode bookmarkOverlayMode // current interaction mode for bookmark overlay
 
 	// Template overlay state.
@@ -460,12 +459,12 @@ type Model struct {
 	labelEditing      bool
 	labelEditKey      TextInput
 	labelEditValue    TextInput
-	labelEditColumn   int                    // 0=key, 1=value
+	labelEditColumn   int                     // 0=key, 1=value
 	labelResourceType model.ResourceTypeEntry // the resource type being edited
 
 	// Quick filter preset state.
-	filterPresets        []FilterPreset
-	activeFilterPreset   *FilterPreset  // currently applied filter preset, nil if none
+	filterPresets         []FilterPreset
+	activeFilterPreset    *FilterPreset // currently applied filter preset, nil if none
 	unfilteredMiddleItems []model.Item  // full list before filter preset was applied
 
 	// RBAC permission check state.
@@ -484,9 +483,9 @@ type Model struct {
 	netpolScroll int
 
 	// Batch label/annotation editor state.
-	batchLabelMode   int    // 0=labels, 1=annotations
+	batchLabelMode   int       // 0=labels, 1=annotations
 	batchLabelInput  TextInput // "key=value" input
-	batchLabelRemove bool   // true = remove mode, false = add mode
+	batchLabelRemove bool      // true = remove mode, false = add mode
 
 	// Pod startup analysis state.
 	podStartupData *k8s.PodStartupInfo
@@ -551,29 +550,29 @@ func NewModel(client *k8s.Client) Model {
 	reqCtx, reqCancel := context.WithCancel(context.Background())
 	pinnedSt := loadPinnedState()
 	m := Model{
-		client:         client,
-		nav:            model.NavigationState{Level: model.LevelClusters},
-		bookmarks:      loadBookmarks(),
+		client:              client,
+		nav:                 model.NavigationState{Level: model.LevelClusters},
+		bookmarks:           loadBookmarks(),
 		pendingSession:      loadSession(),
 		pendingPortForwards: loadPortForwardState(),
-		commandHistory: loadCommandHistory(),
-		pinnedState:    pinnedSt,
-		namespace:      client.DefaultNamespace(client.CurrentContext()),
-		spinner:        s,
-		watchInterval:  2 * time.Second,
-		splitPreview:   true,
-		allNamespaces:  true,
-		watchMode:      true,
-		cursorMemory:   make(map[string]int),
-		itemCache:      make(map[string][]model.Item),
-		selectedItems:  make(map[string]bool),
-		yamlCollapsed:  make(map[string]bool),
-		discoveredCRDs:    make(map[string][]model.ResourceTypeEntry),
-		allGroupsExpanded: true,
-		warningEventsOnly: true,
-		diffLineNumbers:   true,
-		reqCtx:            reqCtx,
-		reqCancel:         reqCancel,
+		commandHistory:      loadCommandHistory(),
+		pinnedState:         pinnedSt,
+		namespace:           client.DefaultNamespace(client.CurrentContext()),
+		spinner:             s,
+		watchInterval:       2 * time.Second,
+		splitPreview:        true,
+		allNamespaces:       true,
+		watchMode:           true,
+		cursorMemory:        make(map[string]int),
+		itemCache:           make(map[string][]model.Item),
+		selectedItems:       make(map[string]bool),
+		yamlCollapsed:       make(map[string]bool),
+		discoveredCRDs:      make(map[string][]model.ResourceTypeEntry),
+		allGroupsExpanded:   true,
+		warningEventsOnly:   true,
+		diffLineNumbers:     true,
+		reqCtx:              reqCtx,
+		reqCancel:           reqCancel,
 		tabs: []TabState{{
 			nav:                model.NavigationState{Level: model.LevelClusters},
 			namespace:          client.DefaultNamespace(client.CurrentContext()),
@@ -838,7 +837,7 @@ func (m Model) viewExplorer() string {
 			dashContent = strings.Join(lines, "\n")
 		}
 		dashCol := padToHeight(dashContent, contentHeight)
-		columns = ui.ActiveColumnStyle.Width(m.width-2).Height(contentHeight).MaxHeight(contentHeight+2).Render(dashCol)
+		columns = ui.ActiveColumnStyle.Width(m.width - 2).Height(contentHeight).MaxHeight(contentHeight + 2).Render(dashCol)
 	case m.fullscreenMiddle:
 		columns = middle
 	default:
@@ -1839,10 +1838,10 @@ func (m Model) renderOverlay(background string) string {
 	case overlayNetworkPolicy:
 		if m.netpolData != nil {
 			entry := ui.NetworkPolicyEntry{
-				Name:        m.netpolData.Name,
-				Namespace:   m.netpolData.Namespace,
-				PodSelector: m.netpolData.PodSelector,
-				PolicyTypes: m.netpolData.PolicyTypes,
+				Name:         m.netpolData.Name,
+				Namespace:    m.netpolData.Namespace,
+				PodSelector:  m.netpolData.PodSelector,
+				PolicyTypes:  m.netpolData.PolicyTypes,
 				AffectedPods: m.netpolData.AffectedPods,
 			}
 			for _, r := range m.netpolData.IngressRules {

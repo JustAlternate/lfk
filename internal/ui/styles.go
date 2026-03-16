@@ -227,7 +227,7 @@ var (
 
 	// YamlCursorIndicatorStyle styles the gutter indicator on the YAML cursor line.
 	YamlCursorIndicatorStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color(ColorPrimary))
+					Foreground(lipgloss.Color(ColorPrimary))
 
 	// DeprecationStyle styles the deprecation warning indicator on resource type items.
 	DeprecationStyle = lipgloss.NewStyle().

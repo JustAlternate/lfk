@@ -76,4 +76,3 @@ func togglePinnedGroup(s *PinnedState, context, group string) bool {
 	s.Contexts[context] = append(groups, group)
 	return true
 }
-

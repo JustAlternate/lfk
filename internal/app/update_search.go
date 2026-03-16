@@ -302,7 +302,7 @@ func (m *Model) searchAllItems(queries []string, startIdx int, forward bool) {
 	}
 
 	// Search through all items in the specified direction.
-	var matchIdx = -1
+	matchIdx := -1
 	if forward {
 		for i := fullStart; i < len(allItems); i++ {
 			if allItems[i].Kind != "__collapsed_group__" && m.searchMatchesItem(allItems[i], queries) {

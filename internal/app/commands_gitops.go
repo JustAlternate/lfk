@@ -105,4 +105,3 @@ func (m Model) terminateArgoSync() tea.Cmd {
 		return actionResultMsg{message: fmt.Sprintf("Sync termination requested for %s", name)}
 	}
 }
-

@@ -3,18 +3,29 @@ version: "2"
 run:
   timeout: 5m
 
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+
 linters:
   enable:
+    - bodyclose
+    - copyloopvar
+    - durationcheck
     - errcheck
-    - govet
-    - staticcheck
-    - unused
-    - ineffassign
+    - errorlint
     - gocritic
+    - govet
+    - ineffassign
+    - intrange
     - misspell
+    - nilerr
     - prealloc
+    - staticcheck
     - unconvert
     - unparam
+    - unused
   settings:
     gocritic:
       disabled-tags:

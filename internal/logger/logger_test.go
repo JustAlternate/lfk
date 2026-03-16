@@ -111,7 +111,7 @@ func TestStderrCaptureMultipleMessages(t *testing.T) {
 	w := sc.Writer()
 
 	// Write multiple messages with delays to ensure they are separate reads.
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		_, err := w.Write([]byte("msg"))
 		assert.NoError(t, err)
 		time.Sleep(10 * time.Millisecond)

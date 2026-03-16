@@ -68,17 +68,17 @@ var emojiIcons = map[string]string{
 	"⬤": "🔵",  // Pods
 	"◆": "🚀",  // Deployments
 	"◈": "📦",  // ReplicaSets
-	"◇": "🗄️",  // StatefulSets
+	"◇": "🗄️", // StatefulSets
 	"●": "🔄",  // DaemonSets
-	"▶": "⚡️",  // Jobs
-	"⟳": "⏰️",  // CronJobs
+	"▶": "⚡️", // Jobs
+	"⟳": "⏰️", // CronJobs
 	"≡": "📋",  // ConfigMaps
 	"⊡": "🔒",  // Secrets
 	"⇔": "📊",  // HPA
 	"⊞": "📏",  // ResourceQuotas / PVCs / PVs
 	"⊟": "📐",  // LimitRanges
 	"⇕": "📈",  // VPA
-	"⊘": "🛡️",  // PodDisruptionBudgets
+	"⊘": "🛡️", // PodDisruptionBudgets
 	"⇌": "🔀",  // Services
 	"↳": "🌐",  // Ingresses / IngressClasses
 	"⛊": "🔥",  // NetworkPolicies
@@ -89,13 +89,13 @@ var emojiIcons = map[string]string{
 	"⚿": "🔑",  // Roles / RoleBindings / ClusterRoles / ClusterRoleBindings
 	"▣": "📦",  // Namespaces
 	"↯": "🔔",  // Events
-	"⬡": "🖥️",  // Nodes
+	"⬡": "🖥️", // Nodes
 	"⧫": "🔷",  // CRDs / API Services
 	"⎋": "⛵",  // Helm
-	"⎈": "☸️",  // ArgoCD
-	"⇑": "🏷️",  // PriorityClasses
-	"⊙": "⚙️",  // RuntimeClasses
-	"⏱": "⏱️",  // Leases
+	"⎈": "☸️", // ArgoCD
+	"⇑": "🏷️", // PriorityClasses
+	"⊙": "⚙️", // RuntimeClasses
+	"⏱": "⏱️", // Leases
 	"⚙": "🔧",  // Webhook Configurations
 	"◎": "🏠",  // Overview
 	"⇋": "🔗",  // Port Forwards
@@ -1237,7 +1237,8 @@ func RenderTable(headerLabel string, items []model.Item, cursor int, width, heig
 // formatTableRow builds a plain text table row.
 func formatTableRow(name, ns, ready, restarts, status string,
 	nameW, nsW, readyW, restartsW, statusW int,
-	hasNs, hasReady, hasRestarts, hasStatus bool) string {
+	hasNs, hasReady, hasRestarts, hasStatus bool,
+) string {
 	var parts []string
 	if hasNs {
 		parts = append(parts, padRight(Truncate(ns, nsW), nsW))
@@ -1260,7 +1261,8 @@ func formatTableRow(name, ns, ready, restarts, status string,
 // anyRecentRestart indicates whether any item in the table has a recent restart,
 // which controls whether a " " placeholder is added for alignment in the restarts column.
 func formatTableRowStyled(item model.Item, nameW, nsW, readyW, restartsW, statusW int,
-	hasNs, hasReady, hasRestarts, hasStatus bool, anyRecentRestart bool) string {
+	hasNs, hasReady, hasRestarts, hasStatus bool, anyRecentRestart bool,
+) string {
 	var parts []string
 
 	// Namespace comes first when shown.
@@ -1513,8 +1515,8 @@ func getExtraColumnValue(item *model.Item, key string) string {
 func formatTableRowWithExtra(name, ns, ready, restarts, status, age string,
 	nameW, nsW, readyW, restartsW, statusW, ageW int,
 	hasNs, hasReady, hasRestarts, hasStatus, hasAge bool,
-	extraCols []extraColumn, item *model.Item) string {
-
+	extraCols []extraColumn, item *model.Item,
+) string {
 	row := formatTableRow(name, ns, ready, restarts, status,
 		nameW, nsW, readyW, restartsW, statusW, hasNs, hasReady, hasRestarts, hasStatus)
 
@@ -1553,8 +1555,8 @@ func formatTableRowWithExtra(name, ns, ready, restarts, status, age string,
 // formatTableRowStyledWithExtra builds a styled table row including extra columns.
 func formatTableRowStyledWithExtra(item model.Item, nameW, nsW, readyW, restartsW, statusW, ageW int,
 	hasNs, hasReady, hasRestarts, hasStatus, hasAge bool,
-	extraCols []extraColumn, anyRecentRestart bool) string {
-
+	extraCols []extraColumn, anyRecentRestart bool,
+) string {
 	base := formatTableRowStyled(item, nameW, nsW, readyW, restartsW, statusW,
 		hasNs, hasReady, hasRestarts, hasStatus, anyRecentRestart)
 

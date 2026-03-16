@@ -326,7 +326,7 @@ func splitLines(s string) []string {
 func splitString(s string) []string {
 	result := []string{}
 	start := 0
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		if s[i] == '\n' {
 			result = append(result, s[start:i])
 			start = i + 1
@@ -337,7 +337,7 @@ func splitString(s string) []string {
 }
 
 func indexOf(s, substr string) int {
-	for i := 0; i < len(s)-len(substr)+1; i++ {
+	for i := range len(s) - len(substr) + 1 {
 		if s[i:i+len(substr)] == substr {
 			return i
 		}
@@ -527,10 +527,10 @@ func TestEvaluateSimpleJSONPath(t *testing.T) {
 	}
 
 	tests := []struct {
-		name     string
-		path     string
-		wantVal  interface{}
-		wantOK   bool
+		name    string
+		path    string
+		wantVal interface{}
+		wantOK  bool
 	}{
 		{"simple field", ".status.phase", "Running", true},
 		{"nested field", ".spec.source.repoURL", "https://github.com/example/repo", true},

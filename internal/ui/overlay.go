@@ -624,9 +624,9 @@ func RenderColorschemeOverlay(entries []SchemeEntry, filter string, cursor int, 
 
 	// Build display list: when filtering, skip headers and filter selectable entries.
 	type displayItem struct {
-		label      string
-		isHeader   bool
-		selectIdx  int // index among selectable items (-1 for headers)
+		label     string
+		isHeader  bool
+		selectIdx int // index among selectable items (-1 for headers)
 	}
 
 	var items []displayItem
@@ -1015,7 +1015,7 @@ func RenderQuotaDashboardOverlay(quotas []QuotaEntry, width, height int) string 
 		if i > 0 {
 			b.WriteString("\n")
 		}
-		b.WriteString(OverlayFilterStyle.Render("  "+q.Name))
+		b.WriteString(OverlayFilterStyle.Render("  " + q.Name))
 		b.WriteString("\n")
 
 		for _, res := range q.Resources {
@@ -1770,7 +1770,7 @@ func renderTwoBoxes(leftContent, rightContent []string, arrow string, borderStyl
 		}
 	}
 
-	var result []string
+	result := make([]string, 0, maxH+2)
 
 	// The inner width of each box is: 1 space + content + 1 space = leftW + 2.
 	// Border dashes span that same inner width.
@@ -1785,7 +1785,7 @@ func renderTwoBoxes(leftContent, rightContent []string, arrow string, borderStyl
 
 	// Content lines with arrow at the midpoint.
 	midRow := maxH / 2
-	for i := 0; i < maxH; i++ {
+	for i := range maxH {
 		leftLine := padRight(leftContent[i], leftW)
 		rightLine := padRight(rightContent[i], rightW)
 
@@ -1812,9 +1812,9 @@ func renderTwoBoxes(leftContent, rightContent []string, arrow string, borderStyl
 
 // diffLine classifies a line in the diff output.
 type diffLine struct {
-	left    string // content for left column ("" if absent)
-	right   string // content for right column ("" if absent)
-	status  byte   // '=' same, '<' only left, '>' only right, '~' both present but different
+	left   string // content for left column ("" if absent)
+	right  string // content for right column ("" if absent)
+	status byte   // '=' same, '<' only left, '>' only right, '~' both present but different
 }
 
 // computeDiff produces a line-by-line diff of two YAML texts using a simple

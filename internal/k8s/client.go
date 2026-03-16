@@ -118,10 +118,8 @@ func buildKubeconfigPaths() []string {
 		// config.d directory - recursively find all files.
 		configDir := filepath.Join(home, ".kube", "config.d")
 		_ = filepath.WalkDir(configDir, func(path string, d os.DirEntry, err error) error {
-			if err != nil {
-				return nil // skip errors (dir might not exist)
-			}
-			if !d.IsDir() {
+			// skip errors (dir might not exist)
+			if err == nil && !d.IsDir() {
 				paths = append(paths, path)
 			}
 			return nil

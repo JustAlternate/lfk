@@ -258,8 +258,8 @@ func TestRenderBookmarkOverlay(t *testing.T) {
 	})
 
 	t.Run("number shortcuts shown for first 9 bookmarks", func(t *testing.T) {
-		var bms []model.Bookmark
-		for i := 0; i < 11; i++ {
+		bms := make([]model.Bookmark, 0, 11)
+		for i := range 11 {
 			bms = append(bms, model.Bookmark{Name: fmt.Sprintf("Bookmark %d", i+1)})
 		}
 		result := RenderBookmarkOverlay(bms, "", 0, 0)
@@ -882,8 +882,8 @@ func TestRenderDiffView(t *testing.T) {
 	})
 
 	t.Run("scroll position is respected", func(t *testing.T) {
-		var lines []string
-		for i := 0; i < 50; i++ {
+		lines := make([]string, 0, 50)
+		for i := range 50 {
 			lines = append(lines, fmt.Sprintf("line-%d: value", i))
 		}
 		yaml := strings.Join(lines, "\n")

@@ -185,14 +185,14 @@ func TestFlattenedResourceTypesFiltered(t *testing.T) {
 
 	t.Run("cert-manager enabled", func(t *testing.T) {
 		groups := map[string]bool{
-			"cert-manager.io":                    true,
-			"acme.cert-manager.io":               true,
-			"cert-manager.io/certificates":       true,
-			"cert-manager.io/issuers":            true,
-			"cert-manager.io/clusterissuers":     true,
+			"cert-manager.io":                     true,
+			"acme.cert-manager.io":                true,
+			"cert-manager.io/certificates":        true,
+			"cert-manager.io/issuers":             true,
+			"cert-manager.io/clusterissuers":      true,
 			"cert-manager.io/certificaterequests": true,
-			"acme.cert-manager.io/orders":        true,
-			"acme.cert-manager.io/challenges":    true,
+			"acme.cert-manager.io/orders":         true,
+			"acme.cert-manager.io/challenges":     true,
 		}
 		items := FlattenedResourceTypesFiltered(groups)
 		hasCM := false
@@ -220,8 +220,8 @@ func TestFlattenedResourceTypesFiltered(t *testing.T) {
 	t.Run("Istio enabled", func(t *testing.T) {
 		items := FlattenedResourceTypesFiltered(map[string]bool{
 			"networking.istio.io": true,
-			"security.istio.io":  true,
-			"telemetry.istio.io": true,
+			"security.istio.io":   true,
+			"telemetry.istio.io":  true,
 		})
 		hasIstio := false
 		for _, item := range items {
@@ -235,7 +235,7 @@ func TestFlattenedResourceTypesFiltered(t *testing.T) {
 
 	t.Run("GKE enabled", func(t *testing.T) {
 		items := FlattenedResourceTypesFiltered(map[string]bool{
-			"cloud.google.com": true,
+			"cloud.google.com":  true,
 			"networking.gke.io": true,
 		})
 		hasGKE := false
@@ -265,7 +265,7 @@ func TestFlattenedResourceTypesFiltered(t *testing.T) {
 
 	t.Run("AKS enabled", func(t *testing.T) {
 		items := FlattenedResourceTypesFiltered(map[string]bool{
-			"aadpodidentity.k8s.io":          true,
+			"aadpodidentity.k8s.io":           true,
 			"infrastructure.cluster.x-k8s.io": true,
 		})
 		hasAKS := false

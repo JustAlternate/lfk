@@ -9,9 +9,11 @@ import (
 )
 
 func TestBuiltinFilterPresets_UniversalPresetsAlwaysPresent(t *testing.T) {
-	kinds := []string{"Pod", "Deployment", "Node", "Job", "CronJob", "Service",
+	kinds := []string{
+		"Pod", "Deployment", "Node", "Job", "CronJob", "Service",
 		"Certificate", "Application", "HelmRelease", "Kustomization",
-		"PersistentVolumeClaim", "Event", "ConfigMap", "Secret", "UnknownKind", ""}
+		"PersistentVolumeClaim", "Event", "ConfigMap", "Secret", "UnknownKind", "",
+	}
 
 	for _, kind := range kinds {
 		presets := builtinFilterPresets(kind)
@@ -91,9 +93,11 @@ func TestBuiltinFilterPresets_UnknownKind(t *testing.T) {
 }
 
 func TestBuiltinFilterPresets_UniqueKeys(t *testing.T) {
-	kinds := []string{"Pod", "Deployment", "Node", "Job", "CronJob", "Service",
+	kinds := []string{
+		"Pod", "Deployment", "Node", "Job", "CronJob", "Service",
 		"Certificate", "Application", "HelmRelease", "Kustomization",
-		"PersistentVolumeClaim", "Event", "StatefulSet", "DaemonSet"}
+		"PersistentVolumeClaim", "Event", "StatefulSet", "DaemonSet",
+	}
 
 	for _, kind := range kinds {
 		presets := builtinFilterPresets(kind)

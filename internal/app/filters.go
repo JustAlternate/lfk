@@ -39,32 +39,45 @@ func builtinFilterPresets(kind string) []FilterPreset {
 	switch kind {
 	case "Pod":
 		presets = append(presets,
-			FilterPreset{Name: "Failing", Description: "CrashLoop / Error / ImagePull / OOMKilled", Key: "f",
+			FilterPreset{
+				Name: "Failing", Description: "CrashLoop / Error / ImagePull / OOMKilled", Key: "f",
 				MatchFn: func(item model.Item) bool {
 					s := strings.ToLower(item.Status)
 					return s == "failed" || s == "error" || s == "crashloopbackoff" ||
 						s == "imagepullbackoff" || s == "errimagepull" || s == "oomkilled" ||
 						s == "evicted" || s == "createcontainerconfigerror"
-				}},
-			FilterPreset{Name: "Pending", Description: "Pending / ContainerCreating / Terminating", Key: "p",
+				},
+			},
+			FilterPreset{
+				Name: "Pending", Description: "Pending / ContainerCreating / Terminating", Key: "p",
 				MatchFn: func(item model.Item) bool {
 					s := strings.ToLower(item.Status)
 					return s == "pending" || s == "containercreating" || s == "podinitializing" ||
 						s == "init:0/1" || s == "terminating" || s == "unknown"
-				}},
-			FilterPreset{Name: "Not Ready", Description: "Ready containers mismatch", Key: "n",
-				MatchFn: matchReadyMismatch},
-			FilterPreset{Name: "Restarting", Description: "Restart count > 0", Key: "r",
-				MatchFn: matchRestartsGt(0)},
-			FilterPreset{Name: "High Restarts", Description: "Restart count > 10", Key: "R",
-				MatchFn: matchRestartsGt(10)},
+				},
+			},
+			FilterPreset{
+				Name: "Not Ready", Description: "Ready containers mismatch", Key: "n",
+				MatchFn: matchReadyMismatch,
+			},
+			FilterPreset{
+				Name: "Restarting", Description: "Restart count > 0", Key: "r",
+				MatchFn: matchRestartsGt(0),
+			},
+			FilterPreset{
+				Name: "High Restarts", Description: "Restart count > 10", Key: "R",
+				MatchFn: matchRestartsGt(10),
+			},
 		)
 
 	case "Deployment", "StatefulSet", "DaemonSet":
 		presets = append(presets,
-			FilterPreset{Name: "Not Ready", Description: "Ready replicas != desired", Key: "n",
-				MatchFn: matchReadyMismatch},
-			FilterPreset{Name: "Failing", Description: "Progressing=False or unavailable replicas", Key: "f",
+			FilterPreset{
+				Name: "Not Ready", Description: "Ready replicas != desired", Key: "n",
+				MatchFn: matchReadyMismatch,
+			},
+			FilterPreset{
+				Name: "Failing", Description: "Progressing=False or unavailable replicas", Key: "f",
 				MatchFn: func(item model.Item) bool {
 					s := strings.ToLower(item.Status)
 					if s == "failed" || s == "error" || s == "degraded" {
@@ -75,43 +88,53 @@ func builtinFilterPresets(kind string) []FilterPreset {
 						return true
 					}
 					return matchReadyMismatch(item)
-				}},
+				},
+			},
 		)
 
 	case "Node":
 		presets = append(presets,
-			FilterPreset{Name: "Not Ready", Description: "Node status != Ready", Key: "n",
+			FilterPreset{
+				Name: "Not Ready", Description: "Node status != Ready", Key: "n",
 				MatchFn: func(item model.Item) bool {
 					s := strings.ToLower(item.Status)
 					return s != "ready"
-				}},
-			FilterPreset{Name: "Cordoned", Description: "SchedulingDisabled", Key: "c",
+				},
+			},
+			FilterPreset{
+				Name: "Cordoned", Description: "SchedulingDisabled", Key: "c",
 				MatchFn: func(item model.Item) bool {
 					s := strings.ToLower(item.Status)
 					return strings.Contains(s, "schedulingdisabled")
-				}},
+				},
+			},
 		)
 
 	case "Job":
 		presets = append(presets,
-			FilterPreset{Name: "Failed", Description: "Job failed or hit BackoffLimit", Key: "f",
+			FilterPreset{
+				Name: "Failed", Description: "Job failed or hit BackoffLimit", Key: "f",
 				MatchFn: func(item model.Item) bool {
 					s := strings.ToLower(item.Status)
 					return strings.Contains(s, "failed") || strings.Contains(s, "backofflimit")
-				}},
+				},
+			},
 		)
 
 	case "CronJob":
 		presets = append(presets,
-			FilterPreset{Name: "Suspended", Description: "CronJob is suspended", Key: "s",
+			FilterPreset{
+				Name: "Suspended", Description: "CronJob is suspended", Key: "s",
 				MatchFn: func(item model.Item) bool {
 					return strings.EqualFold(columnValue(item, "Suspend"), "true")
-				}},
+				},
+			},
 		)
 
 	case "Service":
 		presets = append(presets,
-			FilterPreset{Name: "LB No IP", Description: "LoadBalancer without external IP", Key: "l",
+			FilterPreset{
+				Name: "LB No IP", Description: "LoadBalancer without external IP", Key: "l",
 				MatchFn: func(item model.Item) bool {
 					svcType := columnValue(item, "Type")
 					if !strings.EqualFold(svcType, "loadbalancer") {
@@ -119,17 +142,21 @@ func builtinFilterPresets(kind string) []FilterPreset {
 					}
 					ext := columnValue(item, "External-IP")
 					return ext == "" || ext == "<none>" || ext == "<pending>"
-				}},
+				},
+			},
 		)
 
 	case "Certificate", "CertificateRequest":
 		presets = append(presets,
-			FilterPreset{Name: "Not Ready", Description: "Certificate not ready", Key: "n",
+			FilterPreset{
+				Name: "Not Ready", Description: "Certificate not ready", Key: "n",
 				MatchFn: func(item model.Item) bool {
 					s := strings.ToLower(item.Status)
 					return !strings.Contains(s, "true") && s != "ready"
-				}},
-			FilterPreset{Name: "Expiring Soon", Description: "Expires within 30 days", Key: "e",
+				},
+			},
+			FilterPreset{
+				Name: "Expiring Soon", Description: "Expires within 30 days", Key: "e",
 				MatchFn: func(item model.Item) bool {
 					exp := columnValue(item, "Expires")
 					if exp == "" {
@@ -150,88 +177,111 @@ func builtinFilterPresets(kind string) []FilterPreset {
 						}
 					}
 					return false
-				}},
+				},
+			},
 		)
 
 	case "Application": // ArgoCD
 		presets = append(presets,
-			FilterPreset{Name: "Out of Sync", Description: "Sync status is OutOfSync", Key: "s",
+			FilterPreset{
+				Name: "Out of Sync", Description: "Sync status is OutOfSync", Key: "s",
 				MatchFn: func(item model.Item) bool {
 					s := strings.ToLower(item.Status)
 					return strings.Contains(s, "outofsync")
-				}},
-			FilterPreset{Name: "Degraded", Description: "Health is Degraded or Missing", Key: "d",
+				},
+			},
+			FilterPreset{
+				Name: "Degraded", Description: "Health is Degraded or Missing", Key: "d",
 				MatchFn: func(item model.Item) bool {
 					s := strings.ToLower(item.Status)
 					return strings.Contains(s, "degraded") || strings.Contains(s, "missing")
-				}},
+				},
+			},
 		)
 
 	case "HelmRelease":
 		presets = append(presets,
-			FilterPreset{Name: "Suspended", Description: "Reconciliation suspended", Key: "s",
+			FilterPreset{
+				Name: "Suspended", Description: "Reconciliation suspended", Key: "s",
 				MatchFn: func(item model.Item) bool {
 					s := strings.ToLower(item.Status)
 					return strings.Contains(s, "suspended")
-				}},
-			FilterPreset{Name: "Not Ready", Description: "Not in Ready/Applied state", Key: "n",
+				},
+			},
+			FilterPreset{
+				Name: "Not Ready", Description: "Not in Ready/Applied state", Key: "n",
 				MatchFn: func(item model.Item) bool {
 					s := strings.ToLower(item.Status)
 					return s != "ready" && s != "applied" && !strings.Contains(s, "suspended")
-				}},
+				},
+			},
 		)
 
 	case "Kustomization":
 		presets = append(presets,
-			FilterPreset{Name: "Suspended", Description: "Reconciliation suspended", Key: "s",
+			FilterPreset{
+				Name: "Suspended", Description: "Reconciliation suspended", Key: "s",
 				MatchFn: func(item model.Item) bool {
 					s := strings.ToLower(item.Status)
 					return strings.Contains(s, "suspended")
-				}},
-			FilterPreset{Name: "Not Ready", Description: "Not in Ready/Applied state", Key: "n",
+				},
+			},
+			FilterPreset{
+				Name: "Not Ready", Description: "Not in Ready/Applied state", Key: "n",
 				MatchFn: func(item model.Item) bool {
 					s := strings.ToLower(item.Status)
 					return s != "ready" && s != "applied" && !strings.Contains(s, "suspended")
-				}},
+				},
+			},
 		)
 
 	case "PersistentVolumeClaim":
 		presets = append(presets,
-			FilterPreset{Name: "Pending", Description: "PVC not yet bound", Key: "p",
+			FilterPreset{
+				Name: "Pending", Description: "PVC not yet bound", Key: "p",
 				MatchFn: func(item model.Item) bool {
 					return strings.EqualFold(item.Status, "pending")
-				}},
-			FilterPreset{Name: "Lost", Description: "PVC lost its backing volume", Key: "l",
+				},
+			},
+			FilterPreset{
+				Name: "Lost", Description: "PVC lost its backing volume", Key: "l",
 				MatchFn: func(item model.Item) bool {
 					return strings.EqualFold(item.Status, "lost")
-				}},
+				},
+			},
 		)
 
 	case "Event":
 		presets = append(presets,
-			FilterPreset{Name: "Warnings", Description: "Warning events only", Key: "w",
+			FilterPreset{
+				Name: "Warnings", Description: "Warning events only", Key: "w",
 				MatchFn: func(item model.Item) bool {
 					return strings.EqualFold(item.Status, "warning")
-				}},
+				},
+			},
 		)
 	}
 
 	// --- Universal presets (shown for all kinds) ---
 	presets = append(presets,
-		FilterPreset{Name: "Old (>30d)", Description: "Resources older than 30 days", Key: "o",
+		FilterPreset{
+			Name: "Old (>30d)", Description: "Resources older than 30 days", Key: "o",
 			MatchFn: func(item model.Item) bool {
 				if item.CreatedAt.IsZero() {
 					return false
 				}
 				return time.Since(item.CreatedAt) > 30*24*time.Hour
-			}},
-		FilterPreset{Name: "Recent (<1h)", Description: "Resources created in the last hour", Key: "h",
+			},
+		},
+		FilterPreset{
+			Name: "Recent (<1h)", Description: "Resources created in the last hour", Key: "h",
 			MatchFn: func(item model.Item) bool {
 				if item.CreatedAt.IsZero() {
 					return false
 				}
 				return time.Since(item.CreatedAt) < time.Hour
-			}},
+			},
+		},
 	)
 
 	// --- User-configured presets from config file ---

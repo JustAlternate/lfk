@@ -106,7 +106,6 @@ func (m *Model) restorePortForwards() []tea.Cmd {
 
 	cmds := make([]tea.Cmd, 0, len(m.pendingPortForwards.PortForwards))
 	for _, pf := range m.pendingPortForwards.PortForwards {
-		pf := pf // capture loop variable
 		cmds = append(cmds, func() tea.Msg {
 			// Reuse the saved local port so users get the same port on restart.
 			id, err := mgr.Start(kubectlPath, kubeconfigPaths, pf.ResourceKind, pf.ResourceName, pf.Namespace, pf.Context, pf.LocalPort, pf.RemotePort)

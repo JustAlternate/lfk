@@ -28,18 +28,18 @@ const (
 
 // PortForwardEntry represents a single active port forward.
 type PortForwardEntry struct {
-	ID            int
-	ResourceKind  string // "pod" or "svc"
-	ResourceName  string
-	Namespace     string
-	Context       string
-	LocalPort     string
-	RemotePort    string
-	Status        PortForwardStatus
-	Error         string
-	StartedAt     time.Time
-	cmd           *exec.Cmd
-	cancel        context.CancelFunc
+	ID           int
+	ResourceKind string // "pod" or "svc"
+	ResourceName string
+	Namespace    string
+	Context      string
+	LocalPort    string
+	RemotePort   string
+	Status       PortForwardStatus
+	Error        string
+	StartedAt    time.Time
+	cmd          *exec.Cmd
+	cancel       context.CancelFunc
 }
 
 // PortForwardManager manages active port forwards.
