@@ -229,6 +229,11 @@ func (c *Client) GetResources(ctx context.Context, contextName, namespace string
 			Status: extractStatus(item.Object),
 		}
 
+		// Check if the resource is being deleted.
+		if item.GetDeletionTimestamp() != nil {
+			ti.Deleting = true
+		}
+
 		// Populate namespace when listing across all namespaces.
 		if namespace == "" && rt.Namespaced {
 			ti.Namespace = item.GetNamespace()

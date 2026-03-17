@@ -32,6 +32,7 @@ type Keybindings struct {
 	Refresh     string `json:"refresh"`
 	Restart     string `json:"restart"`
 	Exec        string `json:"exec"`
+	Edit        string `json:"edit"`
 	Describe    string `json:"describe"`
 	Delete      string `json:"delete"`
 	ForceDelete string `json:"force_delete"`
@@ -45,6 +46,7 @@ func DefaultKeybindings() Keybindings {
 		Refresh:     "R",
 		Restart:     "r",
 		Exec:        "s",
+		Edit:        "E",
 		Describe:    "v",
 		Delete:      "D",
 		ForceDelete: "X",

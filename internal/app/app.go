@@ -44,6 +44,7 @@ const (
 	overlayNamespace
 	overlayAction
 	overlayConfirm
+	overlayConfirmType // requires typing "DELETE" to confirm
 	overlayScaleInput
 	overlayPortForward
 	overlayContainerSelect
@@ -102,6 +103,8 @@ type TabState struct {
 	rightItems          []model.Item
 	leftItemsHistory    [][]model.Item
 	cursors             [5]int
+	middleScroll        int // persistent scroll position for middle column (vim-style scrolloff)
+	leftScroll          int // persistent scroll position for left column (vim-style scrolloff)
 	cursorMemory        map[string]int
 	itemCache           map[string][]model.Item
 	yamlContent         string
@@ -252,6 +255,9 @@ type Model struct {
 
 	// Confirm action label (for delete confirmation).
 	confirmAction string
+
+	// Text input for type-to-confirm overlay (e.g., Force Finalize).
+	confirmTypeInput TextInput
 
 	// All-namespaces mode.
 	allNamespaces bool
@@ -845,7 +851,14 @@ func (m Model) viewExplorer() string {
 		// Clear highlight query for preview/right column — search only applies to the focus pane.
 		savedHighlight := ui.ActiveHighlightQuery
 		ui.ActiveHighlightQuery = ""
+		// Disable vim-style scroll for right column (it has its own preview scroll).
+		savedMiddleScroll := ui.ActiveMiddleScroll
+		savedLeftScroll := ui.ActiveLeftScroll
+		ui.ActiveMiddleScroll = -1
+		ui.ActiveLeftScroll = -1
 		rightCol := m.renderRightColumn(rightInner, contentHeight)
+		ui.ActiveMiddleScroll = savedMiddleScroll
+		ui.ActiveLeftScroll = savedLeftScroll
 		ui.ActiveHighlightQuery = savedHighlight
 		leftCol = padToHeight(leftCol, contentHeight)
 		rightCol = padToHeight(rightCol, contentHeight)
@@ -1711,6 +1724,10 @@ func (m Model) renderOverlay(background string) string {
 		content = ui.RenderConfirmOverlay(m.confirmAction)
 		overlayW = min(50, m.width-10)
 		overlayH = min(8, m.height-6)
+	case overlayConfirmType:
+		content = ui.RenderConfirmTypeOverlay(m.confirmAction, m.confirmTypeInput.Value)
+		overlayW = min(55, m.width-10)
+		overlayH = min(10, m.height-6)
 	case overlayScaleInput:
 		content = ui.RenderScaleOverlay(m.scaleInput.Value)
 		overlayW = min(45, m.width-10)
@@ -2657,6 +2674,8 @@ func (m *Model) saveCurrentTab() {
 		t.leftItemsHistory[i] = append([]model.Item(nil), hist...)
 	}
 	t.cursors = m.cursors
+	t.middleScroll = ui.ActiveMiddleScroll
+	t.leftScroll = ui.ActiveLeftScroll
 	t.cursorMemory = copyMapStringInt(m.cursorMemory)
 	t.itemCache = copyItemCache(m.itemCache)
 	t.yamlContent = m.yamlContent
@@ -2724,6 +2743,8 @@ func (m *Model) loadTab(idx int) {
 		m.leftItemsHistory[i] = append([]model.Item(nil), hist...)
 	}
 	m.cursors = t.cursors
+	ui.ActiveMiddleScroll = t.middleScroll
+	ui.ActiveLeftScroll = t.leftScroll
 	m.cursorMemory = copyMapStringInt(t.cursorMemory)
 	m.itemCache = copyItemCache(t.itemCache)
 	m.yamlContent = t.yamlContent
@@ -2794,6 +2815,8 @@ func (m *Model) cloneCurrentTab() TabState {
 		middleItems:         append([]model.Item(nil), m.middleItems...),
 		rightItems:          append([]model.Item(nil), m.rightItems...),
 		cursors:             m.cursors,
+		middleScroll:        ui.ActiveMiddleScroll,
+		leftScroll:          ui.ActiveLeftScroll,
 		cursorMemory:        copyMapStringInt(m.cursorMemory),
 		itemCache:           copyItemCache(m.itemCache),
 		yamlContent:         m.yamlContent,

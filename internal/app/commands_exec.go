@@ -694,6 +694,40 @@ func (m Model) forceDeleteResource() tea.Cmd {
 	}
 }
 
+func (m Model) removeFinalizers() tea.Cmd {
+	kubectlPath, err := exec.LookPath("kubectl")
+	if err != nil {
+		return func() tea.Msg {
+			return actionResultMsg{err: fmt.Errorf("kubectl not found: %w", err)}
+		}
+	}
+
+	ns := m.actionNamespace()
+	rt := m.actionCtx.resourceType
+	name := m.actionCtx.name
+	ctx := m.actionCtx.context
+	logger.Info("Removing finalizers from resource", "resource", rt.Resource, "name", name, "namespace", ns, "context", ctx)
+
+	patchArgs := []string{
+		"patch", rt.Resource, name, "--context", ctx,
+		"--type", "merge", "-p", `{"metadata":{"finalizers":null}}`,
+	}
+	if rt.Namespaced {
+		patchArgs = append(patchArgs, "-n", ns)
+	}
+
+	return func() tea.Msg {
+		cmd := exec.Command(kubectlPath, patchArgs...)
+		cmd.Env = append(os.Environ(), "KUBECONFIG="+m.client.KubeconfigPaths())
+		logger.Info("Running kubectl command", "cmd", cmd.String())
+		if output, err := cmd.CombinedOutput(); err != nil {
+			logger.Error("kubectl patch failed", "cmd", cmd.String(), "error", err, "output", string(output))
+			return actionResultMsg{err: fmt.Errorf("%w: %s", err, strings.TrimSpace(string(output)))}
+		}
+		return actionResultMsg{message: fmt.Sprintf("Finalizers removed from %s/%s", rt.Resource, name)}
+	}
+}
+
 func (m Model) uninstallHelmRelease() tea.Cmd {
 	helmPath, err := exec.LookPath("helm")
 	if err != nil {

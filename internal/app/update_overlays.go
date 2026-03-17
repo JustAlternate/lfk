@@ -18,6 +18,8 @@ func (m Model) handleOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleActionOverlayKey(msg)
 	case overlayConfirm:
 		return m.handleConfirmOverlayKey(msg)
+	case overlayConfirmType:
+		return m.handleConfirmTypeOverlayKey(msg)
 	case overlayScaleInput:
 		return m.handleScaleOverlayKey(msg)
 	case overlayPortForward:
@@ -672,6 +674,57 @@ func (m Model) handleConfirmOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.closeTabOrQuit()
 	}
 	return m, nil
+}
+
+func (m Model) handleConfirmTypeOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "q":
+		m.overlay = overlayNone
+		m.confirmAction = ""
+		m.pendingAction = ""
+		m.confirmTypeInput.Clear()
+		return m, nil
+	case "ctrl+c":
+		return m.closeTabOrQuit()
+	case "enter":
+		if m.confirmTypeInput.Value == "DELETE" {
+			m.overlay = overlayNone
+			m.loading = true
+			action := m.pendingAction
+			m.pendingAction = ""
+			m.confirmAction = ""
+			m.confirmTypeInput.Clear()
+
+			ns := m.actionCtx.namespace
+			name := m.actionCtx.name
+			ctx := m.actionCtx.context
+			rt := m.actionCtx.resourceType
+			nsArg := ""
+			if rt.Namespaced {
+				nsArg = " -n " + ns
+			}
+
+			if action == "Force Finalize" {
+				m.addLogEntry("DBG", fmt.Sprintf("$ kubectl patch %s %s --type merge -p '{\"metadata\":{\"finalizers\":null}}'%s --context %s", rt.Resource, name, nsArg, ctx))
+				return m, m.removeFinalizers()
+			}
+		}
+		return m, nil
+	case "backspace":
+		m.confirmTypeInput.Backspace()
+		return m, nil
+	case "ctrl+w":
+		m.confirmTypeInput.DeleteWord()
+		return m, nil
+	case "ctrl+u":
+		m.confirmTypeInput.Clear()
+		return m, nil
+	default:
+		if len(msg.String()) == 1 {
+			m.confirmTypeInput.Insert(msg.String())
+		}
+		return m, nil
+	}
 }
 
 func (m Model) handleScaleOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {

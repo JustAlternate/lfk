@@ -7,16 +7,20 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-func (m Model) syncArgoApp() tea.Cmd {
+func (m Model) syncArgoApp(applyOnly bool) tea.Cmd {
 	ctx := m.actionCtx.context
 	ns := m.actionNamespace()
 	name := m.actionCtx.name
 	return func() tea.Msg {
-		err := m.client.SyncArgoApp(ctx, ns, name)
+		err := m.client.SyncArgoApp(ctx, ns, name, applyOnly)
 		if err != nil {
 			return actionResultMsg{err: err}
 		}
-		return actionResultMsg{message: fmt.Sprintf("Sync initiated for %s", name)}
+		label := "Sync"
+		if applyOnly {
+			label = "Sync (apply only)"
+		}
+		return actionResultMsg{message: fmt.Sprintf("%s initiated for %s", label, name)}
 	}
 }
 

@@ -91,6 +91,7 @@ type Item struct {
 	Columns       []KeyValue // Additional resource fields for summary preview
 	Selected      bool       // Whether this item is part of a multi-selection
 	Deprecated    bool       // Whether this resource uses a deprecated API version
+	Deleting      bool       // Whether this resource has a deletionTimestamp set
 }
 
 // ResourceNode represents a node in a resource relationship tree.
@@ -853,11 +854,11 @@ func IsRestartableKind(kind string) bool {
 func ActionsForContainer() []ActionMenuItem {
 	return []ActionMenuItem{
 		{Label: "Logs", Description: "View container logs", Key: "l"},
-		{Label: "Exec", Description: "Execute command in container", Key: "e"},
+		{Label: "Exec", Description: "Execute command in container", Key: "s"},
 		{Label: "Attach", Description: "Attach to running container", Key: "A"},
 		{Label: "Debug", Description: "Debug container with ephemeral container", Key: "b"},
-		{Label: "Describe", Description: "Describe parent pod", Key: "d"},
-		{Label: "Events", Description: "Show related events", Key: "v"},
+		{Label: "Describe", Description: "Describe parent pod", Key: "v"},
+		{Label: "Events", Description: "Show related events", Key: "V"},
 	}
 }
 
@@ -867,7 +868,7 @@ func ActionsForBulk() []ActionMenuItem {
 		{Label: "Logs", Description: "Stream logs from selected resources", Key: "L"},
 		{Label: "Delete", Description: "Delete selected resources", Key: "D"},
 		{Label: "Force Delete", Description: "Force delete selected resources", Key: "X"},
-		{Label: "Scale", Description: "Scale selected resources", Key: "s"},
+		{Label: "Scale", Description: "Scale selected resources", Key: "S"},
 		{Label: "Restart", Description: "Restart selected resources", Key: "r"},
 		{Label: "Labels / Annotations", Description: "Edit labels and annotations", Key: "l"},
 		{Label: "Diff", Description: "Compare YAML of two resources", Key: "d"},
@@ -880,39 +881,40 @@ func ActionsForKind(kind string) []ActionMenuItem {
 	case "Pod":
 		return []ActionMenuItem{
 			{Label: "Logs", Description: "View pod logs", Key: "l"},
-			{Label: "Exec", Description: "Execute command in container", Key: "e"},
+			{Label: "Exec", Description: "Execute command in container", Key: "s"},
 			{Label: "Attach", Description: "Attach to running container", Key: "A"},
 			{Label: "Debug", Description: "Debug pod with ephemeral container", Key: "b"},
 			{Label: "Port Forward", Description: "Forward local port to pod", Key: "p"},
 			{Label: "Startup Analysis", Description: "Analyze pod startup timing", Key: "S"},
-			{Label: "Describe", Description: "Describe resource", Key: "d"},
+			{Label: "Describe", Description: "Describe resource", Key: "v"},
 			{Label: "Edit", Description: "Edit resource YAML", Key: "E"},
 			{Label: "Delete", Description: "Delete this pod", Key: "D"},
-			{Label: "Events", Description: "Show related events", Key: "v"},
+			{Label: "Force Delete", Description: "Force delete this pod", Key: "X"},
+			{Label: "Events", Description: "Show related events", Key: "V"},
 		}
 	case "Deployment":
 		return []ActionMenuItem{
 			{Label: "Logs", Description: "View aggregated pod logs", Key: "l"},
-			{Label: "Exec", Description: "Execute command in pod container", Key: "e"},
+			{Label: "Exec", Description: "Execute command in pod container", Key: "s"},
 			{Label: "Attach", Description: "Attach to running container", Key: "A"},
-			{Label: "Scale", Description: "Scale replica count", Key: "s"},
+			{Label: "Scale", Description: "Scale replica count", Key: "S"},
 			{Label: "Restart", Description: "Rolling restart", Key: "r"},
 			{Label: "Rollback", Description: "Rollback to previous revision", Key: "R"},
 			{Label: "Port Forward", Description: "Forward local port to deployment pod", Key: "p"},
-			{Label: "Describe", Description: "Describe resource", Key: "d"},
+			{Label: "Describe", Description: "Describe resource", Key: "v"},
 			{Label: "Edit", Description: "Edit resource YAML", Key: "E"},
 			{Label: "Delete", Description: "Delete this deployment", Key: "D"},
 			{Label: "Debug Pod", Description: "Run alpine debug pod in namespace", Key: "b"},
-			{Label: "Events", Description: "Show related events", Key: "v"},
+			{Label: "Events", Description: "Show related events", Key: "V"},
 		}
 	case "ReplicaSet":
 		return []ActionMenuItem{
-			{Label: "Scale", Description: "Scale replica count", Key: "s"},
+			{Label: "Scale", Description: "Scale replica count", Key: "S"},
 			{Label: "Restart", Description: "Rolling restart", Key: "r"},
-			{Label: "Describe", Description: "Describe resource", Key: "d"},
+			{Label: "Describe", Description: "Describe resource", Key: "v"},
 			{Label: "Edit", Description: "Edit resource YAML", Key: "E"},
 			{Label: "Delete", Description: "Delete this replicaset", Key: "D"},
-			{Label: "Events", Description: "Show related events", Key: "v"},
+			{Label: "Events", Description: "Show related events", Key: "V"},
 		}
 	case "Node":
 		return []ActionMenuItem{
@@ -922,112 +924,113 @@ func ActionsForKind(kind string) []ActionMenuItem {
 			{Label: "Taint", Description: "Add taint to node", Key: "t"},
 			{Label: "Untaint", Description: "Remove taint from node", Key: "T"},
 			{Label: "Shell", Description: "Open shell on node via debug pod", Key: "s"},
-			{Label: "Describe", Description: "Describe resource", Key: "d"},
+			{Label: "Describe", Description: "Describe resource", Key: "v"},
 			{Label: "Edit", Description: "Edit resource YAML", Key: "E"},
-			{Label: "Events", Description: "Show related events", Key: "v"},
+			{Label: "Events", Description: "Show related events", Key: "V"},
 		}
 	case "HorizontalPodAutoscaler":
 		return []ActionMenuItem{
 			{Label: "Edit", Description: "Edit resource YAML", Key: "E"},
 			{Label: "Delete", Description: "Delete this HPA", Key: "D"},
-			{Label: "Describe", Description: "Describe resource", Key: "d"},
-			{Label: "Events", Description: "Show related events", Key: "v"},
+			{Label: "Describe", Description: "Describe resource", Key: "v"},
+			{Label: "Events", Description: "Show related events", Key: "V"},
 		}
 	case "StatefulSet":
 		return []ActionMenuItem{
 			{Label: "Logs", Description: "View aggregated pod logs", Key: "l"},
-			{Label: "Exec", Description: "Execute command in pod container", Key: "e"},
+			{Label: "Exec", Description: "Execute command in pod container", Key: "s"},
 			{Label: "Attach", Description: "Attach to running container", Key: "A"},
-			{Label: "Scale", Description: "Scale replica count", Key: "s"},
+			{Label: "Scale", Description: "Scale replica count", Key: "S"},
 			{Label: "Restart", Description: "Rolling restart", Key: "r"},
 			{Label: "Port Forward", Description: "Forward local port to statefulset pod", Key: "p"},
-			{Label: "Describe", Description: "Describe resource", Key: "d"},
+			{Label: "Describe", Description: "Describe resource", Key: "v"},
 			{Label: "Edit", Description: "Edit resource YAML", Key: "E"},
 			{Label: "Delete", Description: "Delete this statefulset", Key: "D"},
 			{Label: "Debug Pod", Description: "Run alpine debug pod in namespace", Key: "b"},
-			{Label: "Events", Description: "Show related events", Key: "v"},
+			{Label: "Events", Description: "Show related events", Key: "V"},
 		}
 	case "DaemonSet":
 		return []ActionMenuItem{
 			{Label: "Logs", Description: "View aggregated pod logs", Key: "l"},
-			{Label: "Exec", Description: "Execute command in pod container", Key: "e"},
+			{Label: "Exec", Description: "Execute command in pod container", Key: "s"},
 			{Label: "Attach", Description: "Attach to running container", Key: "A"},
 			{Label: "Restart", Description: "Rolling restart", Key: "r"},
 			{Label: "Port Forward", Description: "Forward local port to daemonset pod", Key: "p"},
-			{Label: "Describe", Description: "Describe resource", Key: "d"},
+			{Label: "Describe", Description: "Describe resource", Key: "v"},
 			{Label: "Edit", Description: "Edit resource YAML", Key: "E"},
 			{Label: "Delete", Description: "Delete this daemonset", Key: "D"},
 			{Label: "Debug Pod", Description: "Run alpine debug pod in namespace", Key: "b"},
-			{Label: "Events", Description: "Show related events", Key: "v"},
+			{Label: "Events", Description: "Show related events", Key: "V"},
 		}
 	case "Job":
 		return []ActionMenuItem{
 			{Label: "Logs", Description: "View job logs", Key: "l"},
-			{Label: "Exec", Description: "Execute command in pod container", Key: "e"},
+			{Label: "Exec", Description: "Execute command in pod container", Key: "s"},
 			{Label: "Attach", Description: "Attach to running container", Key: "A"},
-			{Label: "Describe", Description: "Describe resource", Key: "d"},
+			{Label: "Describe", Description: "Describe resource", Key: "v"},
 			{Label: "Edit", Description: "Edit resource YAML", Key: "E"},
 			{Label: "Delete", Description: "Delete this job", Key: "D"},
-			{Label: "Events", Description: "Show related events", Key: "v"},
+			{Label: "Events", Description: "Show related events", Key: "V"},
 		}
 	case "CronJob":
 		return []ActionMenuItem{
 			{Label: "Logs", Description: "View cronjob logs", Key: "l"},
-			{Label: "Exec", Description: "Execute command in pod container", Key: "e"},
+			{Label: "Exec", Description: "Execute command in pod container", Key: "s"},
 			{Label: "Attach", Description: "Attach to running container", Key: "A"},
 			{Label: "Trigger", Description: "Create a Job from this CronJob", Key: "t"},
-			{Label: "Describe", Description: "Describe resource", Key: "d"},
+			{Label: "Describe", Description: "Describe resource", Key: "v"},
 			{Label: "Edit", Description: "Edit resource YAML", Key: "E"},
 			{Label: "Delete", Description: "Delete this cronjob", Key: "D"},
-			{Label: "Events", Description: "Show related events", Key: "v"},
+			{Label: "Events", Description: "Show related events", Key: "V"},
 		}
 	case "Service":
 		return []ActionMenuItem{
 			{Label: "Logs", Description: "View aggregated pod logs", Key: "l"},
-			{Label: "Exec", Description: "Exec into pod behind service", Key: "e"},
+			{Label: "Exec", Description: "Exec into pod behind service", Key: "s"},
 			{Label: "Attach", Description: "Attach to pod behind service", Key: "A"},
 			{Label: "Port Forward", Description: "Forward local port to service", Key: "p"},
-			{Label: "Describe", Description: "Describe resource", Key: "d"},
+			{Label: "Describe", Description: "Describe resource", Key: "v"},
 			{Label: "Edit", Description: "Edit resource YAML", Key: "E"},
 			{Label: "Delete", Description: "Delete this service", Key: "D"},
 			{Label: "Debug Pod", Description: "Run alpine debug pod in namespace", Key: "b"},
-			{Label: "Events", Description: "Show related events", Key: "v"},
+			{Label: "Events", Description: "Show related events", Key: "V"},
 		}
 	case "Application":
 		return []ActionMenuItem{
 			{Label: "Sync", Description: "Sync application", Key: "s"},
+			{Label: "Sync (Apply Only)", Description: "Sync application without hooks", Key: "a"},
 			{Label: "Terminate Sync", Description: "Terminate running sync operation", Key: "T"},
 			{Label: "Refresh", Description: "Hard refresh application", Key: "R"},
-			{Label: "Describe", Description: "Describe resource", Key: "d"},
+			{Label: "Describe", Description: "Describe resource", Key: "v"},
 			{Label: "Edit", Description: "Edit resource YAML", Key: "E"},
 			{Label: "Delete", Description: "Delete this application", Key: "D"},
-			{Label: "Events", Description: "Show related events", Key: "v"},
+			{Label: "Events", Description: "Show related events", Key: "V"},
 		}
 	case "PersistentVolumeClaim":
 		return []ActionMenuItem{
-			{Label: "Debug Mount", Description: "Run debug pod with this PVC mounted", Key: "m"},
-			{Label: "Describe", Description: "Describe resource", Key: "d"},
+			{Label: "Debug Mount", Description: "Run debug pod with this PVC mounted", Key: "b"},
+			{Label: "Describe", Description: "Describe resource", Key: "v"},
 			{Label: "Edit", Description: "Edit resource YAML", Key: "E"},
 			{Label: "Delete", Description: "Delete this PVC", Key: "D"},
-			{Label: "Events", Description: "Show related events", Key: "v"},
+			{Label: "Events", Description: "Show related events", Key: "V"},
 		}
 	case "Ingress":
 		return []ActionMenuItem{
 			{Label: "Open in Browser", Description: "Open first host URL in browser", Key: "o"},
-			{Label: "Describe", Description: "Describe resource", Key: "d"},
+			{Label: "Describe", Description: "Describe resource", Key: "v"},
 			{Label: "Edit", Description: "Edit resource YAML", Key: "E"},
 			{Label: "Delete", Description: "Delete this ingress", Key: "D"},
-			{Label: "Events", Description: "Show related events", Key: "v"},
+			{Label: "Events", Description: "Show related events", Key: "V"},
 		}
 	case "HelmRelease":
 		return []ActionMenuItem{
-			{Label: "Values", Description: "View user-supplied values", Key: "V"},
+			{Label: "Values", Description: "View user-supplied values", Key: "u"},
 			{Label: "All Values", Description: "View all values (including defaults)", Key: "A"},
 			{Label: "Edit Values", Description: "Edit values in $EDITOR", Key: "E"},
 			{Label: "Rollback", Description: "Rollback to previous revision", Key: "R"},
-			{Label: "Describe", Description: "Show release info", Key: "d"},
+			{Label: "Describe", Description: "Show release info", Key: "v"},
 			{Label: "Delete", Description: "Uninstall this release", Key: "D"},
-			{Label: "Events", Description: "Show related events", Key: "v"},
+			{Label: "Events", Description: "Show related events", Key: "V"},
 		}
 	case "Kustomization":
 		// FluxCD Kustomization
@@ -1035,10 +1038,10 @@ func ActionsForKind(kind string) []ActionMenuItem {
 			{Label: "Reconcile", Description: "Trigger reconciliation", Key: "r"},
 			{Label: "Suspend", Description: "Suspend reconciliation", Key: "s"},
 			{Label: "Resume", Description: "Resume reconciliation", Key: "R"},
-			{Label: "Describe", Description: "Describe resource", Key: "d"},
+			{Label: "Describe", Description: "Describe resource", Key: "v"},
 			{Label: "Edit", Description: "Edit resource YAML", Key: "E"},
 			{Label: "Delete", Description: "Delete this resource", Key: "D"},
-			{Label: "Events", Description: "Show related events", Key: "v"},
+			{Label: "Events", Description: "Show related events", Key: "V"},
 		}
 	case "GitRepository", "HelmRepository", "HelmChart", "OCIRepository", "Bucket":
 		// FluxCD Source resources
@@ -1046,10 +1049,10 @@ func ActionsForKind(kind string) []ActionMenuItem {
 			{Label: "Reconcile", Description: "Trigger reconciliation", Key: "r"},
 			{Label: "Suspend", Description: "Suspend reconciliation", Key: "s"},
 			{Label: "Resume", Description: "Resume reconciliation", Key: "R"},
-			{Label: "Describe", Description: "Describe resource", Key: "d"},
+			{Label: "Describe", Description: "Describe resource", Key: "v"},
 			{Label: "Edit", Description: "Edit resource YAML", Key: "E"},
 			{Label: "Delete", Description: "Delete this resource", Key: "D"},
-			{Label: "Events", Description: "Show related events", Key: "v"},
+			{Label: "Events", Description: "Show related events", Key: "V"},
 		}
 	case "Alert", "Provider", "Receiver":
 		// FluxCD Notification resources
@@ -1057,10 +1060,10 @@ func ActionsForKind(kind string) []ActionMenuItem {
 			{Label: "Reconcile", Description: "Trigger reconciliation", Key: "r"},
 			{Label: "Suspend", Description: "Suspend reconciliation", Key: "s"},
 			{Label: "Resume", Description: "Resume reconciliation", Key: "R"},
-			{Label: "Describe", Description: "Describe resource", Key: "d"},
+			{Label: "Describe", Description: "Describe resource", Key: "v"},
 			{Label: "Edit", Description: "Edit resource YAML", Key: "E"},
 			{Label: "Delete", Description: "Delete this resource", Key: "D"},
-			{Label: "Events", Description: "Show related events", Key: "v"},
+			{Label: "Events", Description: "Show related events", Key: "V"},
 		}
 	case "ImageRepository", "ImagePolicy", "ImageUpdateAutomation":
 		// FluxCD Image resources
@@ -1068,50 +1071,70 @@ func ActionsForKind(kind string) []ActionMenuItem {
 			{Label: "Reconcile", Description: "Trigger reconciliation", Key: "r"},
 			{Label: "Suspend", Description: "Suspend reconciliation", Key: "s"},
 			{Label: "Resume", Description: "Resume reconciliation", Key: "R"},
-			{Label: "Describe", Description: "Describe resource", Key: "d"},
+			{Label: "Describe", Description: "Describe resource", Key: "v"},
 			{Label: "Edit", Description: "Edit resource YAML", Key: "E"},
 			{Label: "Delete", Description: "Delete this resource", Key: "D"},
-			{Label: "Events", Description: "Show related events", Key: "v"},
+			{Label: "Events", Description: "Show related events", Key: "V"},
 		}
 	case "Certificate", "CertificateRequest":
 		// cert-manager Certificate resources
 		return []ActionMenuItem{
-			{Label: "Describe", Description: "Describe resource", Key: "d"},
+			{Label: "Describe", Description: "Describe resource", Key: "v"},
 			{Label: "Edit", Description: "Edit resource YAML", Key: "E"},
 			{Label: "Delete", Description: "Delete this resource", Key: "D"},
-			{Label: "Events", Description: "Show related events", Key: "v"},
+			{Label: "Events", Description: "Show related events", Key: "V"},
 		}
 	case "Issuer", "ClusterIssuer":
 		// cert-manager Issuer resources
 		return []ActionMenuItem{
-			{Label: "Describe", Description: "Describe resource", Key: "d"},
+			{Label: "Describe", Description: "Describe resource", Key: "v"},
 			{Label: "Edit", Description: "Edit resource YAML", Key: "E"},
 			{Label: "Delete", Description: "Delete this resource", Key: "D"},
-			{Label: "Events", Description: "Show related events", Key: "v"},
+			{Label: "Events", Description: "Show related events", Key: "V"},
 		}
 	case "Order", "Challenge":
 		// cert-manager ACME resources
 		return []ActionMenuItem{
-			{Label: "Describe", Description: "Describe resource", Key: "d"},
+			{Label: "Describe", Description: "Describe resource", Key: "v"},
 			{Label: "Delete", Description: "Delete this resource", Key: "D"},
-			{Label: "Events", Description: "Show related events", Key: "v"},
+			{Label: "Events", Description: "Show related events", Key: "V"},
+		}
+	case "Secret":
+		return []ActionMenuItem{
+			{Label: "Secret Editor", Description: "Edit secret values (decode/encode base64)", Key: "e"},
+			{Label: "Describe", Description: "Describe resource", Key: "v"},
+			{Label: "Edit", Description: "Edit resource YAML", Key: "E"},
+			{Label: "Delete", Description: "Delete this secret", Key: "D"},
+			{Label: "Labels / Annotations", Description: "Edit labels and annotations", Key: "l"},
+			{Label: "Events", Description: "Show related events", Key: "V"},
+			{Label: "Permissions", Description: "Check RBAC permissions", Key: "P"},
+		}
+	case "ConfigMap":
+		return []ActionMenuItem{
+			{Label: "ConfigMap Editor", Description: "Edit configmap key-value data", Key: "e"},
+			{Label: "Describe", Description: "Describe resource", Key: "v"},
+			{Label: "Edit", Description: "Edit resource YAML", Key: "E"},
+			{Label: "Delete", Description: "Delete this configmap", Key: "D"},
+			{Label: "Labels / Annotations", Description: "Edit labels and annotations", Key: "l"},
+			{Label: "Events", Description: "Show related events", Key: "V"},
+			{Label: "Permissions", Description: "Check RBAC permissions", Key: "P"},
 		}
 	case "NetworkPolicy":
 		return []ActionMenuItem{
-			{Label: "Visualize", Description: "Visualize network policy rules", Key: "V"},
-			{Label: "Describe", Description: "Describe resource", Key: "d"},
+			{Label: "Visualize", Description: "Visualize network policy rules", Key: "N"},
+			{Label: "Describe", Description: "Describe resource", Key: "v"},
 			{Label: "Edit", Description: "Edit resource YAML", Key: "E"},
 			{Label: "Delete", Description: "Delete this network policy", Key: "D"},
-			{Label: "Events", Description: "Show related events", Key: "v"},
+			{Label: "Events", Description: "Show related events", Key: "V"},
 			{Label: "Permissions", Description: "Check RBAC permissions", Key: "P"},
 		}
 	default:
 		return []ActionMenuItem{
-			{Label: "Describe", Description: "Describe resource", Key: "d"},
+			{Label: "Describe", Description: "Describe resource", Key: "v"},
 			{Label: "Edit", Description: "Edit resource YAML", Key: "E"},
 			{Label: "Delete", Description: "Delete this resource", Key: "D"},
 			{Label: "Labels / Annotations", Description: "Edit labels and annotations", Key: "l"},
-			{Label: "Events", Description: "Show related events", Key: "v"},
+			{Label: "Events", Description: "Show related events", Key: "V"},
 			{Label: "Permissions", Description: "Check RBAC permissions", Key: "P"},
 		}
 	}

@@ -57,9 +57,11 @@ Search supports abbreviated resource type names (e.g., `pvc`, `hpa`, `deploy`).
 | `\` | Open namespace selector | No |
 | `A` | Toggle all-namespaces mode | No |
 | `L` | View logs for selected resource | Yes (`logs`) |
+| `e` | Secret/ConfigMap editor (inline key-value editing) | No |
+| `E` | Edit selected resource in $EDITOR | Yes (`edit`) |
 | `R` | Refresh current view | Yes (`refresh`) |
 | `v` | Describe selected resource (default: `v`) | Yes (`describe`) |
-| `D` | Delete selected resource (with confirmation) | Yes (`delete`) |
+| `D` | Delete resource (Force Finalize if already deleting) | Yes (`delete`) |
 | `X` | Force destroy (remove finalizers + force delete) | Yes (`force_delete`) |
 | `o` | Jump to owner/controller of selected resource | No |
 | `i` | Edit labels/annotations | No |
@@ -207,43 +209,49 @@ Autocompletion is available for kubectl commands (subcommands, resource types, r
 The action menu (`x` key) shows context-specific actions based on the resource type:
 
 ### Pod Actions
-`l` Logs, `e` Exec, `A` Attach, `b` Debug, `p` Port Forward, `S` Startup Analysis, `d` Describe, `E` Edit, `D` Delete, `v` Events
+`l` Logs, `s` Exec, `A` Attach, `b` Debug, `p` Port Forward, `S` Startup Analysis, `v` Describe, `E` Edit, `D` Delete, `X` Force Delete, `V` Events
 
 ### Deployment Actions
-`l` Logs, `e` Exec, `A` Attach, `s` Scale, `r` Restart, `R` Rollback, `p` Port Forward, `d` Describe, `E` Edit, `D` Delete, `b` Debug Pod, `v` Events
+`l` Logs, `s` Exec, `A` Attach, `S` Scale, `r` Restart, `R` Rollback, `p` Port Forward, `v` Describe, `E` Edit, `D` Delete, `b` Debug Pod, `V` Events
 
 ### StatefulSet Actions
-`l` Logs, `e` Exec, `A` Attach, `s` Scale, `r` Restart, `p` Port Forward, `d` Describe, `E` Edit, `D` Delete, `b` Debug Pod, `v` Events
+`l` Logs, `s` Exec, `A` Attach, `S` Scale, `r` Restart, `p` Port Forward, `v` Describe, `E` Edit, `D` Delete, `b` Debug Pod, `V` Events
 
 ### DaemonSet Actions
-`l` Logs, `e` Exec, `A` Attach, `r` Restart, `p` Port Forward, `d` Describe, `E` Edit, `D` Delete, `b` Debug Pod, `v` Events
+`l` Logs, `s` Exec, `A` Attach, `r` Restart, `p` Port Forward, `v` Describe, `E` Edit, `D` Delete, `b` Debug Pod, `V` Events
 
 ### Service Actions
-`l` Logs, `e` Exec (into pod behind service), `A` Attach (to pod behind service), `p` Port Forward, `d` Describe, `E` Edit, `D` Delete, `b` Debug Pod, `v` Events
+`l` Logs, `s` Exec (into pod behind service), `A` Attach (to pod behind service), `p` Port Forward, `v` Describe, `E` Edit, `D` Delete, `b` Debug Pod, `V` Events
+
+### Secret Actions
+`e` Secret Editor, `v` Describe, `E` Edit, `D` Delete, `l` Labels / Annotations, `V` Events
+
+### ConfigMap Actions
+`e` ConfigMap Editor, `v` Describe, `E` Edit, `D` Delete, `l` Labels / Annotations, `V` Events
 
 ### Node Actions
-`c` Cordon, `u` Uncordon, `n` Drain, `t` Taint, `T` Untaint, `s` Shell, `d` Describe, `E` Edit, `v` Events
+`c` Cordon, `u` Uncordon, `n` Drain, `t` Taint, `T` Untaint, `s` Shell, `v` Describe, `E` Edit, `V` Events
 
 ### CronJob Actions
-`l` Logs, `e` Exec, `A` Attach, `t` Trigger (create Job), `d` Describe, `E` Edit, `D` Delete, `v` Events
+`l` Logs, `s` Exec, `A` Attach, `t` Trigger (create Job), `v` Describe, `E` Edit, `D` Delete, `V` Events
 
 ### ArgoCD Application Actions
-`s` Sync, `f` Diff, `R` Refresh, `d` Describe, `E` Edit, `D` Delete, `v` Events
+`s` Sync, `a` Sync (Apply Only), `f` Diff, `R` Refresh, `v` Describe, `E` Edit, `D` Delete, `V` Events
 
 ### Helm Release Actions
-`V` Values, `A` All Values, `E` Edit Values, `R` Rollback, `d` Describe, `D` Delete, `v` Events
+`u` Values, `A` All Values, `E` Edit Values, `R` Rollback, `v` Describe, `D` Delete, `V` Events
 
 ### Ingress Actions
-`o` Open in Browser, `d` Describe, `E` Edit, `D` Delete, `v` Events
+`o` Open in Browser, `v` Describe, `E` Edit, `D` Delete, `V` Events
 
 ### PVC Actions
-`m` Debug Mount, `d` Describe, `E` Edit, `D` Delete, `v` Events
+`b` Debug Mount, `v` Describe, `E` Edit, `D` Delete, `V` Events
 
 ### Default Actions (all other resources)
-`d` Describe, `E` Edit, `D` Delete, `b` Debug Pod, `v` Events
+`v` Describe, `E` Edit, `D` Delete, `l` Labels / Annotations, `V` Events
 
 ### Bulk Actions (when items multi-selected)
-`D` Delete, `X` Force Delete, `s` Scale, `r` Restart
+`D` Delete, `X` Force Delete, `S` Scale, `r` Restart
 
 Custom actions defined in the config file appear after the built-in actions.
 
@@ -257,6 +265,7 @@ keybindings:
   refresh: "R"        # Default: R
   restart: "r"        # Default: r
   exec: "s"           # Default: s
+  edit: "E"           # Default: E
   describe: "v"        # Default: v
   delete: "D"         # Default: D
   force_delete: "X"   # Default: X

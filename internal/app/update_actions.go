@@ -100,6 +100,17 @@ func (m Model) openActionMenu() (tea.Model, tea.Cmd) {
 		})
 	}
 
+	// If the resource is being deleted, replace "Delete" with "Force Finalize".
+	if sel.Deleting {
+		for i, item := range items {
+			if item.Name == "Delete" {
+				items[i].Name = "Force Finalize"
+				items[i].Extra = "Remove finalizers to force finalize"
+				break
+			}
+		}
+	}
+
 	m.overlay = overlayAction
 	m.overlayItems = items
 	m.overlayCursor = 0
@@ -198,6 +209,19 @@ func (m Model) directActionExec() (tea.Model, tea.Cmd) {
 	return m.executeAction("Exec")
 }
 
+func (m Model) directActionEdit() (tea.Model, tea.Cmd) {
+	kind := m.selectedResourceKind()
+	if kind == "" || kind == "__port_forwards__" {
+		return m, nil
+	}
+	sel := m.selectedMiddleItem()
+	if sel == nil {
+		return m, nil
+	}
+	m.actionCtx = m.buildActionCtx(sel, kind)
+	return m.executeAction("Edit")
+}
+
 func (m Model) directActionDescribe() (tea.Model, tea.Cmd) {
 	kind := m.selectedResourceKind()
 	if kind == "" || kind == "__port_forwards__" {
@@ -224,6 +248,14 @@ func (m Model) directActionDelete() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	m.actionCtx = m.buildActionCtx(sel, kind)
+	// If resource is already deleting, offer Force Finalize instead.
+	if sel.Deleting {
+		m.confirmAction = sel.Name
+		m.confirmTypeInput.Clear()
+		m.overlay = overlayConfirmType
+		m.pendingAction = "Force Finalize"
+		return m, nil
+	}
 	return m.executeAction("Delete")
 }
 
@@ -382,6 +414,10 @@ func (m Model) executeAction(actionLabel string) (tea.Model, tea.Cmd) {
 		}
 		m.addLogEntry("DBG", fmt.Sprintf("$ kubectl edit %s %s%s --context %s", rt.Resource, name, nsArg, ctx))
 		return m, m.execKubectlEdit()
+	case "Secret Editor":
+		return m, m.loadSecretData()
+	case "ConfigMap Editor":
+		return m, m.loadConfigMapData()
 	case "Delete":
 		m.confirmAction = m.actionCtx.name
 		m.overlay = overlayConfirm
@@ -428,7 +464,11 @@ func (m Model) executeAction(actionLabel string) (tea.Model, tea.Cmd) {
 	case "Sync":
 		m.addLogEntry("DBG", fmt.Sprintf("$ kubectl patch app %s --type merge -p '{\"operation\":{\"sync\":{\"syncStrategy\":{\"hook\":{}}}}}' -n %s --context %s", name, ns, ctx))
 		m.loading = true
-		return m, m.syncArgoApp()
+		return m, m.syncArgoApp(false)
+	case "Sync (Apply Only)":
+		m.addLogEntry("DBG", fmt.Sprintf("$ kubectl patch app %s --type merge -p '{\"operation\":{\"sync\":{\"syncStrategy\":{\"apply\":{}}}}}' -n %s --context %s", name, ns, ctx))
+		m.loading = true
+		return m, m.syncArgoApp(true)
 	case "Refresh":
 		m.addLogEntry("DBG", fmt.Sprintf("$ kubectl patch app %s --type merge -p '{\"metadata\":{\"annotations\":{\"argocd.argoproj.io/refresh\":\"hard\"}}}' -n %s --context %s", name, ns, ctx))
 		m.loading = true
@@ -457,6 +497,12 @@ func (m Model) executeAction(actionLabel string) (tea.Model, tea.Cmd) {
 		m.addLogEntry("DBG", fmt.Sprintf("$ kubectl patch %s %s --type merge -p '{\"metadata\":{\"finalizers\":null}}'%s --context %s && kubectl delete %s %s --grace-period=0 --force%s --context %s", rt.Resource, name, nsArg, ctx, rt.Resource, name, nsArg, ctx))
 		m.loading = true
 		return m, m.forceDeleteResource()
+	case "Force Finalize":
+		m.confirmAction = m.actionCtx.name
+		m.confirmTypeInput.Clear()
+		m.overlay = overlayConfirmType
+		m.pendingAction = "Force Finalize"
+		return m, nil
 	case "Cordon":
 		m.addLogEntry("DBG", fmt.Sprintf("$ kubectl cordon %s --context %s", name, ctx))
 		m.loading = true

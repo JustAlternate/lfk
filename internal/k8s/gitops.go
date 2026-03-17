@@ -226,8 +226,9 @@ func (c *Client) getArgoManagedResources(ctx context.Context, dynClient dynamic.
 
 // SyncArgoApp triggers a sync on an ArgoCD Application by patching the operation field.
 // It reads the application's syncPolicy first to carry over syncOptions (e.g., ServerSideApply=true).
+// If applyOnly is true, uses the "apply" strategy (no hooks); otherwise uses "hook" strategy (default).
 // See: https://argo-cd.readthedocs.io/en/stable/user-guide/sync-kubectl/
-func (c *Client) SyncArgoApp(contextName, namespace, name string) error {
+func (c *Client) SyncArgoApp(contextName, namespace, name string, applyOnly bool) error {
 	dynClient, err := c.dynamicForContext(contextName)
 	if err != nil {
 		return err
@@ -242,10 +243,12 @@ func (c *Client) SyncArgoApp(contextName, namespace, name string) error {
 	}
 
 	// Build the sync operation, carrying over syncOptions and prune from the app's syncPolicy.
+	strategy := map[string]interface{}{"hook": map[string]interface{}{}}
+	if applyOnly {
+		strategy = map[string]interface{}{"apply": map[string]interface{}{}}
+	}
 	syncOp := map[string]interface{}{
-		"syncStrategy": map[string]interface{}{
-			"hook": map[string]interface{}{},
-		},
+		"syncStrategy": strategy,
 	}
 
 	if spec, ok := app.Object["spec"].(map[string]interface{}); ok {

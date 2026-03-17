@@ -12,6 +12,12 @@ import (
 	"github.com/janosmiko/lfk/internal/model"
 )
 
+// overlayNsScroll is the persistent scroll position for the namespace overlay.
+var overlayNsScroll int
+
+// ResetOverlayNsScroll resets the namespace overlay scroll position (call when opening the overlay).
+func ResetOverlayNsScroll() { overlayNsScroll = 0 }
+
 // ErrorLogEntry stores a single application log entry with its timestamp and severity level.
 type ErrorLogEntry struct {
 	Time    time.Time
@@ -53,21 +59,12 @@ func RenderNamespaceOverlay(items []model.Item, filter string, cursor int, curre
 	} else if maxSO := (maxVisible - 1) / 2; scrollOff > maxSO {
 		scrollOff = maxSO
 	}
-	start := 0
-	if cursor >= maxVisible {
-		start = cursor - maxVisible + 1
-	}
-	// Keep cursor at least scrollOff lines from the bottom.
-	if cursor-start >= maxVisible-scrollOff && start+maxVisible < len(items) {
-		start = cursor - maxVisible + scrollOff + 1
-	}
-	// Keep cursor at least scrollOff lines from the top.
-	if cursor-start < scrollOff && start > 0 {
-		start = cursor - scrollOff
-		if start < 0 {
-			start = 0
-		}
-	}
+
+	// Use VimScrollOff for stable viewport behavior.
+	displayLines := func(from, to int) int { return to - from }
+	start := VimScrollOff(overlayNsScroll, cursor, len(items), maxVisible, scrollOff, displayLines)
+	overlayNsScroll = start
+
 	end := start + maxVisible
 	if end > len(items) {
 		end = len(items)
@@ -153,6 +150,27 @@ func RenderConfirmOverlay(action string) string {
 	b.WriteString(OverlayNormalStyle.Render(" to confirm, "))
 	b.WriteString(OverlayFilterStyle.Render("n"))
 	b.WriteString(OverlayNormalStyle.Render(" to cancel"))
+	return b.String()
+}
+
+// RenderConfirmTypeOverlay renders the type-to-confirm overlay content.
+// The user must type "DELETE" to confirm the action.
+func RenderConfirmTypeOverlay(action, input string) string {
+	var b strings.Builder
+	b.WriteString(OverlayTitleStyle.Render("Confirm Force Finalize"))
+	b.WriteString("\n\n")
+	b.WriteString(OverlayWarningStyle.Render(fmt.Sprintf("Remove all finalizers from %s?", action)))
+	b.WriteString("\n\n")
+	b.WriteString(OverlayNormalStyle.Render("Type "))
+	b.WriteString(OverlayFilterStyle.Render("DELETE"))
+	b.WriteString(OverlayNormalStyle.Render(" to confirm: "))
+	if input == "" {
+		b.WriteString(OverlayDimStyle.Render("_"))
+	} else {
+		b.WriteString(OverlayFilterStyle.Render(input))
+	}
+	b.WriteString("\n\n")
+	b.WriteString(OverlayDimStyle.Render("esc: cancel"))
 	return b.String()
 }
 

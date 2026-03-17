@@ -6,6 +6,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/janosmiko/lfk/internal/logger"
 	"github.com/janosmiko/lfk/internal/model"
+	"github.com/janosmiko/lfk/internal/ui"
 )
 
 func (m Model) moveCursor(delta int) (tea.Model, tea.Cmd) {
@@ -67,6 +68,10 @@ func (m Model) navigateParent() (tea.Model, tea.Cmd) {
 	m.clearSelection()
 	m.activeFilterPreset = nil
 	m.unfilteredMiddleItems = nil
+
+	// Reset scroll positions when navigating to a new level.
+	ui.ActiveMiddleScroll = 0
+	ui.ActiveLeftScroll = 0
 	switch m.nav.Level {
 	case model.LevelClusters:
 		return m, nil
@@ -187,6 +192,10 @@ func (m Model) navigateChild() (tea.Model, tea.Cmd) {
 	m.cancelAndReset()
 	m.requestGen++
 	m.clearSelection()
+
+	// Reset scroll positions when navigating to a new level.
+	ui.ActiveMiddleScroll = 0
+	ui.ActiveLeftScroll = 0
 
 	// Clear filter when navigating into a child.
 	m.filterText = ""

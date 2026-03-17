@@ -1445,6 +1445,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.overlayFilter.Clear()
 		m.overlayCursor = 0
 		m.overlayItems = nil // will be populated when namespacesLoadedMsg arrives
+		ui.ResetOverlayNsScroll()
 		m.loading = true
 		m.nsSelectionModified = false
 		return m, m.loadNamespaces()
@@ -2081,6 +2082,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if key == kb.Exec {
 		return m.directActionExec()
 	}
+	if key == kb.Edit {
+		return m.directActionEdit()
+	}
 	if key == kb.Describe {
 		return m.directActionDescribe()
 	}
@@ -2209,7 +2213,7 @@ func (m Model) handleYAMLKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.yamlScrollToMatchFolded(viewportLines)
 		}
 		return m, nil
-	case "e":
+	case "E":
 		// Edit the resource in $EDITOR via kubectl edit.
 		kind := m.selectedResourceKind()
 		sel := m.selectedMiddleItem()

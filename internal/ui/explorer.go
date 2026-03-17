@@ -22,6 +22,86 @@ var ActiveFullscreenMode bool
 // column. Keys are category names; presence means the category is collapsed.
 var ActiveCollapsedCategories map[string]bool
 
+// ActiveMiddleScroll is the persistent scroll position for the middle column.
+// The render functions use it as the starting scroll position and apply
+// vim-style scrolloff logic instead of recalculating from scratch each frame.
+// A value of -1 means "no persistent scroll, calculate from scratch".
+var ActiveMiddleScroll int
+
+// ActiveLeftScroll is the persistent scroll position for the left column.
+// Same semantics as ActiveMiddleScroll.
+var ActiveLeftScroll int
+
+// VimScrollOff computes the viewport start position using vim-style scrolloff.
+// It takes the current scroll position and adjusts it only when the cursor
+// would be outside the visible area or within the scrolloff margin.
+// displayLines(from, to) returns the number of display lines for entries [from, to).
+func VimScrollOff(scroll, cursor, numEntries, height, scrollOff int, displayLines func(from, to int) int) int {
+	if cursor < 0 || numEntries <= 0 {
+		return 0
+	}
+	total := displayLines(0, numEntries)
+	if total <= height {
+		return 0
+	}
+	if maxSO := (height - 1) / 2; scrollOff > maxSO {
+		scrollOff = maxSO
+	}
+
+	startEntry := scroll
+	if startEntry < 0 {
+		startEntry = 0
+	}
+	if startEntry >= numEntries {
+		startEntry = numEntries - 1
+	}
+
+	// Ensure cursor is visible: scroll down if cursor is below viewport.
+	for startEntry < numEntries {
+		dl := displayLines(startEntry, cursor+1)
+		if dl <= height {
+			break
+		}
+		startEntry++
+	}
+
+	// Ensure cursor is visible: scroll up if cursor is above viewport.
+	if cursor < startEntry {
+		startEntry = cursor
+	}
+
+	// Bottom scrolloff: if cursor+scrollOff < numEntries, ensure those entries fit.
+	if cursor+scrollOff < numEntries {
+		for startEntry < numEntries-1 {
+			dl := displayLines(startEntry, cursor+scrollOff+1)
+			if dl <= height {
+				break
+			}
+			startEntry++
+		}
+	}
+
+	// Top scrolloff: ensure cursor is at least scrollOff entries from the top.
+	topTarget := cursor - scrollOff
+	if topTarget < 0 {
+		topTarget = 0
+	}
+	if startEntry > topTarget {
+		startEntry = topTarget
+	}
+
+	// Don't leave empty space at the bottom.
+	for startEntry > 0 && displayLines(startEntry, numEntries) < height {
+		startEntry--
+	}
+
+	if startEntry < 0 {
+		startEntry = 0
+	}
+
+	return startEntry
+}
+
 // ActiveCategoryCounts is set by the app before rendering the resource types column.
 // Maps category name to the total number of items in that category.
 var ActiveCategoryCounts map[string]int
@@ -311,48 +391,51 @@ func RenderColumn(header string, items []model.Item, cursor int, width, height i
 		cursor = len(entries) - 1
 	}
 
-	// Determine visible window: scroll so cursor is visible with scrolloff padding.
+	// Determine visible window using vim-style scrolloff.
 	scrollOff := 10
 	startEntry := 0
-	totalDisplayLines := displayLines(0, len(entries))
-	// Disable or reduce scrolloff when items fit (or nearly fit) the visible area.
-	if totalDisplayLines <= height {
-		scrollOff = 0
-	} else if maxSO := (height - 1) / 2; scrollOff > maxSO {
-		scrollOff = maxSO
-	}
-	if cursor >= 0 && totalDisplayLines > height {
-		// Only apply scrolling if content doesn't fit on screen.
-		// First, ensure the cursor is visible.
-		for startEntry < len(entries) {
-			dl := displayLines(startEntry, cursor+1)
-			if dl <= height {
-				break
-			}
-			startEntry++
+
+	// Use persistent scroll position if available (vim-style stable viewport).
+	if isActive && ActiveMiddleScroll >= 0 {
+		startEntry = VimScrollOff(ActiveMiddleScroll, cursor, len(entries), height, scrollOff, displayLines)
+		ActiveMiddleScroll = startEntry
+	} else if !isActive && ActiveLeftScroll >= 0 {
+		startEntry = VimScrollOff(ActiveLeftScroll, cursor, len(entries), height, scrollOff, displayLines)
+		ActiveLeftScroll = startEntry
+	} else {
+		// Fallback: calculate from scratch (old behavior for callers that don't set scroll).
+		totalDisplayLines := displayLines(0, len(entries))
+		if totalDisplayLines <= height {
+			scrollOff = 0
+		} else if maxSO := (height - 1) / 2; scrollOff > maxSO {
+			scrollOff = maxSO
 		}
-		// Apply scrolloff: ensure at least scrollOff entries visible after cursor.
-		// Scroll down (increase startEntry) if needed to show more below cursor.
-		if cursor+scrollOff < len(entries) {
+		if cursor >= 0 && totalDisplayLines > height {
 			for startEntry < len(entries) {
-				dl := displayLines(startEntry, cursor+scrollOff+1)
+				dl := displayLines(startEntry, cursor+1)
 				if dl <= height {
 					break
 				}
 				startEntry++
 			}
-		}
-		// Apply scrolloff: ensure at least scrollOff entries visible before cursor.
-		if cursor-scrollOff >= 0 && startEntry > cursor-scrollOff {
-			startEntry = cursor - scrollOff
-			if startEntry < 0 {
-				startEntry = 0
+			if cursor+scrollOff < len(entries) {
+				for startEntry < len(entries) {
+					dl := displayLines(startEntry, cursor+scrollOff+1)
+					if dl <= height {
+						break
+					}
+					startEntry++
+				}
 			}
-		}
-		// Clamp startEntry so we never show empty trailing space.
-		// Walk backwards from the end to find the maximum valid startEntry.
-		for startEntry > 0 && displayLines(startEntry, len(entries)) < height {
-			startEntry--
+			if cursor-scrollOff >= 0 && startEntry > cursor-scrollOff {
+				startEntry = cursor - scrollOff
+				if startEntry < 0 {
+					startEntry = 0
+				}
+			}
+			for startEntry > 0 && displayLines(startEntry, len(entries)) < height {
+				startEntry--
+			}
 		}
 	}
 
@@ -1098,43 +1181,46 @@ func RenderTable(headerLabel string, items []model.Item, cursor int, width, heig
 		return n
 	}
 
-	// Total display lines = items + category header lines.
-	totalDisplayLines := len(items) + categoryLines(0, len(items))
-
-	// Scrolling: ensure cursor is visible with scrolloff padding.
-	scrollOff := 10
-	// Disable or reduce scrolloff when all items fit the visible area.
-	if totalDisplayLines <= height {
-		scrollOff = 0
-	} else if maxSO := (height - 1) / 2; scrollOff > maxSO {
-		scrollOff = maxSO
+	// Display lines for a range of items (each item = 1 line + category headers).
+	tableDisplayLines := func(from, to int) int {
+		return (to - from) + categoryLines(from, to)
 	}
+
+	// Scrolling: use vim-style scrolloff for stable viewport.
+	scrollOff := 10
 	startIdx := 0
-	if cursor >= 0 {
-		// displayLinesUpTo returns how many display lines items [start..idx] occupy.
-		displayLinesUpTo := func(start, idx int) int {
-			return (idx - start + 1) + categoryLines(start, idx+1)
+	if ActiveMiddleScroll >= 0 {
+		startIdx = VimScrollOff(ActiveMiddleScroll, cursor, len(items), height, scrollOff, tableDisplayLines)
+		ActiveMiddleScroll = startIdx
+	} else {
+		// Fallback: calculate from scratch (old behavior).
+		totalDisplayLines := len(items) + categoryLines(0, len(items))
+		if totalDisplayLines <= height {
+			scrollOff = 0
+		} else if maxSO := (height - 1) / 2; scrollOff > maxSO {
+			scrollOff = maxSO
 		}
-		// Ensure cursor is visible.
-		for startIdx < len(items) && displayLinesUpTo(startIdx, cursor) > height {
-			startIdx++
-		}
-		// Apply scrolloff: show items after cursor.
-		if cursor+scrollOff < len(items) {
-			for startIdx < len(items) && displayLinesUpTo(startIdx, cursor+scrollOff) > height {
+		if cursor >= 0 {
+			displayLinesUpTo := func(start, idx int) int {
+				return (idx - start + 1) + categoryLines(start, idx+1)
+			}
+			for startIdx < len(items) && displayLinesUpTo(startIdx, cursor) > height {
 				startIdx++
 			}
-		}
-		// Apply scrolloff: show items before cursor.
-		if cursor-scrollOff >= 0 && startIdx > cursor-scrollOff {
-			startIdx = cursor - scrollOff
-			if startIdx < 0 {
-				startIdx = 0
+			if cursor+scrollOff < len(items) {
+				for startIdx < len(items) && displayLinesUpTo(startIdx, cursor+scrollOff) > height {
+					startIdx++
+				}
 			}
-		}
-		// Clamp so we don't show empty trailing space.
-		for startIdx > 0 && (len(items)-startIdx+categoryLines(startIdx, len(items))) < height {
-			startIdx--
+			if cursor-scrollOff >= 0 && startIdx > cursor-scrollOff {
+				startIdx = cursor - scrollOff
+				if startIdx < 0 {
+					startIdx = 0
+				}
+			}
+			for startIdx > 0 && (len(items)-startIdx+categoryLines(startIdx, len(items))) < height {
+				startIdx--
+			}
 		}
 	}
 
