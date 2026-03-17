@@ -660,14 +660,6 @@ func (m Model) forceDeleteResource() tea.Cmd {
 	ctx := m.actionCtx.context
 	logger.Info("Force deleting resource", "resource", rt.Resource, "name", name, "namespace", ns, "context", ctx)
 
-	patchArgs := []string{
-		"patch", rt.Resource, name, "--context", ctx,
-		"--type", "merge", "-p", `{"metadata":{"finalizers":null}}`,
-	}
-	if rt.Namespaced {
-		patchArgs = append(patchArgs, "-n", ns)
-	}
-
 	deleteArgs := []string{
 		"delete", rt.Resource, name, "--context", ctx,
 		"--grace-period=0", "--force",
@@ -677,12 +669,6 @@ func (m Model) forceDeleteResource() tea.Cmd {
 	}
 
 	return func() tea.Msg {
-		// Remove finalizers first (ignore errors -- resource may not have finalizers).
-		patchCmd := exec.Command(kubectlPath, patchArgs...)
-		patchCmd.Env = append(os.Environ(), "KUBECONFIG="+m.client.KubeconfigPaths())
-		logger.Info("Running kubectl command", "cmd", patchCmd.String())
-		patchCmd.Run() //nolint:errcheck
-		// Force delete.
 		cmd := exec.Command(kubectlPath, deleteArgs...)
 		cmd.Env = append(os.Environ(), "KUBECONFIG="+m.client.KubeconfigPaths())
 		logger.Info("Running kubectl command", "cmd", cmd.String())

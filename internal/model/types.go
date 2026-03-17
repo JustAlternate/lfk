@@ -850,6 +850,17 @@ func IsRestartableKind(kind string) bool {
 	}
 }
 
+// IsForceDeleteableKind returns true if the given kind supports the force delete operation
+// (kubectl delete --grace-period=0 --force, without removing finalizers).
+func IsForceDeleteableKind(kind string) bool {
+	switch kind {
+	case "Pod", "Job":
+		return true
+	default:
+		return false
+	}
+}
+
 // ActionsForContainer returns the action menu items for a container.
 func ActionsForContainer() []ActionMenuItem {
 	return []ActionMenuItem{
@@ -889,7 +900,7 @@ func ActionsForKind(kind string) []ActionMenuItem {
 			{Label: "Describe", Description: "Describe resource", Key: "v"},
 			{Label: "Edit", Description: "Edit resource YAML", Key: "E"},
 			{Label: "Delete", Description: "Delete this pod", Key: "D"},
-			{Label: "Force Delete", Description: "Force delete this pod", Key: "X"},
+			{Label: "Force Delete", Description: "Force delete this pod (grace-period=0)", Key: "X"},
 			{Label: "Events", Description: "Show related events", Key: "V"},
 		}
 	case "Deployment":
@@ -970,6 +981,7 @@ func ActionsForKind(kind string) []ActionMenuItem {
 			{Label: "Describe", Description: "Describe resource", Key: "v"},
 			{Label: "Edit", Description: "Edit resource YAML", Key: "E"},
 			{Label: "Delete", Description: "Delete this job", Key: "D"},
+			{Label: "Force Delete", Description: "Force delete this job (grace-period=0)", Key: "X"},
 			{Label: "Events", Description: "Show related events", Key: "V"},
 		}
 	case "CronJob":

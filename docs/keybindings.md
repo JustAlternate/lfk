@@ -62,7 +62,7 @@ Search supports abbreviated resource type names (e.g., `pvc`, `hpa`, `deploy`).
 | `R` | Refresh current view | Yes (`refresh`) |
 | `v` | Describe selected resource (default: `v`) | Yes (`describe`) |
 | `D` | Delete resource (Force Finalize if already deleting) | Yes (`delete`) |
-| `X` | Force destroy (remove finalizers + force delete) | Yes (`force_delete`) |
+| `X` | Force delete with grace-period=0 (Pod/Job only) | Yes (`force_delete`) |
 | `o` | Jump to owner/controller of selected resource | No |
 | `i` | Edit labels/annotations | No |
 | `@` | Monitoring overview (active Prometheus alerts) | No |
@@ -231,6 +231,9 @@ The action menu (`x` key) shows context-specific actions based on the resource t
 
 ### Node Actions
 `c` Cordon, `u` Uncordon, `n` Drain, `t` Taint, `T` Untaint, `s` Shell, `v` Describe, `E` Edit, `V` Events
+
+### Job Actions
+`l` Logs, `s` Exec, `A` Attach, `v` Describe, `E` Edit, `D` Delete, `X` Force Delete, `V` Events
 
 ### CronJob Actions
 `l` Logs, `s` Exec, `A` Attach, `t` Trigger (create Job), `v` Describe, `E` Edit, `D` Delete, `V` Events

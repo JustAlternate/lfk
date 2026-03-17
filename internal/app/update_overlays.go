@@ -652,7 +652,7 @@ func (m Model) handleConfirmOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 
 		if action == "Force Delete" {
-			m.addLogEntry("DBG", fmt.Sprintf("$ kubectl patch %s %s --type merge -p '{\"metadata\":{\"finalizers\":null}}'%s --context %s && kubectl delete %s %s --grace-period=0 --force%s --context %s", rt.Resource, name, nsArg, ctx, rt.Resource, name, nsArg, ctx))
+			m.addLogEntry("DBG", fmt.Sprintf("$ kubectl delete %s %s --grace-period=0 --force%s --context %s", rt.Resource, name, nsArg, ctx))
 			return m, m.forceDeleteResource()
 		}
 		if action == "Drain" {

@@ -83,7 +83,7 @@ func helpSections() []helpSection {
 				{"R", "Refresh current view"},
 				{"v", "Describe selected resource"},
 				{"D", "Delete resource (Force Finalize if already deleting)"},
-				{"X", "Force destroy (remove finalizers + force delete)"},
+				{"X", "Force delete (grace-period=0, Pod/Job only)"},
 				{"o", "Jump to owner/controller of selected resource"},
 				{"y", "Copy resource name to clipboard"},
 				{"Ctrl+Y", "Copy resource YAML to clipboard"},

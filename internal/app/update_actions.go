@@ -267,6 +267,10 @@ func (m Model) directActionForceDelete() (tea.Model, tea.Cmd) {
 	if kind == "" || kind == "__port_forwards__" {
 		return m, nil
 	}
+	if !model.IsForceDeleteableKind(kind) {
+		m.setStatusMessage("Force delete not available for "+kind, true)
+		return m, scheduleStatusClear()
+	}
 	sel := m.selectedMiddleItem()
 	if sel == nil {
 		return m, nil
@@ -494,7 +498,7 @@ func (m Model) executeAction(actionLabel string) (tea.Model, tea.Cmd) {
 		if rt.Namespaced {
 			nsArg = " -n " + ns
 		}
-		m.addLogEntry("DBG", fmt.Sprintf("$ kubectl patch %s %s --type merge -p '{\"metadata\":{\"finalizers\":null}}'%s --context %s && kubectl delete %s %s --grace-period=0 --force%s --context %s", rt.Resource, name, nsArg, ctx, rt.Resource, name, nsArg, ctx))
+		m.addLogEntry("DBG", fmt.Sprintf("$ kubectl delete %s %s --grace-period=0 --force%s --context %s", rt.Resource, name, nsArg, ctx))
 		m.loading = true
 		return m, m.forceDeleteResource()
 	case "Force Finalize":
