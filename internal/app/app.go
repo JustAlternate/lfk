@@ -403,6 +403,9 @@ type Model struct {
 	// Metrics content: rendered bar graph for the preview column.
 	metricsContent string
 
+	// Preview events content: rendered event timeline for the preview column.
+	previewEventsContent string
+
 	// Baseline metrics for trend detection (updated every ~60s, not every refresh).
 	prevPodMetrics      map[string]model.PodMetrics
 	prevPodMetricsTime  time.Time
@@ -1282,6 +1285,9 @@ func (m *Model) clampPreviewScroll() {
 	if m.metricsContent != "" && !m.fullYAMLPreview {
 		fullContent += "\n" + m.metricsContent
 	}
+	if m.previewEventsContent != "" && !m.fullYAMLPreview {
+		fullContent += "\n" + m.previewEventsContent
+	}
 	totalLines := strings.Count(fullContent, "\n") + 1
 
 	visibleHeight := m.height - 4
@@ -1306,6 +1312,11 @@ func (m Model) renderRightColumn(width, height int) string {
 	// Append resource usage metrics at the very bottom of the right pane (hide in YAML preview mode).
 	if m.metricsContent != "" && !m.fullYAMLPreview {
 		result += "\n" + ui.DimStyle.Render(strings.Repeat("\u2500", width)) + "\n" + m.metricsContent
+	}
+
+	// Append event timeline below metrics (hide in YAML preview mode).
+	if m.previewEventsContent != "" && !m.fullYAMLPreview {
+		result += "\n" + ui.DimStyle.Render(strings.Repeat("\u2500", width)) + "\n" + m.previewEventsContent
 	}
 
 	// Apply preview scroll.
@@ -2325,6 +2336,7 @@ func (m *Model) clearRight() {
 	m.yamlSections = nil
 	m.previewYAML = ""
 	m.metricsContent = ""
+	m.previewEventsContent = ""
 	m.resourceTree = nil
 	m.mapView = false
 }

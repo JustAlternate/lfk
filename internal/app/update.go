@@ -735,6 +735,37 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		)
 		return m, nil
 
+	case previewEventsLoadedMsg:
+		if msg.gen != m.requestGen {
+			return m, nil // stale response
+		}
+		if len(msg.events) == 0 {
+			m.previewEventsContent = ""
+			return m, nil
+		}
+		// Calculate available width for the events section.
+		usable := m.width - 6
+		rightW := max(10, usable-max(10, usable*12/100)-max(10, usable*51/100))
+		innerW := rightW - 4
+		if innerW < 20 {
+			innerW = 20
+		}
+		entries := make([]ui.EventTimelineEntry, len(msg.events))
+		for i, e := range msg.events {
+			entries[i] = ui.EventTimelineEntry{
+				Timestamp:    e.Timestamp,
+				Type:         e.Type,
+				Reason:       e.Reason,
+				Message:      e.Message,
+				Source:       e.Source,
+				Count:        e.Count,
+				InvolvedName: e.InvolvedName,
+				InvolvedKind: e.InvolvedKind,
+			}
+		}
+		m.previewEventsContent = ui.RenderPreviewEvents(entries, innerW)
+		return m, nil
+
 	case podMetricsEnrichedMsg:
 		if msg.gen != m.requestGen {
 			return m, nil // stale response

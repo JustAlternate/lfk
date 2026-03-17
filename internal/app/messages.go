@@ -322,3 +322,9 @@ type netpolLoadedMsg struct {
 	info *k8s.NetworkPolicyInfo
 	err  error
 }
+
+// previewEventsLoadedMsg carries events for the preview pane.
+type previewEventsLoadedMsg struct {
+	events []k8s.EventInfo
+	gen    uint64
+}

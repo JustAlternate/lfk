@@ -424,6 +424,37 @@ func (m Model) loadMetrics() tea.Cmd {
 	return nil
 }
 
+// loadPreviewEvents loads events for the currently selected resource to display
+// in the preview pane below RESOURCE USAGE.
+func (m Model) loadPreviewEvents() tea.Cmd {
+	sel := m.selectedMiddleItem()
+	if sel == nil {
+		return nil
+	}
+
+	kctx := m.nav.Context
+	ns := m.resolveNamespace()
+	if sel.Namespace != "" {
+		ns = sel.Namespace
+	}
+	gen := m.requestGen
+	client := m.client
+	name := sel.Name
+
+	kind := m.nav.ResourceType.Kind
+	if m.nav.Level == model.LevelOwned {
+		kind = sel.Kind
+	}
+
+	return func() tea.Msg {
+		events, err := client.GetResourceEvents(context.Background(), kctx, ns, name, kind)
+		if err != nil {
+			return previewEventsLoadedMsg{gen: gen}
+		}
+		return previewEventsLoadedMsg{events: events, gen: gen}
+	}
+}
+
 // loadPodMetricsForList fetches metrics for all pods in the current namespace
 // and returns them to enrich the middle pane items.
 func (m Model) loadPodMetricsForList() tea.Cmd {
@@ -746,6 +777,10 @@ func (m Model) loadPreview() tea.Cmd {
 				cmds = append(cmds, metricsCmd)
 			}
 		}
+		// Load events for the preview pane.
+		if eventsCmd := m.loadPreviewEvents(); eventsCmd != nil {
+			cmds = append(cmds, eventsCmd)
+		}
 		if len(cmds) == 0 {
 			return nil
 		}
@@ -758,6 +793,9 @@ func (m Model) loadPreview() tea.Cmd {
 			}
 			if metricsCmd := m.loadMetrics(); metricsCmd != nil {
 				cmds = append(cmds, metricsCmd)
+			}
+			if eventsCmd := m.loadPreviewEvents(); eventsCmd != nil {
+				cmds = append(cmds, eventsCmd)
 			}
 			return tea.Batch(cmds...)
 		}

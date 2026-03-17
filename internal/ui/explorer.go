@@ -2055,6 +2055,103 @@ func renderUsageBar(used, req, lim int64, barWidth int, formatFn func(int64) str
 	return bar + suffix
 }
 
+// RenderPreviewEvents renders an event timeline section for the preview pane.
+// Events are shown in a compact table with color-coded types.
+func RenderPreviewEvents(events []EventTimelineEntry, width int) string {
+	if len(events) == 0 {
+		return ""
+	}
+
+	var b strings.Builder
+	b.WriteString(DimStyle.Bold(true).Render("EVENTS"))
+	b.WriteString("\n")
+
+	warningStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorWarning))
+	errorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorError))
+	normalStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorSecondary))
+	reasonStyle := lipgloss.NewStyle().Bold(true)
+	dimStyle := DimStyle
+
+	// Show at most 20 events to avoid making the preview pane too long.
+	maxEvents := 20
+	if len(events) > maxEvents {
+		events = events[:maxEvents]
+	}
+
+	// Calculate column widths for alignment.
+	// Format: AGE  TYPE  REASON  MESSAGE
+	maxAgeW := 0
+	maxReasonW := 0
+	for _, e := range events {
+		ageStr := relativeTime(e.Timestamp)
+		if len(ageStr) > maxAgeW {
+			maxAgeW = len(ageStr)
+		}
+		if len(e.Reason) > maxReasonW {
+			maxReasonW = len(e.Reason)
+		}
+	}
+	// Cap reason column width.
+	if maxReasonW > 25 {
+		maxReasonW = 25
+	}
+
+	// Message width: total width minus age, type indicator, reason, spacing.
+	msgWidth := width - maxAgeW - 3 - maxReasonW - 4 // 3 for " ● ", 4 for spacing
+	if msgWidth < 20 {
+		msgWidth = 20
+	}
+
+	for _, e := range events {
+		ageStr := relativeTime(e.Timestamp)
+
+		// Type indicator and styling.
+		var dot, reasonStr string
+		switch e.Type {
+		case "Warning":
+			dot = errorStyle.Render("\u25cf")
+			reasonStr = errorStyle.Bold(true).Render(fmt.Sprintf("%-*s", maxReasonW, truncateStr(e.Reason, maxReasonW)))
+		default:
+			dot = normalStyle.Render("\u25cf")
+			reasonStr = reasonStyle.Render(fmt.Sprintf("%-*s", maxReasonW, truncateStr(e.Reason, maxReasonW)))
+		}
+
+		// Age.
+		ageFormatted := dimStyle.Render(fmt.Sprintf("%-*s", maxAgeW, ageStr))
+
+		// Count suffix.
+		countStr := ""
+		if e.Count > 1 {
+			countStr = warningStyle.Render(fmt.Sprintf(" (x%d)", e.Count))
+		}
+
+		// Message - wrap long messages rather than truncate.
+		msg := e.Message
+		if len(msg) > msgWidth {
+			msg = msg[:msgWidth-3] + "..."
+		}
+
+		fmt.Fprintf(&b, " %s %s %s %s", ageFormatted, dot, reasonStr, dimStyle.Render(msg))
+		if countStr != "" {
+			b.WriteString(countStr)
+		}
+		b.WriteString("\n")
+	}
+
+	return b.String()
+}
+
+// truncateStr truncates a string to maxLen characters.
+func truncateStr(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	if maxLen <= 3 {
+		return s[:maxLen]
+	}
+	return s[:maxLen-3] + "..."
+}
+
 // FormatCPU formats millicores into a human-readable string.
 func FormatCPU(millis int64) string {
 	if millis >= 1000 {
