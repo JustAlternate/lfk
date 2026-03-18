@@ -19,6 +19,7 @@ The configuration file is located at `~/.config/lfk/config.yaml`. All fields are
 | `filter_presets` | map[string]list | `{}` | User-defined quick filter presets per resource type. |
 | `terminal` | string | `"pty"` | How exec/shell commands run: `"pty"` (embedded in TUI) or `"exec"` (takes over terminal). |
 | `pinned_groups` | list[string] | `[]` | CRD API groups to pin after built-in categories. Also manageable in-app with `p` key (stored per-context in `~/.local/state/lfk/pinned.yaml`). |
+| `tips` | bool | `true` | Show a random tip in the status bar on startup. Set to `false` to disable. |
 
 ## Monitoring
 

@@ -25,6 +25,45 @@ func scheduleStatusClear() tea.Cmd {
 	})
 }
 
+// startupTips is the list of tips shown randomly on startup.
+var startupTips = []string{
+	"Press ? to see all keybindings",
+	"Press / to search, f to filter resources",
+	"Press n/N to jump between search matches",
+	"Press Space to select items, Ctrl+Space for range selection",
+	"Press x to open the action menu for selected resources",
+	"Press t to open a new tab, ] and [ to switch tabs",
+	"Press \\ to change namespace, Shift+A to toggle all-namespaces",
+	"Press F to toggle fullscreen mode",
+	"Press L to view logs, s to exec into a pod",
+	"Press I to explore any API resource with kubectl explain",
+	"Press U to check RBAC permissions for a resource type",
+	"Press @ to open the monitoring dashboard",
+	"Press O to jump to the parent/owner of a resource",
+	"Press b to add a bookmark, B to open bookmarks",
+	"Press y to copy resource name, Y to copy YAML",
+	"Press . for quick filter presets (failing pods, not-ready, etc.)",
+	"Press T to preview different color themes",
+	"Press e to edit resources with your $EDITOR",
+	"Press v to describe a resource (like kubectl describe)",
+	"Press p to pin/unpin CRD groups for quick access",
+	"Use abbreviated search: type 'po' for Pods, 'deploy' for Deployments",
+	"In log viewer: s for timestamps, c for previous container logs",
+	"Press Ctrl+Y to copy full resource YAML, Ctrl+P to paste and create",
+	"Configure custom actions per resource type in ~/.config/lfk/config.yaml",
+	"Disable tips with 'tips: false' in ~/.config/lfk/config.yaml",
+}
+
+// scheduleStartupTip sends a random tip after a short delay to let the UI settle.
+func scheduleStartupTip() tea.Cmd {
+	//nolint:gosec // math/rand is fine for tip selection
+	idx := time.Now().UnixNano() % int64(len(startupTips))
+	tip := startupTips[idx]
+	return tea.Tick(500*time.Millisecond, func(_ time.Time) tea.Msg {
+		return startupTipMsg{tip: tip}
+	})
+}
+
 // scheduleWatchTick returns a command that sends a watchTickMsg after the interval.
 func scheduleWatchTick(interval time.Duration) tea.Cmd {
 	return tea.Tick(interval, func(_ time.Time) tea.Msg {

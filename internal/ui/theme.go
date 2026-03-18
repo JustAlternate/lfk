@@ -125,6 +125,9 @@ var ConfigCustomActions map[string][]CustomAction
 // right after built-in categories, before other discovered CRDs.
 var ConfigPinnedGroups []string
 
+// ConfigTipsEnabled controls whether to show random tips on startup.
+var ConfigTipsEnabled = true
+
 // ActiveSchemeName holds the name of the currently active color scheme.
 var ActiveSchemeName = "tokyonight"
 
@@ -159,6 +162,9 @@ type configFile struct {
 	// Monitoring maps cluster context names to custom monitoring endpoint config.
 	// The special key "default" applies to clusters without explicit config.
 	Monitoring map[string]model.MonitoringConfig `json:"monitoring" yaml:"monitoring"`
+	// Tips controls whether to show random tips on startup.
+	// Defaults to true. Set to false to disable.
+	Tips *bool `json:"tips" yaml:"tips"`
 }
 
 // DefaultAbbreviations returns the default search abbreviation map.
@@ -350,6 +356,11 @@ func LoadAndApplyTheme() {
 	// Apply monitoring endpoint overrides.
 	if cfg.Monitoring != nil {
 		model.ConfigMonitoring = cfg.Monitoring
+	}
+
+	// Apply tips setting.
+	if cfg.Tips != nil {
+		ConfigTipsEnabled = *cfg.Tips
 	}
 
 	ApplyTheme(theme)

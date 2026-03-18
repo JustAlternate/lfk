@@ -725,6 +725,9 @@ func (m Model) Init() tea.Cmd {
 	if m.watchMode {
 		cmds = append(cmds, scheduleWatchTick(m.watchInterval))
 	}
+	if ui.ConfigTipsEnabled {
+		cmds = append(cmds, scheduleStartupTip())
+	}
 	return tea.Batch(cmds...)
 }
 

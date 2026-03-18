@@ -500,6 +500,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.statusMessage = ""
 		return m, nil
 
+	case startupTipMsg:
+		m.setStatusMessage("Tip: "+msg.tip, false)
+		return m, scheduleStatusClear()
+
 	case watchTickMsg:
 		if !m.watchMode {
 			return m, nil

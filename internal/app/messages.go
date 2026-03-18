@@ -82,6 +82,9 @@ type triggerCronJobMsg struct {
 // statusMessageExpiredMsg clears the status message after a timeout.
 type statusMessageExpiredMsg struct{}
 
+// startupTipMsg delivers a random tip to display on startup.
+type startupTipMsg struct{ tip string }
+
 // watchTickMsg triggers a periodic refresh in watch mode.
 type watchTickMsg struct{}
 

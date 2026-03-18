@@ -215,6 +215,11 @@ filter_presets:
 #   - argoproj.io
 #   - longhorn.io
 
+# ─── Startup Tips ─────────────────────────────────────────────────────────────
+# Show a random tip in the status bar on startup.
+# Set to false to disable.
+tips: true
+
 # ─── Terminal Mode ────────────────────────────────────────────────────────────
 # How exec and shell commands are executed.
 # "pty" (default): Embedded in the TUI
