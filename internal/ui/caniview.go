@@ -25,9 +25,17 @@ var canIVerbs = []struct {
 // RenderCanIView renders the can-i browser with a two-column layout.
 // The left column (API groups) is interactive; the right column (resources) is display-only.
 func RenderCanIView(groups []string, resources []model.CanIResource, groupCursor, groupScroll int, subjectName string, namespaces []string, width, height int, hintBar string, resourceScroll int) string {
-	// Title bar.
+	// Title bar — truncate if it exceeds the available width.
 	scopeLabel := "ns:" + strings.Join(namespaces, ",")
 	titleText := TitleStyle.Render("RBAC Permissions ("+subjectName+")") + "  " + DimStyle.Render(scopeLabel)
+	if lipgloss.Width(titleText) > width {
+		// Drop scope label if too wide.
+		titleText = TitleStyle.Render("RBAC Permissions (" + subjectName + ")")
+	}
+	if lipgloss.Width(titleText) > width {
+		// Truncate subject name if still too wide.
+		titleText = TitleStyle.Render("RBAC (" + subjectName + ")")
+	}
 
 	hint := hintBar
 

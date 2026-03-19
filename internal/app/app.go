@@ -2372,7 +2372,7 @@ func (m Model) renderOverlay(background string) string {
 			hintBar,
 			m.canIResourceScroll,
 		)
-		overlay := ui.OverlayStyle.Width(overlayW).Render(canIContent)
+		overlay := ui.OverlayStyle.Width(overlayW).Height(overlayH).Render(canIContent)
 		bg := padToHeight(background, m.height)
 		return ui.PlaceOverlay(m.width, m.height, overlay, bg)
 	case overlayCanISubject:
