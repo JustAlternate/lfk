@@ -2881,19 +2881,34 @@ func (m Model) handleYAMLKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case "w":
-		// Move cursor to next word start.
+		// Move cursor to next word start; jump to next line at end of line.
 		yamlForDisplay := m.maskYAMLIfSecret(m.yamlContent)
 		visLines, _ := buildVisibleLines(yamlForDisplay, m.yamlSections, m.yamlCollapsed)
 		if m.yamlCursor >= 0 && m.yamlCursor < len(visLines) {
-			m.yamlVisualCurCol = nextWordStart(visLines[m.yamlCursor], m.yamlVisualCurCol)
+			newCol := nextWordStart(visLines[m.yamlCursor], m.yamlVisualCurCol)
+			if newCol == m.yamlVisualCurCol && m.yamlCursor < len(visLines)-1 {
+				m.yamlCursor++
+				m.yamlVisualCurCol = nextWordStart(visLines[m.yamlCursor], 0)
+				m.ensureYAMLCursorVisible()
+			} else {
+				m.yamlVisualCurCol = newCol
+			}
 		}
 		return m, nil
 	case "b":
-		// Move cursor to previous word start.
+		// Move cursor to previous word start; jump to previous line at start of line.
 		yamlForDisplay := m.maskYAMLIfSecret(m.yamlContent)
 		visLines, _ := buildVisibleLines(yamlForDisplay, m.yamlSections, m.yamlCollapsed)
 		if m.yamlCursor >= 0 && m.yamlCursor < len(visLines) {
-			m.yamlVisualCurCol = prevWordStart(visLines[m.yamlCursor], m.yamlVisualCurCol)
+			newCol := prevWordStart(visLines[m.yamlCursor], m.yamlVisualCurCol)
+			if newCol == m.yamlVisualCurCol && m.yamlVisualCurCol == 0 && m.yamlCursor > 0 {
+				m.yamlCursor--
+				lineLen := len([]rune(visLines[m.yamlCursor]))
+				m.yamlVisualCurCol = prevWordStart(visLines[m.yamlCursor], lineLen)
+				m.ensureYAMLCursorVisible()
+			} else {
+				m.yamlVisualCurCol = newCol
+			}
 		}
 		return m, nil
 	case "j", "down":
@@ -3387,17 +3402,32 @@ func (m Model) handleLogKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case "e":
-		// Move cursor to end of current/next word.
+		// Move cursor to end of current/next word; jump to next line at end of line.
 		m.logLineInput = ""
 		if m.logCursor >= 0 && m.logCursor < len(m.logLines) {
-			m.logVisualCurCol = wordEnd(m.logLines[m.logCursor], m.logVisualCurCol)
+			newCol := wordEnd(m.logLines[m.logCursor], m.logVisualCurCol)
+			if newCol == m.logVisualCurCol && m.logCursor < len(m.logLines)-1 {
+				m.logCursor++
+				m.logVisualCurCol = wordEnd(m.logLines[m.logCursor], 0)
+				m.clampLogScroll()
+			} else {
+				m.logVisualCurCol = newCol
+			}
 		}
 		return m, nil
 	case "b":
-		// Move cursor to previous word start.
+		// Move cursor to previous word start; jump to previous line at start of line.
 		m.logLineInput = ""
 		if m.logCursor >= 0 && m.logCursor < len(m.logLines) {
-			m.logVisualCurCol = prevWordStart(m.logLines[m.logCursor], m.logVisualCurCol)
+			newCol := prevWordStart(m.logLines[m.logCursor], m.logVisualCurCol)
+			if newCol == m.logVisualCurCol && m.logVisualCurCol == 0 && m.logCursor > 0 {
+				m.logCursor--
+				lineLen := len([]rune(m.logLines[m.logCursor]))
+				m.logVisualCurCol = prevWordStart(m.logLines[m.logCursor], lineLen)
+				m.clampLogScroll()
+			} else {
+				m.logVisualCurCol = newCol
+			}
 		}
 		return m, nil
 	case "V":
