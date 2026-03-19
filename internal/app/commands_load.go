@@ -913,6 +913,14 @@ func (m Model) loadCanIRules() tea.Cmd {
 		ns = "default"
 	}
 	subject := m.canISubject
+	// When checking a specific SA, use the SA's own namespace so that
+	// namespace-scoped RoleBinding permissions are discovered.
+	if subject != "" {
+		parts := strings.Split(subject, ":")
+		if len(parts) == 4 && parts[0] == "system" && parts[1] == "serviceaccount" {
+			ns = parts[2]
+		}
+	}
 	return func() tea.Msg {
 		rules, err := client.GetSelfRulesAs(context.Background(), ctx, ns, subject)
 		return canILoadedMsg{rules: rules, err: err}
