@@ -2535,7 +2535,7 @@ func buildContainerItem(c corev1.Container, statuses []corev1.ContainerStatus, i
 	return item
 }
 
-func containerStateString(ready bool, waiting interface{}, running interface{}, terminated interface{}) string {
+func containerStateString(ready bool, waiting *corev1.ContainerStateWaiting, running *corev1.ContainerStateRunning, terminated *corev1.ContainerStateTerminated) string {
 	if running != nil {
 		if ready {
 			return "Running"
