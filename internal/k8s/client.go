@@ -272,6 +272,13 @@ func (c *Client) GetResources(ctx context.Context, contextName, namespace string
 		// Populate Ready and Restarts based on kind.
 		populateResourceDetails(&ti, item.Object, rt.Kind)
 
+		// Add "Used By" column for PVCs showing which pods reference the claim.
+		if rt.Kind == "PersistentVolumeClaim" {
+			if pods, err := c.GetPodsUsingPVC(ctx, contextName, ti.Namespace, ti.Name); err == nil && len(pods) > 0 {
+				ti.Columns = append(ti.Columns, model.KeyValue{Key: "Used By", Value: strings.Join(pods, ", ")})
+			}
+		}
+
 		// Evaluate CRD additionalPrinterColumns if present.
 		if len(rt.PrinterColumns) > 0 {
 			// Build a set of existing column keys to avoid duplicates.
@@ -3392,7 +3399,19 @@ func (c *Client) GetResourceEvents(ctx context.Context, kubeCtx, namespace, name
 		return nil, fmt.Errorf("listing events: %w", err)
 	}
 
+	// Kinds that create child resources with name prefixes (e.g. Deployment "foo"
+	// creates ReplicaSet "foo-abc", which creates Pod "foo-abc-xyz").
+	prefixKinds := map[string]bool{
+		"Deployment":  true,
+		"StatefulSet": true,
+		"DaemonSet":   true,
+		"ReplicaSet":  true,
+		"Job":         true,
+		"CronJob":     true,
+	}
+	allowPrefix := prefixKinds[kind]
 	namePrefix := name + "-"
+
 	events := make([]EventInfo, 0, len(list.Items))
 	for _, item := range list.Items {
 		involved, _, _ := unstructured.NestedMap(item.Object, "involvedObject")
@@ -3400,11 +3419,16 @@ func (c *Client) GetResourceEvents(ctx context.Context, kubeCtx, namespace, name
 			continue
 		}
 		involvedName, _ := involved["name"].(string)
-		if involvedName != name && !strings.HasPrefix(involvedName, namePrefix) {
+		involvedKind, _ := involved["kind"].(string)
+
+		// Exact name match requires the kind to match as well.
+		// Prefix match (for owned child resources) is only allowed for kinds
+		// that create children with the parent name as a prefix.
+		exactMatch := involvedName == name && involvedKind == kind
+		prefixMatch := allowPrefix && involvedName != name && strings.HasPrefix(involvedName, namePrefix)
+		if !exactMatch && !prefixMatch {
 			continue
 		}
-
-		involvedKind, _ := involved["kind"].(string)
 
 		eventType, _, _ := unstructured.NestedString(item.Object, "type")
 		reason, _, _ := unstructured.NestedString(item.Object, "reason")
@@ -3453,6 +3477,54 @@ func (c *Client) GetResourceEvents(ctx context.Context, kubeCtx, namespace, name
 	})
 
 	return events, nil
+}
+
+// GetPodsUsingPVC returns the names of pods that reference the given PVC in the specified namespace.
+func (c *Client) GetPodsUsingPVC(ctx context.Context, kubeCtx, namespace, pvcName string) ([]string, error) {
+	dynClient, err := c.dynamicForContext(kubeCtx)
+	if err != nil {
+		return nil, err
+	}
+
+	podGVR := schema.GroupVersionResource{
+		Group:    "",
+		Version:  "v1",
+		Resource: "pods",
+	}
+
+	list, err := dynClient.Resource(podGVR).Namespace(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("listing pods: %w", err)
+	}
+
+	var podNames []string
+	for _, item := range list.Items {
+		spec, ok := item.Object["spec"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		volumes, ok := spec["volumes"].([]interface{})
+		if !ok {
+			continue
+		}
+		for _, v := range volumes {
+			vol, ok := v.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			pvc, ok := vol["persistentVolumeClaim"].(map[string]interface{})
+			if !ok {
+				continue
+			}
+			if claimName, _ := pvc["claimName"].(string); claimName == pvcName {
+				podNames = append(podNames, item.GetName())
+				break
+			}
+		}
+	}
+
+	sort.Strings(podNames)
+	return podNames, nil
 }
 
 // PatchLabels patches the labels on a resource using a merge patch.

@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -27,15 +28,27 @@ func (m Model) bookmarkToSlot(slot string) (tea.Model, tea.Cmd) {
 	}
 	name := strings.Join(parts, " > ")
 
-	ns := m.namespace
+	var ns string
+	var nsList []string
 	if m.allNamespaces {
 		ns = ""
+	} else if len(m.selectedNamespaces) > 1 {
+		// Multiple namespaces selected — store them all.
+		nsList = make([]string, 0, len(m.selectedNamespaces))
+		for n := range m.selectedNamespaces {
+			nsList = append(nsList, n)
+		}
+		sort.Strings(nsList)
+		ns = nsList[0] // primary namespace for backward compat display
+	} else {
+		ns = m.namespace
 	}
 
 	bm := model.Bookmark{
 		Name:         name,
 		Context:      m.nav.Context,
 		Namespace:    ns,
+		Namespaces:   nsList,
 		ResourceType: m.nav.ResourceType.ResourceRef(),
 		ResourceName: m.nav.ResourceName,
 		Slot:         slot,
@@ -105,8 +118,7 @@ func (m *Model) bookmarkDeleteCurrent() tea.Cmd {
 	}
 	target := filtered[m.overlayCursor]
 	for i, bm := range m.bookmarks {
-		if bm.Name == target.Name && bm.Context == target.Context &&
-			bm.ResourceType == target.ResourceType && bm.ResourceName == target.ResourceName {
+		if bm.Slot == target.Slot {
 			m.bookmarks = removeBookmark(m.bookmarks, i)
 			break
 		}
@@ -136,11 +148,11 @@ func (m *Model) bookmarkDeleteAll() tea.Cmd {
 		// Delete only the filtered bookmarks.
 		filterSet := make(map[string]bool)
 		for _, bm := range filtered {
-			filterSet[bm.Name+"\x00"+bm.Context+"\x00"+bm.ResourceType+"\x00"+bm.ResourceName] = true
+			filterSet[bm.Slot] = true
 		}
 		var remaining []model.Bookmark
 		for _, bm := range m.bookmarks {
-			key := bm.Name + "\x00" + bm.Context + "\x00" + bm.ResourceType + "\x00" + bm.ResourceName
+			key := bm.Slot
 			if !filterSet[key] {
 				remaining = append(remaining, bm)
 			}
@@ -164,6 +176,10 @@ func (m Model) handleBookmarkOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch m.bookmarkSearchMode {
 	case bookmarkModeFilter:
 		return m.handleBookmarkFilterMode(msg)
+	case bookmarkModeConfirmDelete:
+		return m.handleBookmarkConfirmDelete(msg)
+	case bookmarkModeConfirmDeleteAll:
+		return m.handleBookmarkConfirmDeleteAll(msg)
 	default:
 		return m.handleBookmarkNormalMode(msg, filtered)
 	}
@@ -180,12 +196,6 @@ func (m Model) handleBookmarkNormalMode(msg tea.KeyMsg, filtered []model.Bookmar
 	case "enter":
 		if len(filtered) > 0 && m.overlayCursor >= 0 && m.overlayCursor < len(filtered) {
 			return m.navigateToBookmark(filtered[m.overlayCursor])
-		}
-		return m, nil
-	case "1", "2", "3", "4", "5", "6", "7", "8", "9":
-		idx := int(msg.String()[0]-'0') - 1
-		if idx < len(filtered) {
-			return m.navigateToBookmark(filtered[idx])
 		}
 		return m, nil
 	case "j", "down", "ctrl+n":
@@ -240,11 +250,23 @@ func (m Model) handleBookmarkNormalMode(msg tea.KeyMsg, filtered []model.Bookmar
 		m.bookmarkFilter.Clear()
 		return m, nil
 	case "D":
-		cmd := m.bookmarkDeleteCurrent()
-		return m, cmd
+		if len(filtered) > 0 && m.overlayCursor >= 0 && m.overlayCursor < len(filtered) {
+			target := filtered[m.overlayCursor]
+			label := target.Name
+			if target.Slot != "" {
+				label = fmt.Sprintf("'%s' (%s)", target.Slot, target.Name)
+			}
+			m.bookmarkSearchMode = bookmarkModeConfirmDelete
+			m.setStatusMessage(fmt.Sprintf("Delete mark %s? (y/n)", label), true)
+		}
+		return m, nil
 	case "ctrl+x":
-		cmd := m.bookmarkDeleteAll()
-		return m, cmd
+		if len(filtered) > 0 {
+			count := len(filtered)
+			m.bookmarkSearchMode = bookmarkModeConfirmDeleteAll
+			m.setStatusMessage(fmt.Sprintf("Delete %d bookmark(s)? (y/n)", count), true)
+		}
+		return m, nil
 	case "ctrl+c":
 		return m.closeTabOrQuit()
 	default:
@@ -302,6 +324,32 @@ func (m Model) handleBookmarkFilterMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 }
 
+// handleBookmarkConfirmDelete handles y/n confirmation for single bookmark deletion.
+func (m Model) handleBookmarkConfirmDelete(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	m.bookmarkSearchMode = bookmarkModeNormal
+	switch msg.String() {
+	case "y", "Y":
+		cmd := m.bookmarkDeleteCurrent()
+		return m, cmd
+	default:
+		m.setStatusMessage("Cancelled", false)
+		return m, scheduleStatusClear()
+	}
+}
+
+// handleBookmarkConfirmDeleteAll handles y/n confirmation for deleting all bookmarks.
+func (m Model) handleBookmarkConfirmDeleteAll(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	m.bookmarkSearchMode = bookmarkModeNormal
+	switch msg.String() {
+	case "y", "Y":
+		cmd := m.bookmarkDeleteAll()
+		return m, cmd
+	default:
+		m.setStatusMessage("Cancelled", false)
+		return m, scheduleStatusClear()
+	}
+}
+
 // navigateToBookmark jumps to the location described by a bookmark.
 func (m Model) navigateToBookmark(bm model.Bookmark) (tea.Model, tea.Cmd) {
 	m.overlay = overlayNone
@@ -319,12 +367,27 @@ func (m Model) navigateToBookmark(bm model.Bookmark) (tea.Model, tea.Cmd) {
 	m.monitoringPreview = ""
 	m.applyPinnedGroups()
 
-	// Set namespace.
-	if bm.Namespace == "" {
+	// Set namespace(s).
+	if bm.Namespace == "" && len(bm.Namespaces) == 0 {
 		m.allNamespaces = true
-	} else {
+		m.selectedNamespaces = nil
+	} else if len(bm.Namespaces) > 1 {
+		// Multiple namespaces stored.
 		m.allNamespaces = false
-		m.namespace = bm.Namespace
+		m.namespace = bm.Namespaces[0]
+		m.selectedNamespaces = make(map[string]bool, len(bm.Namespaces))
+		for _, ns := range bm.Namespaces {
+			m.selectedNamespaces[ns] = true
+		}
+	} else {
+		// Single namespace (legacy or single-select).
+		m.allNamespaces = false
+		ns := bm.Namespace
+		if len(bm.Namespaces) == 1 {
+			ns = bm.Namespaces[0]
+		}
+		m.namespace = ns
+		m.selectedNamespaces = map[string]bool{ns: true}
 	}
 
 	// Navigate to resource type level first, then optionally deeper.

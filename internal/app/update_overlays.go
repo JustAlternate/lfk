@@ -84,10 +84,8 @@ func (m Model) handleOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // handleEventTimelineOverlayKey handles keyboard input for the event timeline overlay.
 func (m Model) handleEventTimelineOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	key := msg.String()
-	// Calculate maximum scroll for clamping.
-	overlayH := min(30, m.height-4)
-	maxVisible := max(overlayH-6, 1) // reserve lines for header, footer, padding
-	maxScroll := max(len(m.eventTimelineData)-maxVisible, 0)
+	// Max scroll is clamped by the renderer, so use event count as upper bound.
+	maxScroll := max(len(m.eventTimelineData)-1, 0)
 
 	switch key {
 	case "esc", "q":
@@ -954,6 +952,10 @@ func (m Model) handlePodSelectOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.overlay = overlayNone
 			m.logPodFilterText = ""
 			m.logPodFilterActive = false
+			if m.pendingAction == "Go to Pod" {
+				m.pendingAction = ""
+				return m.navigateToOwner("Pod", sel.Name)
+			}
 			if m.pendingAction == "Logs" {
 				m.pendingAction = ""
 				return m.executeAction("Logs")

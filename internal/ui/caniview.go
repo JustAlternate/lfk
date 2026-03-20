@@ -189,9 +189,11 @@ func renderCanIResources(resources []model.CanIResource, width, maxLines, scroll
 		for _, v := range canIVerbs {
 			colW := canIVerbColWidth(v.label)
 			if r.Verbs[v.verb] {
-				verbParts = append(verbParts, lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Render(fmt.Sprintf("%-*s", colW, "\u2713")))
+				padded := "\u2713" + strings.Repeat(" ", colW-1)
+				verbParts = append(verbParts, lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Render(padded))
 			} else {
-				verbParts = append(verbParts, DimStyle.Render(fmt.Sprintf("%-*s", colW, "\u00b7")))
+				padded := "\u00b7" + strings.Repeat(" ", colW-1)
+				verbParts = append(verbParts, DimStyle.Render(padded))
 			}
 		}
 		verbStr := strings.Join(verbParts, "")
@@ -208,74 +210,71 @@ func renderCanIResources(resources []model.CanIResource, width, maxLines, scroll
 }
 
 // RenderCanISubjectOverlay renders the subject selector overlay for the can-i browser.
-// scroll is the first visible item index, maxVisible is the number of items that fit on screen.
-// filterQuery is the current search text, filterActive indicates whether the user is typing.
-func RenderCanISubjectOverlay(items []model.Item, cursor, scroll, maxVisible int, filterQuery string, filterActive bool) string {
+// Follows the same layout pattern as RenderNamespaceOverlay: title, filter bar, items, hint bar.
+func RenderCanISubjectOverlay(items []model.Item, filter string, cursor int, filterMode bool) string {
 	var b strings.Builder
 	b.WriteString(OverlayTitleStyle.Render("Select Subject"))
+	b.WriteString("\n")
+
+	// Filter input (same 3 states as namespace overlay).
+	switch {
+	case filterMode:
+		b.WriteString(OverlayFilterStyle.Render("/ " + filter + "\u2588"))
+	case filter != "":
+		b.WriteString(OverlayFilterStyle.Render("/ " + filter))
+	default:
+		b.WriteString(OverlayDimStyle.Render("/ to filter"))
+	}
 	b.WriteString("\n\n")
 
-	// Clamp scroll.
-	maxScroll := max(len(items)-maxVisible, 0)
-	if scroll > maxScroll {
-		scroll = maxScroll
+	if items == nil {
+		b.WriteString(OverlayDimStyle.Render("Loading subjects..."))
+		return b.String()
 	}
-	if scroll < 0 {
-		scroll = 0
-	}
-
-	// Calculate dynamic name width based on the longest item name.
-	nameWidth := 30
-	for _, item := range items {
-		if len(item.Name) > nameWidth {
-			nameWidth = len(item.Name)
-		}
-	}
-	// Cap at a reasonable maximum.
-	if nameWidth > 80 {
-		nameWidth = 80
+	if len(items) == 0 {
+		b.WriteString(OverlayDimStyle.Render("No matching subjects"))
+		return b.String()
 	}
 
-	end := min(scroll+maxVisible, len(items))
-
-	// Show scroll-up indicator if items are hidden above.
-	if scroll > 0 {
-		b.WriteString(DimStyle.Render(fmt.Sprintf("  (%d more above)", scroll)))
-		b.WriteString("\n")
+	maxVisible := min(15, len(items))
+	scrollOff := 3
+	// Disable or reduce scrolloff when all items fit the visible area.
+	if len(items) <= maxVisible {
+		scrollOff = 0
+	} else if maxSO := (maxVisible - 1) / 2; scrollOff > maxSO {
+		scrollOff = maxSO
 	}
 
-	for i := scroll; i < end; i++ {
+	// Use VimScrollOff for stable viewport behavior.
+	displayLines := func(from, to int) int { return to - from }
+	start := VimScrollOff(overlayCanISubjectScroll, cursor, len(items), maxVisible, scrollOff, displayLines)
+	overlayCanISubjectScroll = start
+
+	end := start + maxVisible
+	if end > len(items) {
+		end = len(items)
+	}
+
+	for i := start; i < end; i++ {
 		item := items[i]
 		prefix := "  "
 		if i == cursor {
 			prefix = "> "
 		}
-		name := item.Name
+		line := prefix + item.Name
 		if i == cursor {
-			b.WriteString(OverlaySelectedStyle.Render(fmt.Sprintf("%s%-*s", prefix, nameWidth, name)))
+			b.WriteString(OverlaySelectedStyle.Render(line))
 		} else {
-			b.WriteString(OverlayNormalStyle.Render(fmt.Sprintf("%s%-*s", prefix, nameWidth, name)))
+			b.WriteString(OverlayNormalStyle.Render(line))
 		}
-		b.WriteString("\n")
+		if i < end-1 {
+			b.WriteString("\n")
+		}
 	}
 
-	// Show scroll-down indicator if items are hidden below.
-	if end < len(items) {
-		b.WriteString(DimStyle.Render(fmt.Sprintf("  (%d more below)", len(items)-end)))
-		b.WriteString("\n")
-	}
-
-	// Filter bar.
-	if filterActive {
-		b.WriteString(HelpKeyStyle.Render("/") + NormalStyle.Render(filterQuery) + DimStyle.Render("\u2588"))
-		b.WriteString("\n")
-	} else if filterQuery != "" {
-		b.WriteString(HelpKeyStyle.Render("/") + NormalStyle.Render(filterQuery))
-		b.WriteString("\n")
-	}
-
-	b.WriteString("\n")
+	b.WriteString("\n\n")
 	b.WriteString(OverlayDimStyle.Render("Enter: select  /: filter  Esc: cancel"))
+
 	return b.String()
 }
 

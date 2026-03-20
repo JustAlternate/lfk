@@ -105,8 +105,8 @@ When items are selected, press `x` to open the bulk action menu (delete, force d
 | `j` / `k` | Bookmark overlay | Navigate bookmarks |
 | `/` | Bookmark overlay | Filter bookmarks by name |
 | `Enter` | Bookmark overlay | Jump to selected bookmark |
-| `D` | Bookmark overlay | Delete selected bookmark |
-| `Ctrl+X` | Bookmark overlay | Delete all bookmarks |
+| `D` | Bookmark overlay | Delete selected bookmark (with confirmation) |
+| `Ctrl+X` | Bookmark overlay | Delete all bookmarks (with confirmation) |
 
 ## YAML View
 
@@ -115,7 +115,11 @@ When items are selected, press `x` to open the bulk action menu (delete, force d
 | `j` / `k` | Scroll up/down |
 | `h` / `l` | Move cursor column left/right |
 | `0` / `$` | Move cursor to line start/end |
-| `w` / `b` | Move cursor to next/previous word |
+| `^` | Move cursor to first non-whitespace character |
+| `w` / `b` | Move cursor to next/previous word start |
+| `W` / `B` | Move cursor to next/previous WORD start (whitespace-delimited) |
+| `e` | Move cursor to end of word |
+| `E` | Move cursor to end of WORD (whitespace-delimited) |
 | `gg` / `G` | Jump to top / bottom |
 | `Ctrl+D` / `Ctrl+U` | Page down / up (half page) |
 | `Ctrl+F` / `Ctrl+B` | Page down / up (full page) |
@@ -128,7 +132,7 @@ When items are selected, press `x` to open the bulk action menu (delete, force d
 | `y` | Copy selected text (in visual mode) |
 | `Tab` / `z` | Toggle fold on section under cursor |
 | `Z` | Toggle all folds (collapse/expand all) |
-| `e` | Edit resource in `$EDITOR` |
+| `Ctrl+E` | Edit resource in `$EDITOR` |
 | `q` / `Esc` | Back to explorer |
 
 ## Log Viewer
@@ -137,20 +141,24 @@ When items are selected, press `x` to open the bulk action menu (delete, force d
 |---|---|
 | `j` / `k` | Move cursor up/down |
 | `h` / `l` / `Left` / `Right` | Move cursor column left/right |
-| `$` | Move cursor to line end |
-| `e` / `b` | Move cursor to word end/previous word |
+| `0` / `$` | Move cursor to line start/end |
+| `^` | Move cursor to first non-whitespace character |
+| `w` / `b` | Move cursor to next/previous word start |
+| `W` / `B` | Move cursor to next/previous WORD start (whitespace-delimited) |
+| `e` | Move cursor to end of word |
+| `E` | Move cursor to end of WORD (whitespace-delimited) |
 | `gg` / `G` | Jump to top / bottom |
 | `Ctrl+D` / `Ctrl+U` | Half page down / up |
 | `Ctrl+F` / `Ctrl+B` | Full page down / up |
 | `f` | Toggle follow mode (auto-scroll to new logs) |
-| `w` | Toggle line wrapping |
+| `Tab` / `z` | Toggle line wrapping |
 | `#` | Toggle line numbers |
 | `s` | Toggle timestamps |
 | `c` | Toggle previous container logs |
 | `/` | Search in logs |
 | `n` / `N` / `p` | Next / previous search match |
 | `123G` | Jump to specific line number |
-| `W` | Save loaded logs to file |
+| `S` | Save loaded logs to file |
 | `Ctrl+S` | Save all logs to file (full kubectl logs) |
 | `v` | Character visual selection (from cursor column) |
 | `V` | Visual line selection |
@@ -332,7 +340,7 @@ The action menu (`x` key) shows context-specific actions based on the resource t
 `o` Open in Browser, `v` Describe, `E` Edit, `D` Delete, `b` Debug Pod, `V` Events
 
 ### PVC Actions
-`b` Debug Mount, `B` Debug Pod, `v` Describe, `E` Edit, `D` Delete, `V` Events
+`g` Go to Pod, `b` Debug Mount, `B` Debug Pod, `v` Describe, `E` Edit, `D` Delete, `V` Events
 
 ### Default Actions (all other resources)
 `v` Describe, `E` Edit, `D` Delete, `l` Labels / Annotations, `b` Debug Pod, `V` Events

@@ -19,6 +19,11 @@ import (
 	"github.com/janosmiko/lfk/internal/ui"
 )
 
+// yamlFoldPrefixLen is the number of characters prepended by buildVisibleLines
+// for fold indicators (always "  ", 2 chars). Cursor columns operate on these
+// prefixed lines, so the first content character is at index yamlFoldPrefixLen.
+const yamlFoldPrefixLen = 2
+
 // isContextCanceled returns true if the error is due to an intentional context cancellation.
 // It checks both Go context errors and string-based "context canceled" messages from kubectl.
 func isContextCanceled(err error) bool {
@@ -789,7 +794,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.overlayItems = items
 		m.overlayCursor = 0
-		m.canISubjectScroll = 0
+		m.overlayFilter.Clear()
+		m.canISubjectFilterMode = false
+		ui.ResetOverlayCanISubjectScroll()
 		m.overlay = overlayCanISubject
 		return m, nil
 
@@ -2627,8 +2634,8 @@ func (m Model) handleYAMLKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			switch m.yamlVisualType {
 			case 'v': // Character mode: partial first/last lines.
 				var parts []string
-				anchorCol := m.yamlVisualCol
-				cursorCol := m.yamlVisualCurCol
+				anchorCol := m.yamlVisualCol - yamlFoldPrefixLen
+				cursorCol := m.yamlVisualCurCol - yamlFoldPrefixLen
 				// Determine direction: assign columns to selStart/selEnd lines.
 				startCol, endCol := anchorCol, cursorCol
 				if m.yamlVisualStart > m.yamlCursor {
@@ -2670,8 +2677,8 @@ func (m Model) handleYAMLKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				}
 				clipText = strings.Join(parts, "\n")
 			case 'B': // Block mode: rectangular column range.
-				colStart := min(m.yamlVisualCol, m.yamlVisualCurCol)
-				colEnd := max(m.yamlVisualCol, m.yamlVisualCurCol) + 1
+				colStart := min(m.yamlVisualCol, m.yamlVisualCurCol) - yamlFoldPrefixLen
+				colEnd := max(m.yamlVisualCol, m.yamlVisualCurCol) - yamlFoldPrefixLen + 1
 				var parts []string
 				for i := selStart; i <= selEnd; i++ {
 					if i >= len(mapping) || mapping[i] < 0 || mapping[i] >= len(origLines) {
@@ -2706,7 +2713,7 @@ func (m Model) handleYAMLKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "h", "left":
 			// Move cursor column left (for char and block modes).
 			if m.yamlVisualType == 'v' || m.yamlVisualType == 'B' {
-				if m.yamlVisualCurCol > 0 {
+				if m.yamlVisualCurCol > yamlFoldPrefixLen {
 					m.yamlVisualCurCol--
 				}
 			}
@@ -2766,7 +2773,7 @@ func (m Model) handleYAMLKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.yamlCursor = 0
 			return m, nil
 		case "0":
-			m.yamlVisualCurCol = 0
+			m.yamlVisualCurCol = yamlFoldPrefixLen
 			return m, nil
 		case "$":
 			yamlForDisplay := m.maskYAMLIfSecret(m.yamlContent)
@@ -2782,10 +2789,16 @@ func (m Model) handleYAMLKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			yamlForDisplay := m.maskYAMLIfSecret(m.yamlContent)
 			visLines, _ := buildVisibleLines(yamlForDisplay, m.yamlSections, m.yamlCollapsed)
 			if m.yamlCursor >= 0 && m.yamlCursor < len(visLines) {
+				lineLen := len([]rune(visLines[m.yamlCursor]))
 				newCol := nextWordStart(visLines[m.yamlCursor], m.yamlVisualCurCol)
-				if newCol == m.yamlVisualCurCol && m.yamlCursor < len(visLines)-1 {
+				if newCol >= lineLen && m.yamlCursor < len(visLines)-1 {
 					m.yamlCursor++
-					m.yamlVisualCurCol = nextWordStart(visLines[m.yamlCursor], 0)
+					newCol = nextWordStart(visLines[m.yamlCursor], 0)
+					nextLineLen := len([]rune(visLines[m.yamlCursor]))
+					if newCol >= nextLineLen {
+						newCol = max(nextLineLen-1, 0)
+					}
+					m.yamlVisualCurCol = max(yamlFoldPrefixLen, newCol)
 					m.ensureYAMLCursorVisible()
 				} else {
 					m.yamlVisualCurCol = newCol
@@ -2797,14 +2810,108 @@ func (m Model) handleYAMLKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			visLines, _ := buildVisibleLines(yamlForDisplay, m.yamlSections, m.yamlCollapsed)
 			if m.yamlCursor >= 0 && m.yamlCursor < len(visLines) {
 				newCol := prevWordStart(visLines[m.yamlCursor], m.yamlVisualCurCol)
-				if newCol == m.yamlVisualCurCol && m.yamlVisualCurCol == 0 && m.yamlCursor > 0 {
+				if newCol < 0 && m.yamlCursor > 0 {
 					m.yamlCursor--
 					lineLen := len([]rune(visLines[m.yamlCursor]))
-					m.yamlVisualCurCol = prevWordStart(visLines[m.yamlCursor], lineLen)
+					newCol = prevWordStart(visLines[m.yamlCursor], lineLen)
+					if newCol < 0 {
+						newCol = 0
+					}
+					m.yamlVisualCurCol = max(yamlFoldPrefixLen, newCol)
+					m.ensureYAMLCursorVisible()
+				} else {
+					m.yamlVisualCurCol = max(yamlFoldPrefixLen, max(newCol, 0))
+				}
+			}
+			return m, nil
+		case "e":
+			yamlForDisplay := m.maskYAMLIfSecret(m.yamlContent)
+			visLines, _ := buildVisibleLines(yamlForDisplay, m.yamlSections, m.yamlCollapsed)
+			if m.yamlCursor >= 0 && m.yamlCursor < len(visLines) {
+				lineLen := len([]rune(visLines[m.yamlCursor]))
+				newCol := wordEnd(visLines[m.yamlCursor], m.yamlVisualCurCol)
+				if newCol >= lineLen && m.yamlCursor < len(visLines)-1 {
+					m.yamlCursor++
+					newCol = wordEnd(visLines[m.yamlCursor], 0)
+					nextLineLen := len([]rune(visLines[m.yamlCursor]))
+					if newCol >= nextLineLen {
+						newCol = max(nextLineLen-1, 0)
+					}
+					m.yamlVisualCurCol = max(yamlFoldPrefixLen, newCol)
+					m.ensureYAMLCursorVisible()
+				} else {
+					m.yamlVisualCurCol = max(yamlFoldPrefixLen, newCol)
+				}
+			}
+			return m, nil
+		case "E":
+			yamlForDisplay := m.maskYAMLIfSecret(m.yamlContent)
+			visLines, _ := buildVisibleLines(yamlForDisplay, m.yamlSections, m.yamlCollapsed)
+			if m.yamlCursor >= 0 && m.yamlCursor < len(visLines) {
+				lineLen := len([]rune(visLines[m.yamlCursor]))
+				newCol := WORDEnd(visLines[m.yamlCursor], m.yamlVisualCurCol)
+				if newCol >= lineLen && m.yamlCursor < len(visLines)-1 {
+					m.yamlCursor++
+					newCol = WORDEnd(visLines[m.yamlCursor], 0)
+					nextLineLen := len([]rune(visLines[m.yamlCursor]))
+					if newCol >= nextLineLen {
+						newCol = max(nextLineLen-1, 0)
+					}
+					m.yamlVisualCurCol = max(yamlFoldPrefixLen, newCol)
+					m.ensureYAMLCursorVisible()
+				} else {
+					m.yamlVisualCurCol = max(yamlFoldPrefixLen, newCol)
+				}
+			}
+			return m, nil
+		case "B":
+			yamlForDisplay := m.maskYAMLIfSecret(m.yamlContent)
+			visLines, _ := buildVisibleLines(yamlForDisplay, m.yamlSections, m.yamlCollapsed)
+			if m.yamlCursor >= 0 && m.yamlCursor < len(visLines) {
+				newCol := prevWORDStart(visLines[m.yamlCursor], m.yamlVisualCurCol)
+				if newCol < 0 && m.yamlCursor > 0 {
+					m.yamlCursor--
+					lineLen := len([]rune(visLines[m.yamlCursor]))
+					newCol = prevWORDStart(visLines[m.yamlCursor], lineLen)
+					if newCol < 0 {
+						newCol = 0
+					}
+					m.yamlVisualCurCol = max(yamlFoldPrefixLen, newCol)
+					m.ensureYAMLCursorVisible()
+				} else {
+					m.yamlVisualCurCol = max(yamlFoldPrefixLen, max(newCol, 0))
+				}
+			}
+			return m, nil
+		case "W":
+			yamlForDisplay := m.maskYAMLIfSecret(m.yamlContent)
+			visLines, _ := buildVisibleLines(yamlForDisplay, m.yamlSections, m.yamlCollapsed)
+			if m.yamlCursor >= 0 && m.yamlCursor < len(visLines) {
+				lineLen := len([]rune(visLines[m.yamlCursor]))
+				newCol := nextWORDStart(visLines[m.yamlCursor], m.yamlVisualCurCol)
+				if newCol >= lineLen && m.yamlCursor < len(visLines)-1 {
+					m.yamlCursor++
+					newCol = nextWORDStart(visLines[m.yamlCursor], 0)
+					nextLineLen := len([]rune(visLines[m.yamlCursor]))
+					if newCol >= nextLineLen {
+						newCol = max(nextLineLen-1, 0)
+					}
+					m.yamlVisualCurCol = max(yamlFoldPrefixLen, newCol)
 					m.ensureYAMLCursorVisible()
 				} else {
 					m.yamlVisualCurCol = newCol
 				}
+			}
+			return m, nil
+		case "^":
+			yamlForDisplay := m.maskYAMLIfSecret(m.yamlContent)
+			visLines, _ := buildVisibleLines(yamlForDisplay, m.yamlSections, m.yamlCollapsed)
+			if m.yamlCursor >= 0 && m.yamlCursor < len(visLines) {
+				col := firstNonWhitespace(visLines[m.yamlCursor])
+				if col < yamlFoldPrefixLen {
+					col = yamlFoldPrefixLen
+				}
+				m.yamlVisualCurCol = col
 			}
 			return m, nil
 		}
@@ -2883,7 +2990,7 @@ func (m Model) handleYAMLKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.yamlScrollToMatchFolded(viewportLines)
 		}
 		return m, nil
-	case "E":
+	case "ctrl+e":
 		// Edit the resource in $EDITOR via kubectl edit.
 		kind := m.selectedResourceKind()
 		sel := m.selectedMiddleItem()
@@ -2929,7 +3036,7 @@ func (m Model) handleYAMLKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "h", "left":
 		// Move cursor column left.
-		if m.yamlVisualCurCol > 0 {
+		if m.yamlVisualCurCol > yamlFoldPrefixLen {
 			m.yamlVisualCurCol--
 		}
 		return m, nil
@@ -2939,7 +3046,7 @@ func (m Model) handleYAMLKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "0":
 		// Move cursor to beginning of line.
-		m.yamlVisualCurCol = 0
+		m.yamlVisualCurCol = yamlFoldPrefixLen
 		return m, nil
 	case "$":
 		// Move cursor to end of current line.
@@ -2957,10 +3064,16 @@ func (m Model) handleYAMLKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		yamlForDisplay := m.maskYAMLIfSecret(m.yamlContent)
 		visLines, _ := buildVisibleLines(yamlForDisplay, m.yamlSections, m.yamlCollapsed)
 		if m.yamlCursor >= 0 && m.yamlCursor < len(visLines) {
+			lineLen := len([]rune(visLines[m.yamlCursor]))
 			newCol := nextWordStart(visLines[m.yamlCursor], m.yamlVisualCurCol)
-			if newCol == m.yamlVisualCurCol && m.yamlCursor < len(visLines)-1 {
+			if newCol >= lineLen && m.yamlCursor < len(visLines)-1 {
 				m.yamlCursor++
-				m.yamlVisualCurCol = nextWordStart(visLines[m.yamlCursor], 0)
+				newCol = nextWordStart(visLines[m.yamlCursor], 0)
+				nextLineLen := len([]rune(visLines[m.yamlCursor]))
+				if newCol >= nextLineLen {
+					newCol = max(nextLineLen-1, 0)
+				}
+				m.yamlVisualCurCol = max(yamlFoldPrefixLen, newCol)
 				m.ensureYAMLCursorVisible()
 			} else {
 				m.yamlVisualCurCol = newCol
@@ -2973,14 +3086,113 @@ func (m Model) handleYAMLKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		visLines, _ := buildVisibleLines(yamlForDisplay, m.yamlSections, m.yamlCollapsed)
 		if m.yamlCursor >= 0 && m.yamlCursor < len(visLines) {
 			newCol := prevWordStart(visLines[m.yamlCursor], m.yamlVisualCurCol)
-			if newCol == m.yamlVisualCurCol && m.yamlVisualCurCol == 0 && m.yamlCursor > 0 {
+			if newCol < 0 && m.yamlCursor > 0 {
 				m.yamlCursor--
 				lineLen := len([]rune(visLines[m.yamlCursor]))
-				m.yamlVisualCurCol = prevWordStart(visLines[m.yamlCursor], lineLen)
+				newCol = prevWordStart(visLines[m.yamlCursor], lineLen)
+				if newCol < 0 {
+					newCol = 0
+				}
+				m.yamlVisualCurCol = max(yamlFoldPrefixLen, newCol)
+				m.ensureYAMLCursorVisible()
+			} else {
+				m.yamlVisualCurCol = max(yamlFoldPrefixLen, max(newCol, 0))
+			}
+		}
+		return m, nil
+	case "e":
+		// Move cursor to end of current/next word; jump to next line at end of line.
+		yamlForDisplay := m.maskYAMLIfSecret(m.yamlContent)
+		visLines, _ := buildVisibleLines(yamlForDisplay, m.yamlSections, m.yamlCollapsed)
+		if m.yamlCursor >= 0 && m.yamlCursor < len(visLines) {
+			lineLen := len([]rune(visLines[m.yamlCursor]))
+			newCol := wordEnd(visLines[m.yamlCursor], m.yamlVisualCurCol)
+			if newCol >= lineLen && m.yamlCursor < len(visLines)-1 {
+				m.yamlCursor++
+				newCol = wordEnd(visLines[m.yamlCursor], 0)
+				nextLineLen := len([]rune(visLines[m.yamlCursor]))
+				if newCol >= nextLineLen {
+					newCol = max(nextLineLen-1, 0)
+				}
+				m.yamlVisualCurCol = max(yamlFoldPrefixLen, newCol)
+				m.ensureYAMLCursorVisible()
+			} else {
+				m.yamlVisualCurCol = max(yamlFoldPrefixLen, newCol)
+			}
+		}
+		return m, nil
+	case "E":
+		// Move cursor to end of current/next WORD; jump to next line at end of line.
+		yamlForDisplay := m.maskYAMLIfSecret(m.yamlContent)
+		visLines, _ := buildVisibleLines(yamlForDisplay, m.yamlSections, m.yamlCollapsed)
+		if m.yamlCursor >= 0 && m.yamlCursor < len(visLines) {
+			lineLen := len([]rune(visLines[m.yamlCursor]))
+			newCol := WORDEnd(visLines[m.yamlCursor], m.yamlVisualCurCol)
+			if newCol >= lineLen && m.yamlCursor < len(visLines)-1 {
+				m.yamlCursor++
+				newCol = WORDEnd(visLines[m.yamlCursor], 0)
+				nextLineLen := len([]rune(visLines[m.yamlCursor]))
+				if newCol >= nextLineLen {
+					newCol = max(nextLineLen-1, 0)
+				}
+				m.yamlVisualCurCol = max(yamlFoldPrefixLen, newCol)
+				m.ensureYAMLCursorVisible()
+			} else {
+				m.yamlVisualCurCol = max(yamlFoldPrefixLen, newCol)
+			}
+		}
+		return m, nil
+	case "B":
+		// Move cursor to previous WORD start; jump to previous line at start of line.
+		yamlForDisplay := m.maskYAMLIfSecret(m.yamlContent)
+		visLines, _ := buildVisibleLines(yamlForDisplay, m.yamlSections, m.yamlCollapsed)
+		if m.yamlCursor >= 0 && m.yamlCursor < len(visLines) {
+			newCol := prevWORDStart(visLines[m.yamlCursor], m.yamlVisualCurCol)
+			if newCol < 0 && m.yamlCursor > 0 {
+				m.yamlCursor--
+				lineLen := len([]rune(visLines[m.yamlCursor]))
+				newCol = prevWORDStart(visLines[m.yamlCursor], lineLen)
+				if newCol < 0 {
+					newCol = 0
+				}
+				m.yamlVisualCurCol = max(yamlFoldPrefixLen, newCol)
+				m.ensureYAMLCursorVisible()
+			} else {
+				m.yamlVisualCurCol = max(yamlFoldPrefixLen, max(newCol, 0))
+			}
+		}
+		return m, nil
+	case "W":
+		// Move cursor to next WORD start; jump to next line at end of line.
+		yamlForDisplay := m.maskYAMLIfSecret(m.yamlContent)
+		visLines, _ := buildVisibleLines(yamlForDisplay, m.yamlSections, m.yamlCollapsed)
+		if m.yamlCursor >= 0 && m.yamlCursor < len(visLines) {
+			lineLen := len([]rune(visLines[m.yamlCursor]))
+			newCol := nextWORDStart(visLines[m.yamlCursor], m.yamlVisualCurCol)
+			if newCol >= lineLen && m.yamlCursor < len(visLines)-1 {
+				m.yamlCursor++
+				newCol = nextWORDStart(visLines[m.yamlCursor], 0)
+				nextLineLen := len([]rune(visLines[m.yamlCursor]))
+				if newCol >= nextLineLen {
+					newCol = max(nextLineLen-1, 0)
+				}
+				m.yamlVisualCurCol = max(yamlFoldPrefixLen, newCol)
 				m.ensureYAMLCursorVisible()
 			} else {
 				m.yamlVisualCurCol = newCol
 			}
+		}
+		return m, nil
+	case "^":
+		// Move cursor to first non-whitespace character.
+		yamlForDisplay := m.maskYAMLIfSecret(m.yamlContent)
+		visLines, _ := buildVisibleLines(yamlForDisplay, m.yamlSections, m.yamlCollapsed)
+		if m.yamlCursor >= 0 && m.yamlCursor < len(visLines) {
+			col := firstNonWhitespace(visLines[m.yamlCursor])
+			if col < yamlFoldPrefixLen {
+				col = yamlFoldPrefixLen
+			}
+			m.yamlVisualCurCol = col
 		}
 		return m, nil
 	case "j", "down":
@@ -3477,10 +3689,16 @@ func (m Model) handleLogKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Move cursor to end of current/next word; jump to next line at end of line.
 		m.logLineInput = ""
 		if m.logCursor >= 0 && m.logCursor < len(m.logLines) {
+			lineLen := len([]rune(m.logLines[m.logCursor]))
 			newCol := wordEnd(m.logLines[m.logCursor], m.logVisualCurCol)
-			if newCol == m.logVisualCurCol && m.logCursor < len(m.logLines)-1 {
+			if newCol >= lineLen && m.logCursor < len(m.logLines)-1 {
 				m.logCursor++
-				m.logVisualCurCol = wordEnd(m.logLines[m.logCursor], 0)
+				newCol = wordEnd(m.logLines[m.logCursor], 0)
+				nextLineLen := len([]rune(m.logLines[m.logCursor]))
+				if newCol >= nextLineLen {
+					newCol = max(nextLineLen-1, 0)
+				}
+				m.logVisualCurCol = newCol
 				m.clampLogScroll()
 			} else {
 				m.logVisualCurCol = newCol
@@ -3492,13 +3710,17 @@ func (m Model) handleLogKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.logLineInput = ""
 		if m.logCursor >= 0 && m.logCursor < len(m.logLines) {
 			newCol := prevWordStart(m.logLines[m.logCursor], m.logVisualCurCol)
-			if newCol == m.logVisualCurCol && m.logVisualCurCol == 0 && m.logCursor > 0 {
+			if newCol < 0 && m.logCursor > 0 {
 				m.logCursor--
 				lineLen := len([]rune(m.logLines[m.logCursor]))
-				m.logVisualCurCol = prevWordStart(m.logLines[m.logCursor], lineLen)
+				newCol = prevWordStart(m.logLines[m.logCursor], lineLen)
+				if newCol < 0 {
+					newCol = 0
+				}
+				m.logVisualCurCol = newCol
 				m.clampLogScroll()
 			} else {
-				m.logVisualCurCol = newCol
+				m.logVisualCurCol = max(newCol, 0)
 			}
 		}
 		return m, nil
@@ -3540,10 +3762,96 @@ func (m Model) handleLogKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.logScroll = m.logMaxScroll()
 		}
 		return m, nil
-	case "w":
+	case "tab", "z":
 		m.logLineInput = ""
 		m.logWrap = !m.logWrap
 		m.clampLogScroll()
+		return m, nil
+	case "w":
+		// Move cursor to next word start; jump to next line at end of line.
+		m.logLineInput = ""
+		if m.logCursor >= 0 && m.logCursor < len(m.logLines) {
+			lineLen := len([]rune(m.logLines[m.logCursor]))
+			newCol := nextWordStart(m.logLines[m.logCursor], m.logVisualCurCol)
+			if newCol >= lineLen && m.logCursor < len(m.logLines)-1 {
+				m.logCursor++
+				newCol = nextWordStart(m.logLines[m.logCursor], 0)
+				nextLineLen := len([]rune(m.logLines[m.logCursor]))
+				if newCol >= nextLineLen {
+					newCol = max(nextLineLen-1, 0)
+				}
+				m.logVisualCurCol = newCol
+				m.clampLogScroll()
+			} else {
+				m.logVisualCurCol = newCol
+			}
+		}
+		return m, nil
+	case "W":
+		// Move cursor to next WORD start; jump to next line at end of line.
+		m.logLineInput = ""
+		if m.logCursor >= 0 && m.logCursor < len(m.logLines) {
+			lineLen := len([]rune(m.logLines[m.logCursor]))
+			newCol := nextWORDStart(m.logLines[m.logCursor], m.logVisualCurCol)
+			if newCol >= lineLen && m.logCursor < len(m.logLines)-1 {
+				m.logCursor++
+				newCol = nextWORDStart(m.logLines[m.logCursor], 0)
+				nextLineLen := len([]rune(m.logLines[m.logCursor]))
+				if newCol >= nextLineLen {
+					newCol = max(nextLineLen-1, 0)
+				}
+				m.logVisualCurCol = newCol
+				m.clampLogScroll()
+			} else {
+				m.logVisualCurCol = newCol
+			}
+		}
+		return m, nil
+	case "E":
+		// Move cursor to end of current/next WORD; jump to next line at end of line.
+		m.logLineInput = ""
+		if m.logCursor >= 0 && m.logCursor < len(m.logLines) {
+			lineLen := len([]rune(m.logLines[m.logCursor]))
+			newCol := WORDEnd(m.logLines[m.logCursor], m.logVisualCurCol)
+			if newCol >= lineLen && m.logCursor < len(m.logLines)-1 {
+				m.logCursor++
+				newCol = WORDEnd(m.logLines[m.logCursor], 0)
+				nextLineLen := len([]rune(m.logLines[m.logCursor]))
+				if newCol >= nextLineLen {
+					newCol = max(nextLineLen-1, 0)
+				}
+				m.logVisualCurCol = newCol
+				m.clampLogScroll()
+			} else {
+				m.logVisualCurCol = newCol
+			}
+		}
+		return m, nil
+	case "B":
+		// Move cursor to previous WORD start; jump to previous line at start of line.
+		m.logLineInput = ""
+		if m.logCursor >= 0 && m.logCursor < len(m.logLines) {
+			newCol := prevWORDStart(m.logLines[m.logCursor], m.logVisualCurCol)
+			if newCol < 0 && m.logCursor > 0 {
+				m.logCursor--
+				lineLen := len([]rune(m.logLines[m.logCursor]))
+				newCol = prevWORDStart(m.logLines[m.logCursor], lineLen)
+				if newCol < 0 {
+					newCol = 0
+				}
+				m.logVisualCurCol = newCol
+				m.clampLogScroll()
+			} else {
+				m.logVisualCurCol = max(newCol, 0)
+			}
+		}
+		return m, nil
+	case "^":
+		// Move cursor to first non-whitespace character.
+		m.logLineInput = ""
+		if m.logCursor >= 0 && m.logCursor < len(m.logLines) {
+			m.logVisualCurCol = firstNonWhitespace(m.logLines[m.logCursor])
+		}
 		return m, nil
 	case "/":
 		m.logLineInput = ""
@@ -3567,7 +3875,7 @@ func (m Model) handleLogKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.logLineInput = ""
 		m.logTimestamps = !m.logTimestamps
 		return m, nil
-	case "W":
+	case "S":
 		// Save loaded logs to file.
 		m.logLineInput = ""
 		path, err := m.saveLoadedLogs()
@@ -3610,7 +3918,16 @@ func (m Model) handleLogKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 		return m, m.startLogStream()
-	case "0", "1", "2", "3", "4", "5", "6", "7", "8", "9":
+	case "0":
+		// If digits are pending, append 0 to the digit buffer (e.g. 10G, 20G).
+		// If no digits pending, move cursor to beginning of line (vim 0 motion).
+		if m.logLineInput != "" {
+			m.logLineInput += "0"
+		} else {
+			m.logVisualCurCol = 0
+		}
+		return m, nil
+	case "1", "2", "3", "4", "5", "6", "7", "8", "9":
 		m.logLineInput += msg.String()
 		return m, nil
 	case "\\":
@@ -3843,10 +4160,16 @@ func (m Model) handleLogVisualKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "e":
 		if m.logCursor >= 0 && m.logCursor < len(m.logLines) {
+			lineLen := len([]rune(m.logLines[m.logCursor]))
 			newCol := wordEnd(m.logLines[m.logCursor], m.logVisualCurCol)
-			if newCol == m.logVisualCurCol && m.logCursor < len(m.logLines)-1 {
+			if newCol >= lineLen && m.logCursor < len(m.logLines)-1 {
 				m.logCursor++
-				m.logVisualCurCol = wordEnd(m.logLines[m.logCursor], 0)
+				newCol = wordEnd(m.logLines[m.logCursor], 0)
+				nextLineLen := len([]rune(m.logLines[m.logCursor]))
+				if newCol >= nextLineLen {
+					newCol = max(nextLineLen-1, 0)
+				}
+				m.logVisualCurCol = newCol
 				m.ensureLogCursorVisible()
 			} else {
 				m.logVisualCurCol = newCol
@@ -3856,14 +4179,97 @@ func (m Model) handleLogVisualKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "b":
 		if m.logCursor >= 0 && m.logCursor < len(m.logLines) {
 			newCol := prevWordStart(m.logLines[m.logCursor], m.logVisualCurCol)
-			if newCol == m.logVisualCurCol && m.logVisualCurCol == 0 && m.logCursor > 0 {
+			if newCol < 0 && m.logCursor > 0 {
 				m.logCursor--
 				lineLen := len([]rune(m.logLines[m.logCursor]))
-				m.logVisualCurCol = prevWordStart(m.logLines[m.logCursor], lineLen)
+				newCol = prevWordStart(m.logLines[m.logCursor], lineLen)
+				if newCol < 0 {
+					newCol = 0
+				}
+				m.logVisualCurCol = newCol
+				m.ensureLogCursorVisible()
+			} else {
+				m.logVisualCurCol = max(newCol, 0)
+			}
+		}
+		return m, nil
+	case "w":
+		if m.logCursor >= 0 && m.logCursor < len(m.logLines) {
+			lineLen := len([]rune(m.logLines[m.logCursor]))
+			newCol := nextWordStart(m.logLines[m.logCursor], m.logVisualCurCol)
+			if newCol >= lineLen && m.logCursor < len(m.logLines)-1 {
+				m.logCursor++
+				newCol = nextWordStart(m.logLines[m.logCursor], 0)
+				nextLineLen := len([]rune(m.logLines[m.logCursor]))
+				if newCol >= nextLineLen {
+					newCol = max(nextLineLen-1, 0)
+				}
+				m.logVisualCurCol = newCol
 				m.ensureLogCursorVisible()
 			} else {
 				m.logVisualCurCol = newCol
 			}
+		}
+		return m, nil
+	case "W":
+		if m.logCursor >= 0 && m.logCursor < len(m.logLines) {
+			lineLen := len([]rune(m.logLines[m.logCursor]))
+			newCol := nextWORDStart(m.logLines[m.logCursor], m.logVisualCurCol)
+			if newCol >= lineLen && m.logCursor < len(m.logLines)-1 {
+				m.logCursor++
+				newCol = nextWORDStart(m.logLines[m.logCursor], 0)
+				nextLineLen := len([]rune(m.logLines[m.logCursor]))
+				if newCol >= nextLineLen {
+					newCol = max(nextLineLen-1, 0)
+				}
+				m.logVisualCurCol = newCol
+				m.ensureLogCursorVisible()
+			} else {
+				m.logVisualCurCol = newCol
+			}
+		}
+		return m, nil
+	case "E":
+		if m.logCursor >= 0 && m.logCursor < len(m.logLines) {
+			lineLen := len([]rune(m.logLines[m.logCursor]))
+			newCol := WORDEnd(m.logLines[m.logCursor], m.logVisualCurCol)
+			if newCol >= lineLen && m.logCursor < len(m.logLines)-1 {
+				m.logCursor++
+				newCol = WORDEnd(m.logLines[m.logCursor], 0)
+				nextLineLen := len([]rune(m.logLines[m.logCursor]))
+				if newCol >= nextLineLen {
+					newCol = max(nextLineLen-1, 0)
+				}
+				m.logVisualCurCol = newCol
+				m.ensureLogCursorVisible()
+			} else {
+				m.logVisualCurCol = newCol
+			}
+		}
+		return m, nil
+	case "B":
+		if m.logCursor >= 0 && m.logCursor < len(m.logLines) {
+			newCol := prevWORDStart(m.logLines[m.logCursor], m.logVisualCurCol)
+			if newCol < 0 && m.logCursor > 0 {
+				m.logCursor--
+				lineLen := len([]rune(m.logLines[m.logCursor]))
+				newCol = prevWORDStart(m.logLines[m.logCursor], lineLen)
+				if newCol < 0 {
+					newCol = 0
+				}
+				m.logVisualCurCol = newCol
+				m.ensureLogCursorVisible()
+			} else {
+				m.logVisualCurCol = max(newCol, 0)
+			}
+		}
+		return m, nil
+	case "0":
+		m.logVisualCurCol = 0
+		return m, nil
+	case "^":
+		if m.logCursor >= 0 && m.logCursor < len(m.logLines) {
+			m.logVisualCurCol = firstNonWhitespace(m.logLines[m.logCursor])
 		}
 		return m, nil
 	}
@@ -4206,14 +4612,12 @@ func (m Model) handleHeaderClick(relX int) (tea.Model, tea.Cmd) {
 }
 
 // nextWordStart returns the column of the next word start (vim 'w' motion).
+// Returns n (past end) when no next word exists on this line, signaling cross-line needed.
 func nextWordStart(line string, col int) int {
 	runes := []rune(line)
 	n := len(runes)
-	if n == 0 {
-		return 0
-	}
-	if col >= n-1 {
-		return n - 1
+	if n == 0 || col >= n-1 {
+		return n
 	}
 	i := col
 	// Skip current word characters.
@@ -4225,42 +4629,41 @@ func nextWordStart(line string, col int) int {
 		i++
 	}
 	if i >= n {
-		return n - 1
+		return n
 	}
 	return i
 }
 
 // wordEnd returns the column of the current/next word end (vim 'e' motion).
+// Returns n (past end) when no next word end exists on this line, signaling cross-line needed.
 func wordEnd(line string, col int) int {
 	runes := []rune(line)
 	n := len(runes)
-	if n == 0 {
-		return 0
-	}
-	if col >= n-1 {
-		return n - 1
+	if n == 0 || col >= n-1 {
+		return n
 	}
 	i := col + 1
 	// Skip whitespace/punctuation.
 	for i < n && isWordBoundary(runes[i]) {
 		i++
 	}
+	if i >= n {
+		return n
+	}
 	// Move to end of word.
 	for i < n-1 && !isWordBoundary(runes[i+1]) {
 		i++
-	}
-	if i >= n {
-		return n - 1
 	}
 	return i
 }
 
 // prevWordStart returns the column of the previous word start (vim 'b' motion).
+// Returns -1 when no previous word exists on this line, signaling cross-line needed.
 func prevWordStart(line string, col int) int {
 	runes := []rune(line)
 	n := len(runes)
 	if n == 0 || col <= 0 {
-		return 0
+		return -1
 	}
 	if col >= n {
 		col = n
@@ -4282,6 +4685,88 @@ func isWordBoundary(r rune) bool {
 	return r == ' ' || r == '\t' || r == '.' || r == ':' || r == ',' || r == ';' ||
 		r == '/' || r == '-' || r == '_' || r == '"' || r == '\'' || r == '(' || r == ')' ||
 		r == '[' || r == ']' || r == '{' || r == '}'
+}
+
+// nextWORDStart returns the column of the next WORD start (vim 'W' motion).
+// WORDs are whitespace-delimited (only spaces and tabs are boundaries).
+// Returns n (past end) when no next WORD exists on this line, signaling cross-line needed.
+func nextWORDStart(line string, col int) int {
+	runes := []rune(line)
+	n := len(runes)
+	if n == 0 || col >= n-1 {
+		return n
+	}
+	i := col
+	// Skip current WORD characters (non-whitespace).
+	for i < n && runes[i] != ' ' && runes[i] != '\t' {
+		i++
+	}
+	// Skip whitespace.
+	for i < n && (runes[i] == ' ' || runes[i] == '\t') {
+		i++
+	}
+	if i >= n {
+		return n
+	}
+	return i
+}
+
+// prevWORDStart returns the column of the previous WORD start (vim 'B' motion).
+// WORDs are whitespace-delimited (only spaces and tabs are boundaries).
+// Returns -1 when no previous WORD exists on this line, signaling cross-line needed.
+func prevWORDStart(line string, col int) int {
+	runes := []rune(line)
+	n := len(runes)
+	if n == 0 || col <= 0 {
+		return -1
+	}
+	if col >= n {
+		col = n
+	}
+	i := col - 1
+	// Skip whitespace.
+	for i > 0 && (runes[i] == ' ' || runes[i] == '\t') {
+		i--
+	}
+	// Move to start of WORD (non-whitespace).
+	for i > 0 && runes[i-1] != ' ' && runes[i-1] != '\t' {
+		i--
+	}
+	return i
+}
+
+// WORDEnd returns the column of the current/next WORD end (vim 'E' motion).
+// WORDs are whitespace-delimited (only spaces and tabs are boundaries).
+// Returns n (past end) when no next WORD end exists on this line, signaling cross-line needed.
+func WORDEnd(line string, col int) int {
+	runes := []rune(line)
+	n := len(runes)
+	if n == 0 || col >= n-1 {
+		return n
+	}
+	i := col + 1
+	// Skip whitespace.
+	for i < n && (runes[i] == ' ' || runes[i] == '\t') {
+		i++
+	}
+	if i >= n {
+		return n
+	}
+	// Move to end of WORD (non-whitespace).
+	for i < n-1 && runes[i+1] != ' ' && runes[i+1] != '\t' {
+		i++
+	}
+	return i
+}
+
+// firstNonWhitespace returns the column of the first non-space/tab character (vim '^' motion).
+func firstNonWhitespace(line string) int {
+	for i, r := range []rune(line) {
+		if r != ' ' && r != '\t' {
+			return i
+		}
+	}
+	return 0
 }
 
 // countLines counts newline characters.

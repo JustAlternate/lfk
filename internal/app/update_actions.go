@@ -575,6 +575,38 @@ func (m Model) executeAction(actionLabel string) (tea.Model, tea.Cmd) {
 	case "Debug Pod":
 		m.addLogEntry("DBG", fmt.Sprintf("$ kubectl run lfk-debug-<id> --image=alpine --rm -it --restart=Never -n %s --context %s -- sh", ns, ctx))
 		return m, m.runDebugPod()
+	case "Go to Pod":
+		var podNames []string
+		for _, kv := range m.actionCtx.columns {
+			if kv.Key == "Used By" && kv.Value != "" {
+				for p := range strings.SplitSeq(kv.Value, ", ") {
+					p = strings.TrimSpace(p)
+					if p != "" {
+						podNames = append(podNames, p)
+					}
+				}
+				break
+			}
+		}
+		if len(podNames) == 0 {
+			m.setStatusMessage("No pods using this PVC", true)
+			return m, scheduleStatusClear()
+		}
+		if len(podNames) == 1 {
+			return m.navigateToOwner("Pod", podNames[0])
+		}
+		var items []model.Item
+		for _, pn := range podNames {
+			items = append(items, model.Item{Name: pn, Namespace: ns})
+		}
+		m.overlayItems = items
+		m.overlay = overlayPodSelect
+		m.overlayCursor = 0
+		m.pendingAction = "Go to Pod"
+		m.logPodFilterText = ""
+		m.logPodFilterActive = false
+		ui.ResetOverlayPodScroll()
+		return m, nil
 	case "Debug Mount":
 		m.addLogEntry("DBG", fmt.Sprintf("$ kubectl run debug-pvc --image=alpine -it --rm --restart=Never --overrides='{...pvc:%s...}' -n %s --context %s -- sh", name, ns, ctx))
 		return m, m.runDebugPodWithPVC()

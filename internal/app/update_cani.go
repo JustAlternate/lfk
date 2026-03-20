@@ -437,93 +437,29 @@ func (m Model) handleCanIKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// canISubjectFilteredItems returns the overlay items filtered by the current subject filter query.
-func (m Model) canISubjectFilteredItems() []model.Item {
-	query := m.canISubjectFilterQuery
-	if m.canISubjectFilterActive {
-		query = m.canISubjectFilterInput.Value
-	}
-	if query == "" {
-		return m.overlayItems
-	}
-	lq := strings.ToLower(query)
-	filtered := make([]model.Item, 0)
-	for _, item := range m.overlayItems {
-		if strings.Contains(strings.ToLower(item.Name), lq) {
-			filtered = append(filtered, item)
-		}
-	}
-	return filtered
-}
-
 // handleCanISubjectOverlayKey handles the subject selector overlay in the can-i browser.
 func (m Model) handleCanISubjectOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	// If filter input is active, delegate to the filter key handler.
-	if m.canISubjectFilterActive {
-		return m.handleCanISubjectFilterKey(msg)
+	if m.canISubjectFilterMode {
+		return m.handleCanISubjectFilterMode(msg)
 	}
+	return m.handleCanISubjectNormalMode(msg)
+}
 
-	items := m.canISubjectFilteredItems()
-	overlayH := min(m.height-4, m.height*70/100)
-	maxVisible := max(overlayH-7, 1)
+// handleCanISubjectNormalMode handles normal-mode keys in the subject selector overlay.
+func (m Model) handleCanISubjectNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	items := m.filteredOverlayItems()
 
 	switch msg.String() {
-	case "q", "esc":
-		if m.canISubjectFilterQuery != "" {
-			m.canISubjectFilterQuery = ""
+	case "esc", "q":
+		if m.overlayFilter.Value != "" {
+			m.overlayFilter.Clear()
 			m.overlayCursor = 0
-			m.canISubjectScroll = 0
 			return m, nil
 		}
 		m.overlay = overlayCanI
+		m.overlayFilter.Clear()
 		return m, nil
-	case "/":
-		m.canISubjectFilterActive = true
-		m.canISubjectFilterInput.Clear()
-		return m, nil
-	case "j", "down":
-		if m.overlayCursor < len(items)-1 {
-			m.overlayCursor++
-			if m.overlayCursor >= m.canISubjectScroll+maxVisible {
-				m.canISubjectScroll = m.overlayCursor - maxVisible + 1
-			}
-		}
-		return m, nil
-	case "k", "up":
-		if m.overlayCursor > 0 {
-			m.overlayCursor--
-			if m.overlayCursor < m.canISubjectScroll {
-				m.canISubjectScroll = m.overlayCursor
-			}
-		}
-		return m, nil
-	case "g":
-		if m.pendingG {
-			m.pendingG = false
-			m.overlayCursor = 0
-			m.canISubjectScroll = 0
-			return m, nil
-		}
-		m.pendingG = true
-		return m, nil
-	case "G":
-		if len(items) > 0 {
-			m.overlayCursor = len(items) - 1
-			maxScroll := max(len(items)-maxVisible, 0)
-			m.canISubjectScroll = maxScroll
-		}
-		return m, nil
-	case "ctrl+d":
-		halfPage := maxVisible / 2
-		m.overlayCursor = min(m.overlayCursor+halfPage, max(len(items)-1, 0))
-		maxScroll := max(len(items)-maxVisible, 0)
-		m.canISubjectScroll = min(m.canISubjectScroll+halfPage, maxScroll)
-		return m, nil
-	case "ctrl+u":
-		halfPage := maxVisible / 2
-		m.overlayCursor = max(m.overlayCursor-halfPage, 0)
-		m.canISubjectScroll = max(m.canISubjectScroll-halfPage, 0)
-		return m, nil
+
 	case "enter":
 		if m.overlayCursor >= 0 && m.overlayCursor < len(items) {
 			sel := items[m.overlayCursor]
@@ -534,53 +470,106 @@ func (m Model) handleCanISubjectOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) 
 				m.canISubjectName = sel.Name
 			}
 			m.overlay = overlayNone
-			m.canISubjectFilterActive = false
-			m.canISubjectFilterQuery = ""
+			m.overlayFilter.Clear()
+			m.canISubjectFilterMode = false
 			m.loading = true
 			m.setStatusMessage("Loading RBAC permissions...", false)
 			return m, m.loadCanIRules()
 		}
 		return m, nil
+
+	case "/":
+		m.canISubjectFilterMode = true
+		m.overlayFilter.Clear()
+		return m, nil
+
+	case "j", "down", "ctrl+n":
+		if m.overlayCursor < len(items)-1 {
+			m.overlayCursor++
+		}
+		return m, nil
+
+	case "k", "up", "ctrl+p":
+		if m.overlayCursor > 0 {
+			m.overlayCursor--
+		}
+		return m, nil
+
+	case "ctrl+d":
+		m.overlayCursor += 10
+		if m.overlayCursor >= len(items) {
+			m.overlayCursor = len(items) - 1
+		}
+		return m, nil
+
+	case "ctrl+u":
+		m.overlayCursor -= 10
+		if m.overlayCursor < 0 {
+			m.overlayCursor = 0
+		}
+		return m, nil
+
+	case "ctrl+f":
+		m.overlayCursor += 20
+		if m.overlayCursor >= len(items) {
+			m.overlayCursor = len(items) - 1
+		}
+		return m, nil
+
+	case "ctrl+b":
+		m.overlayCursor -= 20
+		if m.overlayCursor < 0 {
+			m.overlayCursor = 0
+		}
+		return m, nil
+
+	case "ctrl+c":
+		return m.closeTabOrQuit()
 	}
 	return m, nil
 }
 
-// handleCanISubjectFilterKey handles keyboard input when filter is active in the subject selector.
-func (m Model) handleCanISubjectFilterKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+// handleCanISubjectFilterMode handles filter-mode keys in the subject selector overlay.
+func (m Model) handleCanISubjectFilterMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "enter":
-		m.canISubjectFilterActive = false
-		m.canISubjectFilterQuery = m.canISubjectFilterInput.Value
+		m.canISubjectFilterMode = false
 		m.overlayCursor = 0
-		m.canISubjectScroll = 0
 		return m, nil
 	case "esc":
-		m.canISubjectFilterActive = false
-		m.canISubjectFilterInput.Clear()
-		m.canISubjectFilterQuery = ""
+		m.canISubjectFilterMode = false
+		m.overlayFilter.Clear()
 		m.overlayCursor = 0
-		m.canISubjectScroll = 0
 		return m, nil
 	case "backspace":
-		if len(m.canISubjectFilterInput.Value) > 0 {
-			m.canISubjectFilterInput.Backspace()
+		if len(m.overlayFilter.Value) > 0 {
+			m.overlayFilter.Backspace()
 			m.overlayCursor = 0
-			m.canISubjectScroll = 0
 		}
 		return m, nil
 	case "ctrl+w":
-		m.canISubjectFilterInput.DeleteWord()
+		m.overlayFilter.DeleteWord()
 		m.overlayCursor = 0
-		m.canISubjectScroll = 0
+		return m, nil
+	case "ctrl+a":
+		m.overlayFilter.Home()
+		return m, nil
+	case "ctrl+e":
+		m.overlayFilter.End()
+		return m, nil
+	case "left":
+		m.overlayFilter.Left()
+		return m, nil
+	case "right":
+		m.overlayFilter.Right()
 		return m, nil
 	case "ctrl+c":
 		return m.closeTabOrQuit()
 	default:
 		key := msg.String()
 		if len(key) == 1 && key[0] >= 32 && key[0] < 127 {
-			m.canISubjectFilterInput.Insert(key)
+			m.overlayFilter.Insert(key)
 			m.overlayCursor = 0
-			m.canISubjectScroll = 0
 		}
 		return m, nil
 	}
@@ -637,9 +626,7 @@ func (m *Model) exitCanIView() {
 	m.canIServiceAccounts = nil
 	m.canISearchActive = false
 	m.canISearchQuery = ""
-	m.canISubjectScroll = 0
-	m.canISubjectFilterActive = false
-	m.canISubjectFilterQuery = ""
+	m.canISubjectFilterMode = false
 	m.canIAllowedOnly = false
 	m.canINamespaces = nil
 }

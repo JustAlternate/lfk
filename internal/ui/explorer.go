@@ -995,6 +995,48 @@ func FormatItemNameOnlyPlain(item model.Item, width int) string {
 	return Truncate(displayName, remaining) + deprecationSuffix
 }
 
+// wrapExtraValue splits a value into continuation-line chunks of the given width.
+// It returns only the continuation lines (chunks after the first), since the first
+// chunk is already rendered by the normal row. Returns nil if no wrapping is needed.
+func wrapExtraValue(val string, width int) []string {
+	if width <= 0 {
+		return nil
+	}
+	runes := []rune(val)
+	if len(runes) <= width {
+		return nil
+	}
+	var lines []string
+	for i := width; i < len(runes); i += width {
+		end := i + width
+		if end > len(runes) {
+			end = len(runes)
+		}
+		lines = append(lines, string(runes[i:end]))
+	}
+	return lines
+}
+
+// itemExtraLines returns how many continuation lines an item needs for wrapping the last extra column.
+func itemExtraLines(item *model.Item, extraCols []extraColumn) int {
+	if len(extraCols) == 0 || item == nil {
+		return 0
+	}
+	lastCol := extraCols[len(extraCols)-1]
+	val := getExtraColumnValue(item, lastCol.key)
+	wrapWidth := lastCol.width - 1 // account for spacing
+	if wrapWidth <= 0 {
+		return 0
+	}
+	runes := []rune(val)
+	if len(runes) <= wrapWidth {
+		return 0
+	}
+	// Number of continuation lines (total lines minus the first one).
+	totalLines := (len(runes) + wrapWidth - 1) / wrapWidth
+	return totalLines - 1
+}
+
 // RenderTable renders items in a table format with column headers for resource views.
 // headerLabel is used as the first column header; defaults to "NAME" if empty.
 func RenderTable(headerLabel string, items []model.Item, cursor int, width, height int, loading bool, spinnerView string, errMsg string, showMarker ...bool) string {
@@ -1181,9 +1223,13 @@ func RenderTable(headerLabel string, items []model.Item, cursor int, width, heig
 		return n
 	}
 
-	// Display lines for a range of items (each item = 1 line + category headers).
+	// Display lines for a range of items (each item = 1 line + category headers + wrap lines).
 	tableDisplayLines := func(from, to int) int {
-		return (to - from) + categoryLines(from, to)
+		base := (to - from) + categoryLines(from, to)
+		for i := from; i < to && i < len(items); i++ {
+			base += itemExtraLines(&items[i], extraCols)
+		}
+		return base
 	}
 
 	// Scrolling: use vim-style scrolloff for stable viewport.
@@ -1194,7 +1240,7 @@ func RenderTable(headerLabel string, items []model.Item, cursor int, width, heig
 		ActiveMiddleScroll = startIdx
 	} else {
 		// Fallback: calculate from scratch (old behavior).
-		totalDisplayLines := len(items) + categoryLines(0, len(items))
+		totalDisplayLines := tableDisplayLines(0, len(items))
 		if totalDisplayLines <= height {
 			scrollOff = 0
 		} else if maxSO := (height - 1) / 2; scrollOff > maxSO {
@@ -1202,7 +1248,7 @@ func RenderTable(headerLabel string, items []model.Item, cursor int, width, heig
 		}
 		if cursor >= 0 {
 			displayLinesUpTo := func(start, idx int) int {
-				return (idx - start + 1) + categoryLines(start, idx+1)
+				return tableDisplayLines(start, idx+1)
 			}
 			for startIdx < len(items) && displayLinesUpTo(startIdx, cursor) > height {
 				startIdx++
@@ -1218,7 +1264,7 @@ func RenderTable(headerLabel string, items []model.Item, cursor int, width, heig
 					startIdx = 0
 				}
 			}
-			for startIdx > 0 && (len(items)-startIdx+categoryLines(startIdx, len(items))) < height {
+			for startIdx > 0 && tableDisplayLines(startIdx, len(items)) < height {
 				startIdx--
 			}
 		}
@@ -1235,10 +1281,11 @@ func RenderTable(headerLabel string, items []model.Item, cursor int, width, heig
 				extraLines++
 			}
 		}
-		if usedLines+1+extraLines > height {
+		wrapLines := itemExtraLines(&items[endIdx], extraCols)
+		if usedLines+1+extraLines+wrapLines > height {
 			break
 		}
-		usedLines += 1 + extraLines
+		usedLines += 1 + extraLines + wrapLines
 		endIdx++
 	}
 
@@ -1315,6 +1362,41 @@ func RenderTable(headerLabel string, items []model.Item, cursor int, width, heig
 			// Non-selected row: apply styling.
 			b.WriteString(markerPrefix + formatTableRowStyledWithExtra(item, nameW, nsW, readyW, restartsW, statusW, ageW,
 				hasNs, hasReady, hasRestarts, hasStatus, hasAge, extraCols, anyRecentRestart))
+		}
+
+		// Emit continuation lines for wrapped last extra column.
+		if len(extraCols) > 0 {
+			lastCol := extraCols[len(extraCols)-1]
+			val := getExtraColumnValue(&item, lastCol.key)
+			wrapWidth := lastCol.width - 1
+			if wrapWidth > 0 {
+				contLines := wrapExtraValue(val, wrapWidth)
+				if len(contLines) > 0 {
+					// Calculate padding offset to align with the last extra column.
+					padOffset := nsW + nameW + readyW + restartsW + statusW
+					if wantMarker {
+						padOffset += markerColW
+					}
+					for j := range len(extraCols) - 1 {
+						padOffset += extraCols[j].width
+					}
+					padding := strings.Repeat(" ", padOffset)
+
+					for _, chunk := range contLines {
+						contLine := padding + chunk
+						b.WriteString("\n")
+						if i == cursor {
+							lineW := lipgloss.Width(contLine)
+							if lineW < width {
+								contLine += strings.Repeat(" ", width-lineW)
+							}
+							b.WriteString(SelectedStyle.MaxWidth(width).Render(contLine))
+						} else {
+							b.WriteString(DimStyle.Render(contLine))
+						}
+					}
+				}
+			}
 		}
 	}
 	return b.String()
@@ -1518,8 +1600,8 @@ func collectExtraColumns(items []model.Item, totalWidth, usedWidth int, kind str
 				// ArgoCD: hide in normal view, show Dest Server/NS only in fullscreen.
 				"Health": true, "Sync": true, "Dest NS": true,
 				"Sync Message": true, "Sync Errors": true,
-				// Events: Message and Source are too verbose for table view.
-				"Message": true, "Source": true,
+				// Events: Source is too verbose for table view; Message is kept.
+				"Source": true,
 				// Metadata fields: too verbose for table, shown in detail pane.
 				"Labels": true, "Finalizers": true, "Annotations": true,
 			}
@@ -1574,7 +1656,7 @@ func collectExtraColumns(items []model.Item, totalWidth, usedWidth int, kind str
 			colW = maxVal
 		}
 		if colW > maxColW {
-			colW = 20
+			colW = maxColW
 		}
 		colW++ // spacing
 		if colW > remainingW {
@@ -1582,6 +1664,11 @@ func collectExtraColumns(items []model.Item, totalWidth, usedWidth int, kind str
 		}
 		result = append(result, extraColumn{key: key, width: colW, hasArrow: info.hasArrow})
 		remainingW -= colW
+	}
+
+	// Give the last column any remaining width so verbose fields (e.g. Event Message) aren't truncated unnecessarily.
+	if len(result) > 0 && remainingW > 0 {
+		result[len(result)-1].width += remainingW
 	}
 
 	return result
@@ -1610,13 +1697,20 @@ func formatTableRowWithExtra(name, ns, ready, restarts, status, age string,
 	row := formatTableRow(name, ns, ready, restarts, status,
 		nameW, nsW, readyW, restartsW, statusW, hasNs, hasReady, hasRestarts, hasStatus)
 
-	for _, ec := range extraCols {
+	for ecIdx, ec := range extraCols {
 		var val string
 		if item == nil {
 			// Header row: use key as header.
 			val = ec.key
 		} else {
 			val = getExtraColumnValue(item, ec.key)
+		}
+		// For the last extra column, use simple rune-slice truncation (no "~" marker)
+		// since wrapped content continues on subsequent lines.
+		isLast := item != nil && ecIdx == len(extraCols)-1
+		truncFn := Truncate
+		if isLast {
+			truncFn = truncateNoMarker
 		}
 		// Handle arrow values the same way as the styled path:
 		// strip the arrow prefix and render it as a separate character,
@@ -1625,12 +1719,12 @@ func formatTableRowWithExtra(name, ns, ready, restarts, status, age string,
 		case strings.HasPrefix(val, "↑ ") || strings.HasPrefix(val, "↓ "):
 			arrow := string([]rune(val)[0])
 			baseVal := val[len("↑ "):]
-			row += arrow + padRight(Truncate(baseVal, ec.width-1), ec.width-1)
+			row += arrow + padRight(truncFn(baseVal, ec.width-1), ec.width-1)
 		case ec.hasArrow:
 			// Placeholder space to align with rows that have arrows.
-			row += " " + padRight(Truncate(val, ec.width-1), ec.width-1)
+			row += " " + padRight(truncFn(val, ec.width-1), ec.width-1)
 		default:
-			row += padRight(Truncate(val, ec.width), ec.width)
+			row += padRight(truncFn(val, ec.width), ec.width)
 		}
 	}
 
@@ -1650,24 +1744,32 @@ func formatTableRowStyledWithExtra(item model.Item, nameW, nsW, readyW, restarts
 	base := formatTableRowStyled(item, nameW, nsW, readyW, restartsW, statusW,
 		hasNs, hasReady, hasRestarts, hasStatus, anyRecentRestart)
 
-	for _, ec := range extraCols {
+	for ecIdx, ec := range extraCols {
 		val := getExtraColumnValue(&item, ec.key)
 		style := resourceColumnStyle(ec.key, val)
+
+		// For the last extra column, use simple rune-slice truncation (no "~" marker)
+		// since wrapped content continues on subsequent lines.
+		isLast := ecIdx == len(extraCols)-1
+		truncFn := Truncate
+		if isLast {
+			truncFn = truncateNoMarker
+		}
 
 		// Color trend arrows in metric values (arrows before value).
 		// Use a space placeholder for rows without arrows to keep values aligned.
 		switch {
 		case strings.HasPrefix(val, "↑ "):
 			baseVal := val[len("↑ "):]
-			base += ErrorStyle.Render("↑") + style.Render(padRight(Truncate(baseVal, ec.width-1), ec.width-1))
+			base += ErrorStyle.Render("↑") + style.Render(padRight(truncFn(baseVal, ec.width-1), ec.width-1))
 		case strings.HasPrefix(val, "↓ "):
 			baseVal := val[len("↓ "):]
-			base += StatusRunning.Render("↓") + style.Render(padRight(Truncate(baseVal, ec.width-1), ec.width-1))
+			base += StatusRunning.Render("↓") + style.Render(padRight(truncFn(baseVal, ec.width-1), ec.width-1))
 		case ec.hasArrow:
 			// Placeholder space to align with rows that have arrows.
-			base += " " + style.Render(padRight(Truncate(val, ec.width-1), ec.width-1))
+			base += " " + style.Render(padRight(truncFn(val, ec.width-1), ec.width-1))
 		default:
-			base += style.Render(padRight(Truncate(val, ec.width), ec.width))
+			base += style.Render(padRight(truncFn(val, ec.width), ec.width))
 		}
 	}
 
@@ -1774,6 +1876,19 @@ func Truncate(s string, maxW int) string {
 		return "~"
 	}
 	return string(runes[:maxW-1]) + "~"
+}
+
+// truncateNoMarker truncates a string to maxW runes without appending any marker.
+// Used for wrappable columns where the remaining content continues on the next line.
+func truncateNoMarker(s string, maxW int) string {
+	if maxW <= 0 {
+		return ""
+	}
+	runes := []rune(s)
+	if len(runes) <= maxW {
+		return s
+	}
+	return string(runes[:maxW])
 }
 
 // RenderTabBar renders the tab bar showing tab labels with the active tab highlighted.
@@ -1942,7 +2057,7 @@ func RenderResourceSummary(item *model.Item, yaml string, width, height int) str
 			dataLines = append(dataLines, renderDataKV(label, kv.Value, width)...)
 			continue
 		}
-		if kv.Key == "Labels" || kv.Key == "Finalizers" || kv.Key == "Annotations" {
+		if kv.Key == "Labels" || kv.Key == "Finalizers" || kv.Key == "Annotations" || kv.Key == "Used By" {
 			multiLineFields = append(multiLineFields, kv)
 			continue
 		}
@@ -1990,7 +2105,21 @@ func RenderResourceSummary(item *model.Item, yaml string, width, height int) str
 			if len(lines) >= height-2 {
 				break
 			}
-			lines = append(lines, "  "+DimStyle.Render(entry))
+			maxW := max(width-4, 10) // 2 indent + 2 margin
+			entryRunes := []rune(entry)
+			if len(entryRunes) <= maxW {
+				lines = append(lines, "  "+DimStyle.Render(entry))
+			} else {
+				// First line
+				lines = append(lines, "  "+DimStyle.Render(string(entryRunes[:maxW])))
+				for start := maxW; start < len(entryRunes); start += maxW {
+					if len(lines) >= height-2 {
+						break
+					}
+					end := min(start+maxW, len(entryRunes))
+					lines = append(lines, "    "+DimStyle.Render(string(entryRunes[start:end])))
+				}
+			}
 		}
 	}
 

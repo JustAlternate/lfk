@@ -94,7 +94,7 @@ func RenderLogViewer(lines []string, scroll, width, height int, follow, wrap, li
 			HelpKeyStyle.Render("ctrl+d/u") + DimStyle.Render(":half page"),
 			HelpKeyStyle.Render("ctrl+f/b") + DimStyle.Render(":page"),
 			HelpKeyStyle.Render("f") + DimStyle.Render(":follow"),
-			HelpKeyStyle.Render("w") + DimStyle.Render(":wrap"),
+			HelpKeyStyle.Render("tab/z") + DimStyle.Render(":wrap"),
 			HelpKeyStyle.Render("#") + DimStyle.Render(":line#"),
 			HelpKeyStyle.Render("s") + DimStyle.Render(":timestamps"),
 			HelpKeyStyle.Render("c") + DimStyle.Render(":previous"),
@@ -102,7 +102,7 @@ func RenderLogViewer(lines []string, scroll, width, height int, follow, wrap, li
 			HelpKeyStyle.Render("/") + DimStyle.Render(":search"),
 			HelpKeyStyle.Render("n/N") + DimStyle.Render(":next/prev"),
 			HelpKeyStyle.Render("123G") + DimStyle.Render(":goto"),
-			HelpKeyStyle.Render("W") + DimStyle.Render(":save"),
+			HelpKeyStyle.Render("S") + DimStyle.Render(":save"),
 			HelpKeyStyle.Render("ctrl+s") + DimStyle.Render(":save all"),
 		}
 		if canSwitchPod {

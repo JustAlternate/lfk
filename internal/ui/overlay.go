@@ -31,6 +31,12 @@ var overlayContainerScroll int
 // ResetOverlayContainerScroll resets the container overlay scroll position (call when opening the overlay).
 func ResetOverlayContainerScroll() { overlayContainerScroll = 0 }
 
+// overlayCanISubjectScroll is the persistent scroll position for the can-i subject selector overlay.
+var overlayCanISubjectScroll int
+
+// ResetOverlayCanISubjectScroll resets the can-i subject overlay scroll position (call when opening the overlay).
+func ResetOverlayCanISubjectScroll() { overlayCanISubjectScroll = 0 }
+
 // ErrorLogEntry stores a single application log entry with its timestamp and severity level.
 type ErrorLogEntry struct {
 	Time    time.Time
@@ -510,11 +516,8 @@ func RenderPodSelectOverlay(items []model.Item, cursor int, filter string, filte
 	return b.String()
 }
 
-// Bookmark overlay mode constants matching the app-level enum.
-const (
-	bookmarkModeNormal = 0
-	bookmarkModeFilter = 1
-)
+// bookmarkModeFilter matches the app-level bookmarkModeFilter enum value.
+const bookmarkModeFilter = 1
 
 // RenderBookmarkOverlay renders the bookmark list overlay content.
 // mode: 0 = normal, 1 = filter. overlayH is the total overlay height for footer pinning.
@@ -582,13 +585,13 @@ func RenderBookmarkOverlay(allBookmarks []model.Bookmark, filter string, cursor,
 			var prefix string
 			if bm.Slot != "" {
 				prefix = bm.Slot + " "
-			} else if i < 9 {
-				prefix = fmt.Sprintf("%d ", i+1)
 			} else {
 				prefix = "  "
 			}
 			name := bm.Name
-			if bm.Namespace != "" {
+			if len(bm.Namespaces) > 1 {
+				name += " [" + strings.Join(bm.Namespaces, ", ") + "]"
+			} else if bm.Namespace != "" {
 				name += " [" + bm.Namespace + "]"
 			}
 			line := fmt.Sprintf("  %s%s", prefix, name)
@@ -598,13 +601,13 @@ func RenderBookmarkOverlay(allBookmarks []model.Bookmark, filter string, cursor,
 			var prefix string
 			if bm.Slot != "" {
 				prefix = OverlayFilterStyle.Render(bm.Slot) + " "
-			} else if i < 9 {
-				prefix = fmt.Sprintf("%d ", i+1)
 			} else {
 				prefix = "  "
 			}
 			name := bm.Name
-			if bm.Namespace != "" {
+			if len(bm.Namespaces) > 1 {
+				name += DimStyle.Render(" [" + strings.Join(bm.Namespaces, ", ") + "]")
+			} else if bm.Namespace != "" {
 				name += DimStyle.Render(" [" + bm.Namespace + "]")
 			}
 			line := fmt.Sprintf("  %s%s", prefix, name)
@@ -1276,18 +1279,66 @@ func RenderEventTimelineOverlay(events []EventTimelineEntry, resourceName string
 	}
 
 	// Reserve lines for header, blank line before footer, footer.
-	maxVisible := max(height-4, 1)
+	maxLines := max(height-4, 1)
 
-	// Clamp scroll.
-	maxScroll := max(len(events)-maxVisible, 0)
-	if scroll > maxScroll {
-		scroll = maxScroll
+	// Content width inside OverlayStyle Padding(1,2) = 2 left + 2 right.
+	contentWidth := width - 4
+
+	// Calculate available width for message wrapping.
+	msgIndent := "           "
+	msgMaxWidth := max(contentWidth-len(msgIndent), 20)
+	msgContIndent := msgIndent + "  "
+	msgContWidth := max(msgMaxWidth-2, 10)
+
+	// Calculate visual lines per event for scroll/viewport calculations.
+	msgLineCount := func(idx int) int {
+		msgLen := len([]rune(events[idx].Message))
+		if msgLen <= msgMaxWidth {
+			return 1
+		}
+		remaining := msgLen - msgMaxWidth
+		return 1 + (remaining+msgContWidth-1)/msgContWidth
 	}
+	eventLines := func(idx int) int {
+		return 1 + msgLineCount(idx) // 1 header line + message lines
+	}
+
+	// Clamp scroll: find max scroll where remaining events fill the viewport.
 	if scroll < 0 {
 		scroll = 0
 	}
+	if scroll >= len(events) {
+		scroll = max(len(events)-1, 0)
+	}
+	// Shrink scroll if there's empty space at the bottom.
+	for scroll > 0 {
+		lines := 0
+		for i := scroll; i < len(events); i++ {
+			lines += eventLines(i)
+		}
+		if lines >= maxLines {
+			break
+		}
+		scroll--
+	}
 
-	end := min(scroll+maxVisible, len(events))
+	// Compute end index based on available visual lines.
+	// Separators between events just terminate the previous line (already
+	// counted in eventLines), they don't add extra visual lines.
+	usedLines := 0
+	end := scroll
+	for end < len(events) {
+		el := eventLines(end)
+		if usedLines+el > maxLines {
+			break
+		}
+		usedLines += el
+		end++
+	}
+	if end == scroll && end < len(events) {
+		usedLines += eventLines(end)
+		end++
+	}
 
 	// Styles for event type indicators.
 	normalDot := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorSecondary)).Render("\u25cf") // green filled circle
@@ -1295,10 +1346,6 @@ func RenderEventTimelineOverlay(events []EventTimelineEntry, resourceName string
 	reasonStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(ColorFile))
 	sourceStyle := OverlayDimStyle
 	countStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorWarning))
-
-	// Calculate available width for message truncation.
-	// Account for overlay padding (4 chars), border (4 chars), and the prefix content.
-	msgMaxWidth := max(width-40, 20)
 
 	for i := scroll; i < end; i++ {
 		event := events[i]
@@ -1334,32 +1381,40 @@ func RenderEventTimelineOverlay(events []EventTimelineEntry, resourceName string
 			countStr = " " + countStyle.Render(fmt.Sprintf("(x%d)", event.Count))
 		}
 
-		// Message (truncated if needed).
-		msg := event.Message
-		if ansi.StringWidth(msg) > msgMaxWidth {
-			msg = ansi.Truncate(msg, msgMaxWidth, "...")
-		}
-		msgStr := OverlayNormalStyle.Render(msg)
-
 		// First line: timestamp, dot, reason, source, involved, count.
 		line := fmt.Sprintf("  %s %s %s%s%s%s", tsStr, dot, reason, src, involved, countStr)
 		b.WriteString(line)
 		b.WriteString("\n")
 
-		// Second line: indented message.
-		fmt.Fprintf(&b, "           %s", msgStr)
+		// Message lines: wrap long messages instead of truncating.
+		// Continuation lines get extra indentation to distinguish them.
+		msg := event.Message
+		msgRunes := []rune(msg)
+		firstChunkEnd := min(msgMaxWidth, len(msgRunes))
+		fmt.Fprintf(&b, "%s%s", msgIndent, OverlayNormalStyle.Render(string(msgRunes[:firstChunkEnd])))
+		for start := firstChunkEnd; start < len(msgRunes); start += msgContWidth {
+			chunkEnd := min(start+msgContWidth, len(msgRunes))
+			chunk := string(msgRunes[start:chunkEnd])
+			b.WriteString("\n")
+			fmt.Fprintf(&b, "%s%s", msgContIndent, OverlayDimStyle.Render(chunk))
+		}
 
 		if i < end-1 {
 			b.WriteString("\n")
 		}
 	}
 
-	b.WriteString("\n\n")
+	// Pad to fixed height so the footer stays in place.
+	for usedLines < maxLines {
+		b.WriteString("\n")
+		usedLines++
+	}
+	b.WriteString("\n")
 
 	// Scroll info + hints.
 	scrollInfo := fmt.Sprintf("%d events", len(events))
-	if maxScroll > 0 {
-		scrollInfo += fmt.Sprintf(" | scroll %d/%d", scroll+1, maxScroll+1)
+	if scroll > 0 || end < len(events) {
+		scrollInfo += fmt.Sprintf(" | showing %d-%d", scroll+1, end)
 	}
 	b.WriteString(OverlayDimStyle.Render(scrollInfo))
 	b.WriteString("  ")
@@ -2346,11 +2401,13 @@ func PlaceOverlay(width, height int, overlay, background string) string {
 
 	ovLines := strings.Split(overlay, "\n")
 	ovHeight := len(ovLines)
+	// Use the first line's width as the definitive overlay width.
+	// The first line is the border which always has the correct width.
+	// Measuring all lines can produce inconsistent results when content
+	// lines have complex ANSI sequences.
 	ovWidth := 0
-	for _, line := range ovLines {
-		if w := lipgloss.Width(line); w > ovWidth {
-			ovWidth = w
-		}
+	if len(ovLines) > 0 {
+		ovWidth = lipgloss.Width(ovLines[0])
 	}
 
 	startRow := (height - ovHeight) / 2

@@ -241,8 +241,8 @@ func TestRenderBookmarkOverlay(t *testing.T) {
 			{Name: "Deployments", Namespace: "staging"},
 		}
 		result := RenderBookmarkOverlay(bms, "", 0, 0, 25)
-		assert.Contains(t, result, "1 My Pods")
-		assert.Contains(t, result, "2 Deployments")
+		assert.Contains(t, result, "My Pods [default]")
+		assert.Contains(t, result, "Deployments [staging]")
 	})
 
 	t.Run("filter mode", func(t *testing.T) {
@@ -267,16 +267,18 @@ func TestRenderBookmarkOverlay(t *testing.T) {
 		assert.Contains(t, result, "production")
 	})
 
-	t.Run("number shortcuts shown for first 9 bookmarks", func(t *testing.T) {
-		bms := make([]model.Bookmark, 0, 11)
-		for i := range 11 {
-			bms = append(bms, model.Bookmark{Name: fmt.Sprintf("Bookmark %d", i+1)})
+	t.Run("slot prefix shown for bookmarks with slots", func(t *testing.T) {
+		bms := []model.Bookmark{
+			{Name: "With Slot A", Slot: "a"},
+			{Name: "With Slot B", Slot: "b"},
+			{Name: "No Slot"},
 		}
 		result := RenderBookmarkOverlay(bms, "", 0, 0, 25)
-		assert.Contains(t, result, "1 Bookmark 1")
-		assert.Contains(t, result, "9 Bookmark 9")
-		// 10th and 11th bookmarks should not have a number prefix.
-		assert.NotContains(t, result, "10 Bookmark 10")
+		assert.Contains(t, result, "a With Slot A")
+		assert.Contains(t, result, "b With Slot B")
+		assert.Contains(t, result, "No Slot")
+		// No Slot bookmark should not have a slot letter prefix.
+		assert.NotContains(t, result, "c No Slot")
 	})
 
 	t.Run("normal mode footer shows jump hint", func(t *testing.T) {

@@ -167,12 +167,13 @@ type PodMetrics struct {
 
 // Bookmark represents a saved navigation path for quick access.
 type Bookmark struct {
-	Name         string `json:"name" yaml:"name"`
-	Context      string `json:"context" yaml:"context"`
-	Namespace    string `json:"namespace" yaml:"namespace"`
-	ResourceType string `json:"resource_type" yaml:"resource_type"` // resource ref string (group/version/resource)
-	ResourceName string `json:"resource_name,omitempty" yaml:"resource_name,omitempty"`
-	Slot         string `json:"slot,omitempty" yaml:"slot,omitempty"` // single char key for vim-style named marks (a-z, 0-9)
+	Name         string   `json:"name" yaml:"name"`
+	Context      string   `json:"context" yaml:"context"`
+	Namespace    string   `json:"namespace" yaml:"namespace"`
+	Namespaces   []string `json:"namespaces,omitempty" yaml:"namespaces,omitempty"`
+	ResourceType string   `json:"resource_type" yaml:"resource_type"` // resource ref string (group/version/resource)
+	ResourceName string   `json:"resource_name,omitempty" yaml:"resource_name,omitempty"`
+	Slot         string   `json:"slot,omitempty" yaml:"slot,omitempty"` // single char key for vim-style named marks (a-z, 0-9)
 }
 
 // ActionMenuItem represents an entry in the action menu.
@@ -1051,6 +1052,7 @@ func ActionsForKind(kind string) []ActionMenuItem {
 		}
 	case "PersistentVolumeClaim":
 		return []ActionMenuItem{
+			{Label: "Go to Pod", Description: "Navigate to pod using this PVC", Key: "g"},
 			{Label: "Debug Mount", Description: "Run debug pod with this PVC mounted", Key: "b"},
 			{Label: "Debug Pod", Description: "Run standalone alpine debug pod in namespace", Key: "B"},
 			{Label: "Describe", Description: "Describe resource", Key: "v"},

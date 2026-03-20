@@ -80,6 +80,8 @@ type bookmarkOverlayMode int
 const (
 	bookmarkModeNormal bookmarkOverlayMode = iota
 	bookmarkModeFilter
+	bookmarkModeConfirmDelete
+	bookmarkModeConfirmDeleteAll
 )
 
 // sortMode determines how resources are sorted in the middle column.
@@ -645,22 +647,19 @@ type Model struct {
 	explainRecursiveFilterActive bool      // true when typing in filter
 
 	// Can-I browser state.
-	canIGroups              []model.CanIGroup
-	canIGroupCursor         int // selected group in left column
-	canIGroupScroll         int
-	canIResourceScroll      int       // scroll offset for the resource column
-	canISubject             string    // "" = current user, or "system:serviceaccount:ns:name"
-	canISubjectName         string    // display name for the subject ("Current User" or "sa/name")
-	canIServiceAccounts     []string  // cached SA list for the selector
-	canISearchActive        bool      // true when typing in search bar
-	canISearchInput         TextInput // current search input
-	canISearchQuery         string    // confirmed search query for filtering
-	canISubjectScroll       int       // scroll offset for the subject selector overlay
-	canISubjectFilterActive bool      // true when typing in subject filter bar
-	canISubjectFilterInput  TextInput // current subject filter input
-	canISubjectFilterQuery  string    // confirmed subject filter query
-	canIAllowedOnly         bool      // true = show only allowed permissions
-	canINamespaces          []string  // namespaces used for SelfSubjectRulesReview
+	canIGroups            []model.CanIGroup
+	canIGroupCursor       int // selected group in left column
+	canIGroupScroll       int
+	canIResourceScroll    int       // scroll offset for the resource column
+	canISubject           string    // "" = current user, or "system:serviceaccount:ns:name"
+	canISubjectName       string    // display name for the subject ("Current User" or "sa/name")
+	canIServiceAccounts   []string  // cached SA list for the selector
+	canISearchActive      bool      // true when typing in search bar
+	canISearchInput       TextInput // current search input
+	canISearchQuery       string    // confirmed search query for filtering
+	canISubjectFilterMode bool      // true when typing in subject filter bar
+	canIAllowedOnly       bool      // true = show only allowed permissions
+	canINamespaces        []string  // namespaces used for SelfSubjectRulesReview
 }
 
 // ownedParentState captures the navigation state that must be restored
@@ -1116,7 +1115,7 @@ func (m Model) viewYAML() string {
 			{"/", "search"},
 			{"v/V/ctrl+v", "visual select"},
 			{"tab/z", "fold"},
-			{"e", "edit"},
+			{"ctrl+e", "edit"},
 			{"q/esc", "back"},
 		}
 	}
@@ -1213,18 +1212,31 @@ func (m Model) viewYAML() string {
 		if visIdx < len(mapping) {
 			origLine = mapping[visIdx]
 		}
-		highlighted := ui.HighlightYAMLLine(line)
+		// Separate fold prefix from content for column-accurate selection/cursor.
+		// Use rune-based slicing because fold indicators (▾/▸) are multi-byte UTF-8.
+		foldPrefix := ""
+		contentLine := line
+		lineRunes := []rune(line)
+		if len(lineRunes) > yamlFoldPrefixLen {
+			foldPrefix = string(lineRunes[:yamlFoldPrefixLen])
+			contentLine = string(lineRunes[yamlFoldPrefixLen:])
+		}
+		highlighted := ui.HighlightYAMLLine(contentLine)
 		if m.yamlSearchText.Value != "" && origLine >= 0 && matchSet[origLine] {
 			if origLine == currentMatchLine {
-				highlighted = ui.HighlightSearchInLine(line, m.yamlSearchText.Value, true)
+				highlighted = ui.HighlightSearchInLine(contentLine, m.yamlSearchText.Value, true)
 			} else {
-				highlighted = ui.HighlightSearchInLine(line, m.yamlSearchText.Value, false)
+				highlighted = ui.HighlightSearchInLine(contentLine, m.yamlSearchText.Value, false)
 			}
 		}
 		// Visual selection highlight: override with selected style.
 		isSelected := m.yamlVisualMode && visIdx >= selStart && visIdx <= selEnd
 		if isSelected {
-			highlighted = ui.RenderVisualSelection(line, m.yamlVisualType, visIdx, selStart, selEnd, m.yamlVisualStart, m.yamlVisualCol, m.yamlCursorCol(), visualColStart, visualColEnd)
+			adjAnchorCol := m.yamlVisualCol - yamlFoldPrefixLen
+			adjCursorCol := m.yamlCursorCol() - yamlFoldPrefixLen
+			adjColStart := visualColStart - yamlFoldPrefixLen
+			adjColEnd := visualColEnd - yamlFoldPrefixLen
+			highlighted = ui.RenderVisualSelection(contentLine, m.yamlVisualType, visIdx, selStart, selEnd, m.yamlVisualStart, adjAnchorCol, adjCursorCol, adjColStart, adjColEnd)
 		}
 		// Line number gutter
 		lineNumStr := strings.Repeat(" ", gutterWidth+1)
@@ -1235,14 +1247,14 @@ func (m Model) viewYAML() string {
 		if visIdx == m.yamlCursor {
 			if m.yamlVisualMode {
 				// In visual mode, don't overlay block cursor on top of visual selection styling.
-				highlighted = ui.YamlCursorIndicatorStyle.Render("▎") + ui.DimStyle.Render(lineNumStr) + highlighted
+				highlighted = ui.YamlCursorIndicatorStyle.Render("▎") + ui.DimStyle.Render(lineNumStr) + foldPrefix + highlighted
 			} else {
-				highlighted = ui.YamlCursorIndicatorStyle.Render("▎") + ui.DimStyle.Render(lineNumStr) + ui.RenderCursorAtCol(highlighted, line, m.yamlVisualCurCol)
+				highlighted = ui.YamlCursorIndicatorStyle.Render("▎") + ui.DimStyle.Render(lineNumStr) + foldPrefix + ui.RenderCursorAtCol(highlighted, contentLine, m.yamlVisualCurCol-yamlFoldPrefixLen)
 			}
 		} else if isSelected {
-			highlighted = ui.YamlCursorIndicatorStyle.Render(" ") + ui.DimStyle.Render(lineNumStr) + highlighted
+			highlighted = ui.YamlCursorIndicatorStyle.Render(" ") + ui.DimStyle.Render(lineNumStr) + foldPrefix + highlighted
 		} else {
-			highlighted = " " + ui.DimStyle.Render(lineNumStr) + highlighted
+			highlighted = " " + ui.DimStyle.Render(lineNumStr) + foldPrefix + highlighted
 		}
 		highlightedLines = append(highlightedLines, highlighted)
 	}
@@ -2307,97 +2319,15 @@ func (m Model) renderOverlay(background string) string {
 		overlayW = min(80, m.width-10)
 		overlayH = min(25, m.height-6)
 	case overlayCanI:
-		// Build filtered group list based on search query.
-		visibleGroupIdxs := m.canIVisibleGroups()
-		groupNames := make([]string, len(visibleGroupIdxs))
-		for i, idx := range visibleGroupIdxs {
-			name := m.canIGroups[idx].Name
-			if name == "" {
-				name = "core"
-			}
-			count := len(m.canIGroups[idx].Resources)
-			if m.canIAllowedOnly {
-				count = countAllowedResources(m.canIGroups[idx].Resources)
-			}
-			groupNames[i] = fmt.Sprintf("%s (%d)", name, count)
-		}
-		// Get resources for the group under the cursor.
-		var resources []model.CanIResource
-		if m.canIGroupCursor >= 0 && m.canIGroupCursor < len(visibleGroupIdxs) {
-			resources = m.canIGroups[visibleGroupIdxs[m.canIGroupCursor]].Resources
-			if m.canIAllowedOnly {
-				resources = filterAllowedResources(resources)
-			}
-		}
-		subjectName := m.canISubjectName
-		if subjectName == "" {
-			subjectName = "Current User"
-		}
-		overlayW = min(m.width-4, m.width*90/100)
-		overlayH = min(m.height-4, m.height*80/100)
-		innerW := overlayW - 4 // account for OverlayStyle Padding
-		innerH := overlayH - 2 // account for OverlayStyle Padding
-
-		// Build hint bar (default key hints or search bar).
-		filterLabel := "all"
-		if m.canIAllowedOnly {
-			filterLabel = "allowed only"
-		}
-		hints := []struct{ key, desc string }{
-			{"j/k", "navigate"},
-			{"a", filterLabel},
-			{"s", "switch subject"},
-			{"/", "search groups"},
-			{"q/Esc", "close/back"},
-		}
-		hintParts := make([]string, 0, len(hints))
-		for _, h := range hints {
-			hintParts = append(hintParts, ui.HelpKeyStyle.Render(h.key)+ui.DimStyle.Render(": "+h.desc))
-		}
-		hintBar := ui.StatusBarBgStyle.Width(innerW).Render(strings.Join(hintParts, ui.DimStyle.Render(" | ")))
-
-		if m.canISearchActive {
-			searchBar := ui.HelpKeyStyle.Render("/") + ui.NormalStyle.Render(m.canISearchInput.CursorLeft()) + ui.DimStyle.Render("\u2588") + ui.NormalStyle.Render(m.canISearchInput.CursorRight())
-			hintBar = ui.StatusBarBgStyle.Width(innerW).Render(searchBar)
-		} else if m.canISearchQuery != "" {
-			searchBar := ui.HelpKeyStyle.Render("/") + ui.NormalStyle.Render(m.canISearchQuery)
-			hintBar = ui.StatusBarBgStyle.Width(innerW).Render(searchBar)
-		}
-
-		canIContent := ui.RenderCanIView(
-			groupNames, resources,
-			m.canIGroupCursor, m.canIGroupScroll,
-			subjectName, m.canINamespaces,
-			innerW, innerH,
-			hintBar,
-			m.canIResourceScroll,
-		)
-		overlay := ui.OverlayStyle.Width(overlayW).Height(overlayH).Render(canIContent)
-		bg := padToHeight(background, m.height)
-		return ui.PlaceOverlay(m.width, m.height, overlay, bg)
+		return m.renderCanIOverlay(background)
 	case overlayCanISubject:
-		overlayW = min(m.width-6, m.width*70/100)
-		overlayH = min(m.height-4, m.height*70/100)
-		maxVisible := max(overlayH-7, 1)
-
-		// Filter items by search query.
-		query := m.canISubjectFilterQuery
-		if m.canISubjectFilterActive {
-			query = m.canISubjectFilterInput.Value
-		}
-		filteredItems := m.overlayItems
-		if query != "" {
-			filtered := make([]model.Item, 0)
-			lq := strings.ToLower(query)
-			for _, item := range m.overlayItems {
-				if strings.Contains(strings.ToLower(item.Name), lq) {
-					filtered = append(filtered, item)
-				}
-			}
-			filteredItems = filtered
-		}
-
-		content = ui.RenderCanISubjectOverlay(filteredItems, m.overlayCursor, m.canISubjectScroll, maxVisible, query, m.canISubjectFilterActive)
+		// Render the Can-I browser as the background, then overlay the subject selector on top.
+		canIBg := m.renderCanIOverlay(background)
+		overlayW = min(80, m.width-10)
+		overlayH = min(20, m.height-6)
+		content = ui.RenderCanISubjectOverlay(m.filteredOverlayItems(), m.overlayFilter.Value, m.overlayCursor, m.canISubjectFilterMode)
+		overlay := ui.OverlayStyle.Width(overlayW).Height(overlayH).Render(content)
+		return ui.PlaceOverlay(m.width, m.height, overlay, canIBg)
 	case overlayExplainSearch:
 		overlayW = min(m.width-6, m.width*70/100)
 		overlayH = min(m.height-4, m.height*70/100)
@@ -2496,6 +2426,75 @@ func (m Model) renderOverlay(background string) string {
 	overlay := ui.OverlayStyle.Width(overlayW).Height(overlayH).Render(content)
 
 	// Ensure background has exactly m.height lines for correct overlay placement.
+	bg := padToHeight(background, m.height)
+	return ui.PlaceOverlay(m.width, m.height, overlay, bg)
+}
+
+// renderCanIOverlay renders the Can-I browser overlay on top of the given background.
+func (m Model) renderCanIOverlay(background string) string {
+	visibleGroupIdxs := m.canIVisibleGroups()
+	groupNames := make([]string, len(visibleGroupIdxs))
+	for i, idx := range visibleGroupIdxs {
+		name := m.canIGroups[idx].Name
+		if name == "" {
+			name = "core"
+		}
+		count := len(m.canIGroups[idx].Resources)
+		if m.canIAllowedOnly {
+			count = countAllowedResources(m.canIGroups[idx].Resources)
+		}
+		groupNames[i] = fmt.Sprintf("%s (%d)", name, count)
+	}
+	var resources []model.CanIResource
+	if m.canIGroupCursor >= 0 && m.canIGroupCursor < len(visibleGroupIdxs) {
+		resources = m.canIGroups[visibleGroupIdxs[m.canIGroupCursor]].Resources
+		if m.canIAllowedOnly {
+			resources = filterAllowedResources(resources)
+		}
+	}
+	subjectName := m.canISubjectName
+	if subjectName == "" {
+		subjectName = "Current User"
+	}
+	overlayW := min(m.width-4, m.width*90/100)
+	overlayH := min(m.height-4, m.height*80/100)
+	innerW := overlayW - 4
+	innerH := overlayH - 2
+
+	filterLabel := "all"
+	if m.canIAllowedOnly {
+		filterLabel = "allowed only"
+	}
+	hints := []struct{ key, desc string }{
+		{"j/k", "navigate"},
+		{"a", filterLabel},
+		{"s", "switch subject"},
+		{"/", "search groups"},
+		{"q/Esc", "close/back"},
+	}
+	hintParts := make([]string, 0, len(hints))
+	for _, h := range hints {
+		hintParts = append(hintParts, ui.HelpKeyStyle.Render(h.key)+ui.DimStyle.Render(": "+h.desc))
+	}
+	hintBar := ui.StatusBarBgStyle.Width(innerW).Render(strings.Join(hintParts, ui.DimStyle.Render(" | ")))
+
+	if m.canISearchActive {
+		searchBar := ui.HelpKeyStyle.Render("/") + ui.NormalStyle.Render(m.canISearchInput.CursorLeft()) + ui.DimStyle.Render("\u2588") + ui.NormalStyle.Render(m.canISearchInput.CursorRight())
+		hintBar = ui.StatusBarBgStyle.Width(innerW).Render(searchBar)
+	} else if m.canISearchQuery != "" {
+		searchBar := ui.HelpKeyStyle.Render("/") + ui.NormalStyle.Render(m.canISearchQuery)
+		hintBar = ui.StatusBarBgStyle.Width(innerW).Render(searchBar)
+	}
+
+	canIContent := ui.RenderCanIView(
+		groupNames, resources,
+		m.canIGroupCursor, m.canIGroupScroll,
+		subjectName, m.canINamespaces,
+		innerW, innerH,
+		hintBar,
+		m.canIResourceScroll,
+	)
+	overlay := ui.OverlayStyle.Width(overlayW).Height(overlayH).Render(canIContent)
 	bg := padToHeight(background, m.height)
 	return ui.PlaceOverlay(m.width, m.height, overlay, bg)
 }
