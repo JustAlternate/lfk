@@ -305,5 +305,5 @@ func (m Model) renderTitleBar() string {
 	}
 
 	barContent := bc + watchIndicator + strings.Repeat(" ", gap) + nsLabel + versionLabel
-	return ui.TitleBarStyle.Width(m.width).Render(barContent)
+	return ui.TitleBarStyle.Width(m.width).MaxWidth(m.width).MaxHeight(1).Render(barContent)
 }
