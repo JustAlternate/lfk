@@ -197,6 +197,8 @@ func collectExtraColumns(items []model.Item, totalWidth, usedWidth int, kind str
 				"Path": true,
 				// Metadata fields: too verbose for table, shown in detail pane.
 				"Labels": true, "Finalizers": true, "Annotations": true,
+				// PVC: "Used By" is shown in detail pane only.
+				"Used By": true,
 			}
 		} else {
 			blocked = map[string]bool{
@@ -213,6 +215,8 @@ func collectExtraColumns(items []model.Item, totalWidth, usedWidth int, kind str
 				"Source": true,
 				// Metadata fields: too verbose for table, shown in detail pane.
 				"Labels": true, "Finalizers": true, "Annotations": true,
+				// PVC: "Used By" is shown in detail pane only.
+				"Used By": true,
 			}
 		}
 		for k, v := range rawMetricsCols {

@@ -197,4 +197,28 @@ func TestCollectExtraColumns(t *testing.T) {
 		result := collectExtraColumns(items, 30, 25, "Pod")
 		assert.Nil(t, result)
 	})
+
+	t.Run("Used By column excluded from PVC table in both modes", func(t *testing.T) {
+		items := []model.Item{
+			{Name: "pvc1", Kind: "PersistentVolumeClaim", Columns: []model.KeyValue{
+				{Key: "Storage", Value: "10Gi"},
+				{Key: "Used By", Value: "pod-a, pod-b"},
+			}},
+			{Name: "pvc2", Kind: "PersistentVolumeClaim", Columns: []model.KeyValue{
+				{Key: "Storage", Value: "20Gi"},
+				{Key: "Used By", Value: "pod-c"},
+			}},
+		}
+		for _, fs := range []bool{false, true} {
+			origFS := ActiveFullscreenMode
+			ActiveFullscreenMode = fs
+			result := collectExtraColumns(items, 120, 30, "PersistentVolumeClaim")
+			ActiveFullscreenMode = origFS
+
+			for _, col := range result {
+				assert.NotEqual(t, "Used By", col.key,
+					"Used By should be blocked from table (fullscreen=%v)", fs)
+			}
+		}
+	})
 }
