@@ -220,7 +220,11 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				if m.activeTab >= len(m.tabs) {
 					m.activeTab = len(m.tabs) - 1
 				}
-				if cmd := m.loadTab(m.activeTab); cmd != nil {
+				// Load the surviving tab BEFORE saving session, so saveCurrentTab
+				// writes the surviving tab's data (not the closed tab's stale state).
+				cmd := m.loadTab(m.activeTab)
+				m.saveCurrentSession()
+				if cmd != nil {
 					return m, cmd
 				}
 				return m, m.loadPreview()

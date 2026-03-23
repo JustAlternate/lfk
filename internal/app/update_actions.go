@@ -816,8 +816,11 @@ func (m Model) closeTabOrQuit() (tea.Model, tea.Cmd) {
 		if m.activeTab >= len(m.tabs) {
 			m.activeTab = len(m.tabs) - 1
 		}
+		// Load the surviving tab BEFORE saving session, so saveCurrentTab
+		// writes the surviving tab's data (not the closed tab's stale state).
+		cmd := m.loadTab(m.activeTab)
 		m.saveCurrentSession()
-		if cmd := m.loadTab(m.activeTab); cmd != nil {
+		if cmd != nil {
 			return m, cmd
 		}
 		return m, m.loadPreview()
