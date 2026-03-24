@@ -257,6 +257,9 @@ func (c *Client) GetResources(ctx context.Context, contextName, namespace string
 		// Populate Ready and Restarts based on kind.
 		populateResourceDetails(&ti, item.Object, rt.Kind)
 
+		// Override status to "Terminating" for resources marked for deletion.
+		applyDeletionStatus(&ti)
+
 		// Add "Used By" column for PVCs showing which pods reference the claim.
 		if rt.Kind == "PersistentVolumeClaim" {
 			if pods, err := c.GetPodsUsingPVC(ctx, contextName, ti.Namespace, ti.Name); err == nil && len(pods) > 0 {

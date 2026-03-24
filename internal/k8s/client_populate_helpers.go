@@ -373,6 +373,14 @@ func formatPrinterValue(val interface{}, colType string) string {
 	}
 }
 
+// applyDeletionStatus overrides the status to "Terminating" for resources
+// that have a deletionTimestamp set (Deleting == true).
+func applyDeletionStatus(ti *model.Item) {
+	if ti.Deleting {
+		ti.Status = "Terminating"
+	}
+}
+
 // formatAge formats a duration into a human-readable age string.
 func formatAge(d time.Duration) string {
 	if d < time.Minute {
