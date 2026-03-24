@@ -80,14 +80,16 @@ func (m Model) bookmarkToSlot(slot string) (tea.Model, tea.Cmd) {
 }
 
 // saveBookmark persists a bookmark, replacing any existing one in the same slot.
+// Creates a new slice to avoid mutating the original backing array.
 func (m Model) saveBookmark(bm model.Bookmark) (tea.Model, tea.Cmd) {
-	for i, b := range m.bookmarks {
-		if b.Slot == bm.Slot {
-			m.bookmarks = append(m.bookmarks[:i], m.bookmarks[i+1:]...)
-			break
+	newBookmarks := make([]model.Bookmark, 0, len(m.bookmarks)+1)
+	for _, b := range m.bookmarks {
+		if b.Slot != bm.Slot {
+			newBookmarks = append(newBookmarks, b)
 		}
 	}
-	m.bookmarks = append(m.bookmarks, bm)
+	newBookmarks = append(newBookmarks, bm)
+	m.bookmarks = newBookmarks
 
 	if err := saveBookmarks(m.bookmarks); err != nil {
 		m.setStatusMessage("Failed to save mark: "+err.Error(), true)

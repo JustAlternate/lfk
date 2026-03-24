@@ -63,9 +63,13 @@ func saveBookmarks(bookmarks []model.Bookmark) error {
 }
 
 // removeBookmark removes the bookmark at the given index.
+// Returns a new slice; the original is never mutated.
 func removeBookmark(bookmarks []model.Bookmark, idx int) []model.Bookmark {
 	if idx < 0 || idx >= len(bookmarks) {
 		return bookmarks
 	}
-	return append(bookmarks[:idx], bookmarks[idx+1:]...)
+	result := make([]model.Bookmark, 0, len(bookmarks)-1)
+	result = append(result, bookmarks[:idx]...)
+	result = append(result, bookmarks[idx+1:]...)
+	return result
 }

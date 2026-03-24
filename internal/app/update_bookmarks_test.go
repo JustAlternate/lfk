@@ -333,6 +333,97 @@ func TestNavigateToBookmark_GlobalFailsInWrongCluster(t *testing.T) {
 	assert.True(t, resultModel.statusMessageErr)
 }
 
+// --- saveBookmark / removeBookmark immutability ---
+
+func TestRemoveBookmark_DoesNotMutateOriginal(t *testing.T) {
+	original := []model.Bookmark{
+		{Slot: "a", Name: "bm-a"},
+		{Slot: "b", Name: "bm-b"},
+		{Slot: "c", Name: "bm-c"},
+	}
+
+	result := removeBookmark(original, 0)
+
+	// Result should contain [b, c].
+	require.Len(t, result, 2)
+	assert.Equal(t, "b", result[0].Slot)
+	assert.Equal(t, "c", result[1].Slot)
+
+	// Original must be unchanged — no backing-array mutation.
+	require.Len(t, original, 3)
+	assert.Equal(t, "a", original[0].Slot, "original[0] should still be 'a'")
+	assert.Equal(t, "bm-a", original[0].Name)
+	assert.Equal(t, "b", original[1].Slot, "original[1] should still be 'b'")
+	assert.Equal(t, "c", original[2].Slot, "original[2] should still be 'c'")
+}
+
+func TestRemoveBookmark_MiddleIndex(t *testing.T) {
+	original := []model.Bookmark{
+		{Slot: "a", Name: "bm-a"},
+		{Slot: "b", Name: "bm-b"},
+		{Slot: "c", Name: "bm-c"},
+	}
+
+	result := removeBookmark(original, 1)
+
+	require.Len(t, result, 2)
+	assert.Equal(t, "a", result[0].Slot)
+	assert.Equal(t, "c", result[1].Slot)
+
+	// Original must be unchanged.
+	assert.Equal(t, "a", original[0].Slot)
+	assert.Equal(t, "b", original[1].Slot, "original[1] should still be 'b'")
+	assert.Equal(t, "c", original[2].Slot)
+}
+
+func TestSaveBookmark_OverwriteDoesNotCorruptOriginal(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("XDG_STATE_HOME", tmpDir)
+
+	rt := podResourceType()
+
+	// Assign the bookmarks slice to a variable so we can check it after the call.
+	bookmarks := []model.Bookmark{
+		{Slot: "a", Name: "bm-a", ResourceType: rt.ResourceRef()},
+		{Slot: "b", Name: "bm-b", ResourceType: rt.ResourceRef()},
+		{Slot: "c", Name: "bm-c", ResourceType: rt.ResourceRef()},
+	}
+
+	m := Model{
+		nav: model.NavigationState{
+			Level:        model.LevelResources,
+			Context:      "test",
+			ResourceType: rt,
+		},
+		namespace: "default",
+		tabs:      []TabState{{}},
+		bookmarks: bookmarks,
+	}
+
+	// Overwrite slot "a" — triggers in-place removal + append.
+	result, _ := m.saveBookmark(model.Bookmark{
+		Slot:         "a",
+		Name:         "bm-a-updated",
+		ResourceType: rt.ResourceRef(),
+	})
+	resultModel := result.(Model)
+
+	// Result should have [b, c, a-updated].
+	require.Len(t, resultModel.bookmarks, 3)
+	assert.Equal(t, "b", resultModel.bookmarks[0].Slot)
+	assert.Equal(t, "c", resultModel.bookmarks[1].Slot)
+	assert.Equal(t, "a", resultModel.bookmarks[2].Slot)
+	assert.Equal(t, "bm-a-updated", resultModel.bookmarks[2].Name)
+
+	// The original bookmarks slice must be untouched — no backing-array corruption.
+	require.Len(t, bookmarks, 3)
+	assert.Equal(t, "a", bookmarks[0].Slot, "original bookmarks[0] should be 'a'")
+	assert.Equal(t, "bm-a", bookmarks[0].Name, "original bookmarks[0].Name should be 'bm-a'")
+	assert.Equal(t, "b", bookmarks[1].Slot, "original bookmarks[1] should be 'b'")
+	assert.Equal(t, "c", bookmarks[2].Slot, "original bookmarks[2] should be 'c'")
+	assert.Equal(t, "bm-c", bookmarks[2].Name, "original bookmarks[2].Name should be 'bm-c'")
+}
+
 func TestNavigateToBookmark_LocalResourceNotFound(t *testing.T) {
 	// Use a custom CRD ref that doesn't exist anywhere.
 	// With an empty discoveredCRDs for the current cluster, the function
