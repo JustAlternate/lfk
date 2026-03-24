@@ -3,10 +3,12 @@ package app
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"sigs.k8s.io/yaml"
 
 	"github.com/janosmiko/lfk/internal/model"
 )
@@ -101,4 +103,69 @@ func TestBookmarksFilePath(t *testing.T) {
 		assert.Contains(t, path, ".local/state/lfk/bookmarks.yaml")
 		assert.NotEmpty(t, path)
 	})
+}
+
+// --- Global field YAML persistence ---
+
+func TestBookmarkGlobalFieldPersistence(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("XDG_STATE_HOME", tmpDir)
+
+	bookmarks := []model.Bookmark{
+		{
+			Name:         "global-mark",
+			Context:      "prod-cluster",
+			Namespace:    "production",
+			ResourceType: "/v1/pods",
+			Slot:         "A",
+			Global:       true,
+		},
+		{
+			Name:         "local-mark",
+			Context:      "dev-cluster",
+			Namespace:    "development",
+			ResourceType: "apps/v1/deployments",
+			Slot:         "a",
+			Global:       false,
+		},
+	}
+
+	// Save and reload via the real save/load functions.
+	err := saveBookmarks(bookmarks)
+	require.NoError(t, err)
+
+	loaded := loadBookmarks()
+	require.Len(t, loaded, 2)
+
+	// Verify Global field is preserved through the round-trip.
+	assert.True(t, loaded[0].Global, "global bookmark should have Global=true after reload")
+	assert.Equal(t, "A", loaded[0].Slot)
+	assert.False(t, loaded[1].Global, "local bookmark should have Global=false after reload")
+	assert.Equal(t, "a", loaded[1].Slot)
+
+	// Verify that Global=false is omitted from YAML output (omitempty tag).
+	rawYAML, err := yaml.Marshal(bookmarks)
+	require.NoError(t, err)
+	yamlStr := string(rawYAML)
+
+	// The global bookmark should have the "global: true" field.
+	assert.Contains(t, yamlStr, "global: true")
+
+	// The local bookmark (Global=false) should NOT have a "global:" field at all,
+	// because the struct tag uses omitempty and false is the zero value.
+	// Split the YAML by entries and check the local bookmark section.
+	lines := strings.Split(yamlStr, "\n")
+	inLocalEntry := false
+	for _, line := range lines {
+		if strings.Contains(line, "local-mark") {
+			inLocalEntry = true
+		}
+		if inLocalEntry && strings.HasPrefix(strings.TrimSpace(line), "- ") && !strings.Contains(line, "local-mark") {
+			break // Moved to next entry.
+		}
+		if inLocalEntry {
+			assert.NotContains(t, line, "global:",
+				"local bookmark with Global=false should omit the global field from YAML")
+		}
+	}
 }

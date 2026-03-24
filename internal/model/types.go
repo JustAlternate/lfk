@@ -171,7 +171,8 @@ type Bookmark struct {
 	Namespaces   []string `json:"namespaces,omitempty" yaml:"namespaces,omitempty"`
 	ResourceType string   `json:"resource_type" yaml:"resource_type"` // resource ref string (group/version/resource)
 	ResourceName string   `json:"resource_name,omitempty" yaml:"resource_name,omitempty"`
-	Slot         string   `json:"slot,omitempty" yaml:"slot,omitempty"` // single char key for vim-style named marks (a-z, 0-9)
+	Slot         string   `json:"slot,omitempty" yaml:"slot,omitempty"`     // single char key for vim-style named marks (a-z, A-Z, 0-9)
+	Global       bool     `json:"global,omitempty" yaml:"global,omitempty"` // true = switches cluster on jump; false = stays in current cluster
 }
 
 // ActionMenuItem represents an entry in the action menu.

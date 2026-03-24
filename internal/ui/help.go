@@ -106,9 +106,10 @@ func helpSections() []helpSection {
 		{
 			title: "Bookmarks",
 			bindings: []helpEntry{
-				{"m<key>", "Set mark at current location (a-z, 0-9)"},
+				{"m<a-z/0-9>", "Set local mark (stays in current cluster on jump)"},
+				{"m<A-Z>", "Set global mark (switches to saved cluster on jump)"},
 				{"'", "Open bookmarks list"},
-				{"a-z/0-9", "Jump to named mark (in overlay)"},
+				{"a-z/A-Z/0-9", "Jump to named mark (in overlay)"},
 				{"j/k", "Navigate bookmarks (in overlay)"},
 				{"/", "Filter bookmarks by name (in overlay)"},
 				{"Enter", "Jump to selected bookmark (in overlay)"},

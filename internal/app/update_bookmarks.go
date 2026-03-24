@@ -52,6 +52,7 @@ func (m Model) bookmarkToSlot(slot string) (tea.Model, tea.Cmd) {
 		ResourceType: m.nav.ResourceType.ResourceRef(),
 		ResourceName: m.nav.ResourceName,
 		Slot:         slot,
+		Global:       len(slot) == 1 && slot[0] >= 'A' && slot[0] <= 'Z',
 	}
 
 	// Check if slot is already in use; if so, ask for confirmation.
@@ -270,9 +271,9 @@ func (m Model) handleBookmarkNormalMode(msg tea.KeyMsg, filtered []model.Bookmar
 	case "ctrl+c":
 		return m.closeTabOrQuit()
 	default:
-		// Slot-key shortcut: pressing a-z or 0-9 jumps directly to that named mark.
+		// Slot-key shortcut: pressing a-z, A-Z, or 0-9 jumps directly to that named mark.
 		key := msg.String()
-		if len(key) == 1 && ((key[0] >= 'a' && key[0] <= 'z') || (key[0] >= '0' && key[0] <= '9')) {
+		if len(key) == 1 && ((key[0] >= 'a' && key[0] <= 'z') || (key[0] >= 'A' && key[0] <= 'Z') || (key[0] >= '0' && key[0] <= '9')) {
 			return m.jumpToSlot(key)
 		}
 	}
@@ -355,14 +356,21 @@ func (m Model) navigateToBookmark(bm model.Bookmark) (tea.Model, tea.Cmd) {
 	m.overlay = overlayNone
 	m.bookmarkFilter.Clear()
 
-	rt, ok := model.FindResourceTypeIn(bm.ResourceType, m.discoveredCRDs[bm.Context])
+	// For local bookmarks, stay in the current cluster context.
+	// For global bookmarks, switch to the bookmark's saved context.
+	effectiveContext := bm.Context
+	if !bm.Global {
+		effectiveContext = m.nav.Context
+	}
+
+	rt, ok := model.FindResourceTypeIn(bm.ResourceType, m.discoveredCRDs[effectiveContext])
 	if !ok {
-		m.setStatusMessage("Unknown resource type in bookmark", true)
+		m.setStatusMessage("Resource type not found in current cluster", true)
 		return m, scheduleStatusClear()
 	}
 
-	// Switch context.
-	m.nav.Context = bm.Context
+	// Switch context (global bookmarks change cluster, local bookmarks keep current).
+	m.nav.Context = effectiveContext
 	m.dashboardPreview = ""
 	m.monitoringPreview = ""
 	m.applyPinnedGroups()
@@ -412,7 +420,7 @@ func (m Model) navigateToBookmark(bm model.Bookmark) (tea.Model, tea.Cmd) {
 	// Load contexts as the base left column.
 	contexts, _ := m.client.GetContexts()
 	var resourceTypes []model.Item
-	if crds := m.discoveredCRDs[bm.Context]; len(crds) > 0 {
+	if crds := m.discoveredCRDs[effectiveContext]; len(crds) > 0 {
 		resourceTypes = model.MergeWithCRDs(crds)
 	} else {
 		resourceTypes = model.FlattenedResourceTypes()
@@ -433,7 +441,7 @@ func (m Model) navigateToBookmark(bm model.Bookmark) (tea.Model, tea.Cmd) {
 	rtRef := rt.ResourceRef()
 	for i, item := range resourceTypes {
 		if item.Extra == rtRef {
-			m.cursorMemory[bm.Context] = i
+			m.cursorMemory[effectiveContext] = i
 			break
 		}
 	}

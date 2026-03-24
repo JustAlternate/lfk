@@ -636,9 +636,13 @@ func RenderBookmarkOverlay(allBookmarks []model.Bookmark, filter string, cursor,
 			// background covers the entire line uniformly.
 			var prefix string
 			if bm.Slot != "" {
-				prefix = bm.Slot + " "
+				scope := "L"
+				if bm.Global {
+					scope = "G"
+				}
+				prefix = bm.Slot + " [" + scope + "] "
 			} else {
-				prefix = "  "
+				prefix = "       "
 			}
 			name := bm.Name
 			if len(bm.Namespaces) > 1 {
@@ -652,9 +656,13 @@ func RenderBookmarkOverlay(allBookmarks []model.Bookmark, filter string, cursor,
 			// Non-selected: use styled prefix and namespace.
 			var prefix string
 			if bm.Slot != "" {
-				prefix = OverlayFilterStyle.Render(bm.Slot) + " "
+				scope := "L"
+				if bm.Global {
+					scope = "G"
+				}
+				prefix = OverlayFilterStyle.Render(bm.Slot) + " " + OverlayDimStyle.Render("["+scope+"]") + " "
 			} else {
-				prefix = "  "
+				prefix = "       "
 			}
 			name := bm.Name
 			if len(bm.Namespaces) > 1 {
@@ -678,7 +686,7 @@ func RenderBookmarkOverlay(allBookmarks []model.Bookmark, filter string, cursor,
 		footer.WriteString(OverlayDimStyle.Render("enter: apply  "))
 		footer.WriteString(OverlayDimStyle.Render("esc: clear"))
 	default:
-		footer.WriteString(OverlayDimStyle.Render("a-z/0-9: jump  "))
+		footer.WriteString(OverlayDimStyle.Render("a-z/A-Z/0-9: jump  "))
 		footer.WriteString(OverlayDimStyle.Render("enter: jump  "))
 		footer.WriteString(OverlayDimStyle.Render("/: filter  "))
 		footer.WriteString(OverlayDimStyle.Render("D: delete  "))

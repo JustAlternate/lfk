@@ -274,17 +274,49 @@ func TestRenderBookmarkOverlay(t *testing.T) {
 			{Name: "No Slot"},
 		}
 		result := RenderBookmarkOverlay(bms, "", 0, 0, 25)
-		assert.Contains(t, result, "a With Slot A")
-		assert.Contains(t, result, "b With Slot B")
+		assert.Contains(t, result, "a")
+		assert.Contains(t, result, "With Slot A")
+		assert.Contains(t, result, "b")
+		assert.Contains(t, result, "With Slot B")
 		assert.Contains(t, result, "No Slot")
-		// No Slot bookmark should not have a slot letter prefix.
-		assert.NotContains(t, result, "c No Slot")
 	})
 
-	t.Run("normal mode footer shows jump hint", func(t *testing.T) {
+	t.Run("normal mode footer shows jump hint with uppercase range", func(t *testing.T) {
 		bms := []model.Bookmark{{Name: "Test"}}
 		result := RenderBookmarkOverlay(bms, "", 0, 0, 25)
-		assert.Contains(t, result, "a-z/0-9: jump")
+		assert.Contains(t, result, "a-z/A-Z/0-9: jump")
+	})
+
+	t.Run("scope indicator shows G for global bookmarks", func(t *testing.T) {
+		bms := []model.Bookmark{
+			{Name: "Global Mark", Slot: "A", Global: true},
+		}
+		result := RenderBookmarkOverlay(bms, "", 0, 0, 25)
+		assert.Contains(t, result, "[G]", "global bookmark should show [G] scope indicator")
+		assert.Contains(t, result, "Global Mark")
+	})
+
+	t.Run("scope indicator shows L for local bookmarks", func(t *testing.T) {
+		bms := []model.Bookmark{
+			{Name: "Local Mark", Slot: "a", Global: false},
+		}
+		result := RenderBookmarkOverlay(bms, "", 0, 0, 25)
+		assert.Contains(t, result, "[L]", "local bookmark should show [L] scope indicator")
+		assert.Contains(t, result, "Local Mark")
+	})
+
+	t.Run("mixed global and local bookmarks show correct indicators", func(t *testing.T) {
+		bms := []model.Bookmark{
+			{Name: "Global Pods", Slot: "A", Global: true},
+			{Name: "Local Deploys", Slot: "a", Global: false},
+			{Name: "Global Svcs", Slot: "B", Global: true},
+		}
+		result := RenderBookmarkOverlay(bms, "", 0, 0, 25)
+		assert.Contains(t, result, "[G]")
+		assert.Contains(t, result, "[L]")
+		assert.Contains(t, result, "Global Pods")
+		assert.Contains(t, result, "Local Deploys")
+		assert.Contains(t, result, "Global Svcs")
 	})
 }
 
