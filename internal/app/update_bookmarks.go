@@ -111,9 +111,10 @@ func (m Model) jumpToSlot(slot string) (tea.Model, tea.Cmd) {
 }
 
 // filteredBookmarks returns bookmarks matching the current bookmark filter.
+// Always returns a new slice to prevent callers from aliasing m.bookmarks.
 func (m *Model) filteredBookmarks() []model.Bookmark {
 	if m.bookmarkFilter.Value == "" {
-		return m.bookmarks
+		return append([]model.Bookmark(nil), m.bookmarks...)
 	}
 	filter := strings.ToLower(m.bookmarkFilter.Value)
 	var filtered []model.Bookmark

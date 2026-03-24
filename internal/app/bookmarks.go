@@ -45,21 +45,40 @@ func loadBookmarks() []model.Bookmark {
 	return bookmarks
 }
 
-// saveBookmarks writes bookmarks to the YAML file on disk.
+// saveBookmarks writes bookmarks to the YAML file on disk using an atomic
+// write (write to temp file, then rename) to prevent data loss if the process
+// is interrupted mid-write.
 func saveBookmarks(bookmarks []model.Bookmark) error {
 	path := bookmarksFilePath()
 	if path == "" {
 		return nil
 	}
+	dir := filepath.Dir(path)
 	// Ensure the directory exists.
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
 	data, err := yaml.Marshal(bookmarks)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0o644)
+	// Atomic write: write to a temp file in the same directory, then rename.
+	// This ensures the target file is never partially written.
+	tmp, err := os.CreateTemp(dir, ".bookmarks-*.yaml.tmp")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		_ = os.Remove(tmpPath)
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		_ = os.Remove(tmpPath)
+		return err
+	}
+	return os.Rename(tmpPath, path)
 }
 
 // removeBookmark removes the bookmark at the given index.
