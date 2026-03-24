@@ -754,13 +754,11 @@ func RenderTemplateOverlay(templates []model.ResourceTemplate, filter string, cu
 
 	for i := start; i < end; i++ {
 		tmpl := templates[i]
-		cat := OverlayDimStyle.Render("[" + tmpl.Category + "] ")
-		name := tmpl.Name
-		line := fmt.Sprintf("  %s%s", cat, name)
+		cat := OverlayDimStyle.Render("[" + tmpl.Category + "]")
 		if i == cursor {
-			b.WriteString(OverlaySelectedStyle.Render(line))
+			fmt.Fprintf(&b, "  > %s %s", cat, OverlaySelectedStyle.Render(tmpl.Name))
 		} else {
-			b.WriteString(OverlayNormalStyle.Render(line))
+			fmt.Fprintf(&b, "    %s %s", cat, OverlayNormalStyle.Render(tmpl.Name))
 		}
 		if i < end-1 {
 			b.WriteString("\n")
