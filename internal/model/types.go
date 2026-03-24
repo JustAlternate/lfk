@@ -82,13 +82,14 @@ var PinnedGroups []string
 // These represent core Kubernetes resources and Helm (which doesn't depend on CRDs).
 var coreCategories = map[string]bool{
 	"Dashboards":     true,
+	"Cluster":        true,
 	"Workloads":      true,
 	"Config":         true,
 	"Networking":     true,
 	"Storage":        true,
 	"Access Control": true,
-	"Cluster":        true,
 	"Helm":           true,
+	"API and CRDs":   true,
 }
 
 // IsCoreCategory returns true if the given category name is a core (always-shown) category.
@@ -186,6 +187,14 @@ type ActionMenuItem struct {
 func TopLevelResourceTypes() []ResourceCategory {
 	return []ResourceCategory{
 		{
+			Name: "Cluster",
+			Types: []ResourceTypeEntry{
+				{DisplayName: "Nodes", Kind: "Node", APIGroup: "", APIVersion: "v1", Resource: "nodes", Icon: "⬡", Namespaced: false},
+				{DisplayName: "Namespaces", Kind: "Namespace", APIGroup: "", APIVersion: "v1", Resource: "namespaces", Icon: "▣", Namespaced: false},
+				{DisplayName: "Events", Kind: "Event", APIGroup: "", APIVersion: "v1", Resource: "events", Icon: "↯", Namespaced: true},
+			},
+		},
+		{
 			Name: "Workloads",
 			Types: []ResourceTypeEntry{
 				{DisplayName: "Pods", Kind: "Pod", APIGroup: "", APIVersion: "v1", Resource: "pods", Icon: "⬤", Namespaced: true},
@@ -254,19 +263,16 @@ func TopLevelResourceTypes() []ResourceCategory {
 			},
 		},
 		{
-			Name: "Cluster",
-			Types: []ResourceTypeEntry{
-				{DisplayName: "Namespaces", Kind: "Namespace", APIGroup: "", APIVersion: "v1", Resource: "namespaces", Icon: "▣", Namespaced: false},
-				{DisplayName: "Events", Kind: "Event", APIGroup: "", APIVersion: "v1", Resource: "events", Icon: "↯", Namespaced: true},
-				{DisplayName: "Nodes", Kind: "Node", APIGroup: "", APIVersion: "v1", Resource: "nodes", Icon: "⬡", Namespaced: false},
-				{DisplayName: "Custom Resource Definitions", Kind: "CustomResourceDefinition", APIGroup: "apiextensions.k8s.io", APIVersion: "v1", Resource: "customresourcedefinitions", Icon: "⧫", Namespaced: false},
-				{DisplayName: "API Services", Kind: "APIService", APIGroup: "apiregistration.k8s.io", APIVersion: "v1", Resource: "apiservices", Icon: "⧫", Namespaced: false},
-			},
-		},
-		{
 			Name: "Helm",
 			Types: []ResourceTypeEntry{
 				{DisplayName: "Releases", Kind: "HelmRelease", APIGroup: "_helm", APIVersion: "v1", Resource: "releases", Icon: "⎋", Namespaced: true},
+			},
+		},
+		{
+			Name: "API and CRDs",
+			Types: []ResourceTypeEntry{
+				{DisplayName: "API Services", Kind: "APIService", APIGroup: "apiregistration.k8s.io", APIVersion: "v1", Resource: "apiservices", Icon: "⧫", Namespaced: false},
+				{DisplayName: "Custom Resource Definitions", Kind: "CustomResourceDefinition", APIGroup: "apiextensions.k8s.io", APIVersion: "v1", Resource: "customresourcedefinitions", Icon: "⧫", Namespaced: false},
 			},
 		},
 		{

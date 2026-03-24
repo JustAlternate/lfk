@@ -12,7 +12,7 @@ func FlattenedResourceTypes() []Item {
 
 // FlattenedResourceTypesFiltered returns resource types as a flat list, optionally excluding
 // CRD-dependent categories when the cluster doesn't have those CRDs installed.
-// Core categories (Workloads, Config, Networking, Storage, Access Control, Cluster, Helm) are
+// Core categories (Cluster, Workloads, Config, Networking, Storage, Access Control, Helm, API and CRDs) are
 // always shown. Other categories are only shown if their API group name appears in availableGroups.
 // Individual resource types marked with RequiresCRD are also filtered out unless their
 // API group/resource appears in availableGroups. When availableGroups is nil, CRD-dependent

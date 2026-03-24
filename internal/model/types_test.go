@@ -936,6 +936,7 @@ func TestIsCoreCategory(t *testing.T) {
 		{"Access Control", "Access Control", true},
 		{"Cluster", "Cluster", true},
 		{"Helm", "Helm", true},
+		{"API and CRDs", "API and CRDs", true},
 		{"argoproj.io", "argoproj.io", false},
 		{"gateway.networking.k8s.io", "gateway.networking.k8s.io", false},
 		{"cert-manager.io", "cert-manager.io", false},
@@ -947,6 +948,93 @@ func TestIsCoreCategory(t *testing.T) {
 			assert.Equal(t, tt.want, IsCoreCategory(tt.category))
 		})
 	}
+}
+
+// --- Cluster group is first in TopLevelResourceTypes ---
+
+func TestClusterGroupIsFirst(t *testing.T) {
+	cats := TopLevelResourceTypes()
+	require.NotEmpty(t, cats)
+	assert.Equal(t, "Cluster", cats[0].Name,
+		"Cluster group should be the first category (shown below Dashboards)")
+}
+
+func TestClusterGroupOrder(t *testing.T) {
+	cats := TopLevelResourceTypes()
+	require.Equal(t, "Cluster", cats[0].Name)
+	types := cats[0].Types
+	require.Len(t, types, 3)
+	assert.Equal(t, "Node", types[0].Kind, "first should be Nodes")
+	assert.Equal(t, "Namespace", types[1].Kind, "second should be Namespaces")
+	assert.Equal(t, "Event", types[2].Kind, "third should be Events")
+}
+
+func TestClusterGroupContents(t *testing.T) {
+	cats := TopLevelResourceTypes()
+	var cluster *ResourceCategory
+	for i := range cats {
+		if cats[i].Name == "Cluster" {
+			cluster = &cats[i]
+			break
+		}
+	}
+	require.NotNil(t, cluster, "Cluster group must exist")
+
+	kinds := make(map[string]bool)
+	for _, rt := range cluster.Types {
+		kinds[rt.Kind] = true
+	}
+	assert.True(t, kinds["Namespace"], "Cluster group should contain Namespaces")
+	assert.True(t, kinds["Event"], "Cluster group should contain Events")
+	assert.True(t, kinds["Node"], "Cluster group should contain Nodes")
+	assert.False(t, kinds["CustomResourceDefinition"],
+		"CRDs should NOT be in Cluster group (moved to API and CRDs)")
+	assert.False(t, kinds["APIService"],
+		"API Services should NOT be in Cluster group (moved to API and CRDs)")
+}
+
+// --- API and CRDs group exists after Helm ---
+
+func TestAPICRDsGroupExistsAfterHelm(t *testing.T) {
+	cats := TopLevelResourceTypes()
+	helmIdx := -1
+	apiIdx := -1
+	for i, cat := range cats {
+		if cat.Name == "Helm" {
+			helmIdx = i
+		}
+		if cat.Name == "API and CRDs" {
+			apiIdx = i
+		}
+	}
+	require.NotEqual(t, -1, helmIdx, "Helm group must exist")
+	require.NotEqual(t, -1, apiIdx, "API and CRDs group must exist")
+	assert.Equal(t, helmIdx+1, apiIdx,
+		"API and CRDs group should be immediately after Helm")
+}
+
+func TestAPICRDsGroupContents(t *testing.T) {
+	cats := TopLevelResourceTypes()
+	var apiCRDs *ResourceCategory
+	for i := range cats {
+		if cats[i].Name == "API and CRDs" {
+			apiCRDs = &cats[i]
+			break
+		}
+	}
+	require.NotNil(t, apiCRDs, "API and CRDs group must exist")
+
+	kinds := make(map[string]bool)
+	for _, rt := range apiCRDs.Types {
+		kinds[rt.Kind] = true
+	}
+	assert.True(t, kinds["APIService"], "API and CRDs should contain API Services")
+	assert.True(t, kinds["CustomResourceDefinition"], "API and CRDs should contain CRDs")
+}
+
+func TestAPICRDsIsCoreCategory(t *testing.T) {
+	assert.True(t, IsCoreCategory("API and CRDs"),
+		"API and CRDs should be a core category")
 }
 
 // --- Templates ---
