@@ -561,6 +561,25 @@ func RenderTable(headerLabel string, items []model.Item, cursor int, width, heig
 		endIdx++
 	}
 
+	// Build display-line-to-item map for mouse click handling.
+	// Only build when rendering the active middle column (ActiveMiddleScroll >= 0).
+	if ActiveMiddleScroll >= 0 {
+		ActiveMiddleLineMap = ActiveMiddleLineMap[:0]
+		for i := startIdx; i < endIdx; i++ {
+			if hasCategories && categoryForItem[i] != "" {
+				if i > startIdx {
+					ActiveMiddleLineMap = append(ActiveMiddleLineMap, -1) // separator
+				}
+				ActiveMiddleLineMap = append(ActiveMiddleLineMap, -1) // category header
+			}
+			ActiveMiddleLineMap = append(ActiveMiddleLineMap, i) // item line
+			extra := itemExtraLines(&items[i], extraCols)
+			for range extra {
+				ActiveMiddleLineMap = append(ActiveMiddleLineMap, i) // wrap continuation
+			}
+		}
+	}
+
 	for i := startIdx; i < endIdx; i++ {
 		item := items[i]
 

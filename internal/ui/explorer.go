@@ -30,6 +30,12 @@ var ActiveMiddleScroll int
 // Same semantics as ActiveMiddleScroll.
 var ActiveLeftScroll int
 
+// ActiveMiddleLineMap maps display line numbers (0-based, relative to content
+// start after the column/table header) to item indices. A value of -1 means
+// the line is non-clickable (separator or category header). Built during
+// middle column rendering for use by mouse click handling.
+var ActiveMiddleLineMap []int
+
 // VimScrollOff computes the viewport start position using vim-style scrolloff.
 // It takes the current scroll position and adjusts it only when the cursor
 // would be outside the visible area or within the scrolloff margin.
@@ -457,6 +463,27 @@ func RenderColumn(header string, items []model.Item, cursor int, width, height i
 		}
 		usedLines += entryLines
 		endEntry++
+	}
+
+	// Build display-line-to-item map for mouse click handling (active middle column only).
+	if isActive {
+		ActiveMiddleLineMap = ActiveMiddleLineMap[:0]
+		for ei := startEntry; ei < endEntry; ei++ {
+			e := entries[ei]
+			if e.hasSep {
+				ActiveMiddleLineMap = append(ActiveMiddleLineMap, -1)
+			}
+			if e.hasHeader {
+				if e.isPlaceholder {
+					ActiveMiddleLineMap = append(ActiveMiddleLineMap, e.itemIdx)
+				} else {
+					ActiveMiddleLineMap = append(ActiveMiddleLineMap, -1)
+				}
+			}
+			if !e.isPlaceholder {
+				ActiveMiddleLineMap = append(ActiveMiddleLineMap, e.itemIdx)
+			}
+		}
 	}
 
 	// Render visible entries.

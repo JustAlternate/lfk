@@ -3,6 +3,7 @@ package app
 import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/janosmiko/lfk/internal/model"
+	"github.com/janosmiko/lfk/internal/ui"
 )
 
 func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
@@ -78,24 +79,8 @@ func (m Model) handleMouseClick(x, y int) (tea.Model, tea.Cmd) {
 		switch m.nav.Level {
 		case model.LevelResources, model.LevelOwned, model.LevelContainers:
 			// Table view has a header row for column names.
-			itemY--
-			if itemY >= 0 {
-				visible := m.visibleMiddleItems()
-				contentHeight := m.height - 4
-				if contentHeight < 3 {
-					contentHeight = 3
-				}
-				tableHeight := contentHeight - 1 // minus table header
-				startIdx := 0
-				if m.cursor() >= tableHeight {
-					startIdx = m.cursor() - tableHeight + 1
-				}
-				targetIdx := startIdx + itemY
-				if targetIdx >= 0 && targetIdx < len(visible) {
-					m.setCursor(targetIdx)
-					return m, m.loadPreview()
-				}
-			} else {
+			itemY-- // subtract table header row
+			if itemY < 0 {
 				// Header row click — sort by the clicked column.
 				relX := x - 2 // border + padding
 				if !m.fullscreenMiddle && !m.fullscreenDashboard {
@@ -103,13 +88,20 @@ func (m Model) handleMouseClick(x, y int) (tea.Model, tea.Cmd) {
 				}
 				return m.handleHeaderClick(relX)
 			}
+			// Use line map built during rendering for accurate click targeting.
+			if itemY < len(ui.ActiveMiddleLineMap) {
+				targetIdx := ui.ActiveMiddleLineMap[itemY]
+				if targetIdx >= 0 && targetIdx < len(m.visibleMiddleItems()) {
+					m.setCursor(targetIdx)
+					return m, m.loadPreview()
+				}
+			}
 		default:
 			// Column view has a header line (rendered by RenderColumn).
-			itemY--
-			if itemY >= 0 {
-				visible := m.visibleMiddleItems()
-				targetIdx := m.itemIndexFromDisplayLine(itemY)
-				if targetIdx >= 0 && targetIdx < len(visible) {
+			itemY-- // subtract column header
+			if itemY >= 0 && itemY < len(ui.ActiveMiddleLineMap) {
+				targetIdx := ui.ActiveMiddleLineMap[itemY]
+				if targetIdx >= 0 && targetIdx < len(m.visibleMiddleItems()) {
 					m.setCursor(targetIdx)
 					m.syncExpandedGroup()
 					return m, m.loadPreview()
