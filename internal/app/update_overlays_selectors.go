@@ -545,6 +545,37 @@ func (m Model) handleColorschemeNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) 
 		m.previewSchemeAtCursor(filtered)
 		return m, nil
 
+	case "g":
+		if m.pendingG {
+			m.pendingG = false
+			m.schemeCursor = 0
+			ui.ResetOverlaySchemeScroll()
+			m.previewSchemeAtCursor(filtered)
+			return m, nil
+		}
+		m.pendingG = true
+		return m, nil
+
+	case "G":
+		if selectableCount > 0 {
+			m.schemeCursor = selectableCount - 1
+		}
+		ui.ResetOverlaySchemeScroll()
+		m.previewSchemeAtCursor(filtered)
+		return m, nil
+
+	case "H":
+		// Jump to the first visible selectable item.
+		m.schemeCursor = m.schemeFirstVisibleSelectable()
+		m.previewSchemeAtCursor(filtered)
+		return m, nil
+
+	case "L":
+		// Jump to the last visible selectable item.
+		m.schemeCursor = m.schemeLastVisibleSelectable()
+		m.previewSchemeAtCursor(filtered)
+		return m, nil
+
 	case "t":
 		ui.ConfigTransparentBg = !ui.ConfigTransparentBg
 		// Re-apply current theme to update bar styles.
@@ -652,4 +683,71 @@ func (m *Model) filteredSchemeNames() []string {
 		}
 	}
 	return result
+}
+
+// schemeFirstVisibleSelectable returns the selectIdx of the first selectable
+// item currently visible in the colorscheme overlay viewport.
+func (m *Model) schemeFirstVisibleSelectable() int {
+	items := m.schemeDisplayItems()
+	start := ui.GetOverlaySchemeScroll()
+	end := start + ui.SchemeOverlayMaxVisible
+	if end > len(items) {
+		end = len(items)
+	}
+	for i := start; i < end; i++ {
+		if items[i].selectIdx >= 0 {
+			return items[i].selectIdx
+		}
+	}
+	return m.schemeCursor
+}
+
+// schemeLastVisibleSelectable returns the selectIdx of the last selectable
+// item currently visible in the colorscheme overlay viewport.
+func (m *Model) schemeLastVisibleSelectable() int {
+	items := m.schemeDisplayItems()
+	start := ui.GetOverlaySchemeScroll()
+	end := start + ui.SchemeOverlayMaxVisible
+	if end > len(items) {
+		end = len(items)
+	}
+	for i := end - 1; i >= start; i-- {
+		if items[i].selectIdx >= 0 {
+			return items[i].selectIdx
+		}
+	}
+	return m.schemeCursor
+}
+
+// schemeDisplayItem mirrors the display list structure from RenderColorschemeOverlay.
+type schemeDisplayItem struct {
+	selectIdx int // -1 for headers
+}
+
+// schemeDisplayItems builds the display list matching RenderColorschemeOverlay's logic.
+func (m *Model) schemeDisplayItems() []schemeDisplayItem {
+	var items []schemeDisplayItem
+	selectIdx := 0
+	if m.schemeFilter.Value == "" {
+		for _, e := range m.schemeEntries {
+			if e.IsHeader {
+				items = append(items, schemeDisplayItem{selectIdx: -1})
+			} else {
+				items = append(items, schemeDisplayItem{selectIdx: selectIdx})
+				selectIdx++
+			}
+		}
+	} else {
+		lower := strings.ToLower(m.schemeFilter.Value)
+		for _, e := range m.schemeEntries {
+			if e.IsHeader {
+				continue
+			}
+			if strings.Contains(e.Name, lower) {
+				items = append(items, schemeDisplayItem{selectIdx: selectIdx})
+				selectIdx++
+			}
+		}
+	}
+	return items
 }

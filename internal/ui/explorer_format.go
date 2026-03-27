@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/janosmiko/lfk/internal/model"
 )
@@ -490,12 +491,19 @@ func Truncate(s string, maxW int) string {
 	if maxW <= 0 {
 		return ""
 	}
-	runes := []rune(s)
-	if len(runes) <= maxW {
+	// Use lipgloss.Width to measure the visual width, which correctly
+	// ignores ANSI escape sequences in styled text.
+	if lipgloss.Width(s) <= maxW {
 		return s
 	}
 	if maxW <= 1 {
 		return "~"
+	}
+	// Strip ANSI codes, truncate the visible content, then append the marker.
+	// This avoids cutting in the middle of an escape sequence.
+	runes := []rune(ansi.Strip(s))
+	if len(runes) <= maxW {
+		return s
 	}
 	return string(runes[:maxW-1]) + "~"
 }

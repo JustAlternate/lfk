@@ -14,6 +14,12 @@ var overlaySchemeScroll int
 // ResetOverlaySchemeScroll resets the colorscheme overlay scroll to the top.
 func ResetOverlaySchemeScroll() { overlaySchemeScroll = 0 }
 
+// GetOverlaySchemeScroll returns the current colorscheme overlay scroll position.
+func GetOverlaySchemeScroll() int { return overlaySchemeScroll }
+
+// SchemeOverlayMaxVisible is the number of visible lines in the colorscheme overlay.
+const SchemeOverlayMaxVisible = 20
+
 // RenderErrorLogOverlay renders the application log overlay showing timestamped
 // log entries with level indicators. The scroll parameter controls which portion is visible.
 // When showDebug is false, DBG entries are filtered out.
@@ -151,7 +157,7 @@ func RenderColorschemeOverlay(entries []SchemeEntry, filter string, cursor int, 
 	}
 
 	// Scrolling window with vim-style scrolloff for stable viewport.
-	maxVisible := 20
+	maxVisible := SchemeOverlayMaxVisible
 	scrollOff := 3
 	if len(items) <= maxVisible {
 		scrollOff = 0
@@ -177,6 +183,7 @@ func RenderColorschemeOverlay(entries []SchemeEntry, filter string, cursor int, 
 		end = len(items)
 	}
 
+	renderedLines := 0
 	for i := start; i < end; i++ {
 		it := items[i]
 		if it.isHeader {
@@ -194,9 +201,16 @@ func RenderColorschemeOverlay(entries []SchemeEntry, filter string, cursor int, 
 				b.WriteString(OverlayNormalStyle.Render(line))
 			}
 		}
+		renderedLines++
 		if i < end-1 {
 			b.WriteString("\n")
 		}
+	}
+
+	// Pad to fixed height so the overlay doesn't resize when headers scroll in/out of view.
+	for renderedLines < maxVisible {
+		b.WriteString("\n")
+		renderedLines++
 	}
 
 	return b.String()

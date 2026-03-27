@@ -133,6 +133,7 @@ func (m Model) overlayHintBar() string {
 	case overlayColorscheme:
 		return m.renderHints([]hintEntry{
 			{"j/k", "navigate"},
+			{"g/G", "top/bottom"},
 			{"enter", "apply"},
 			{"t", "transparent bg"},
 			{"/", "filter"},
