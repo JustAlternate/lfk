@@ -28,8 +28,8 @@ func RenderYAMLContent(content string, width, height int) string {
 
 // RenderContainerDetail renders detailed information about a container.
 func RenderContainerDetail(item *model.Item, width, height int) string {
-	labelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorSecondary)).Bold(true)
-	valueStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorFile))
+	labelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorSecondary)).Bold(true).Background(BaseBg)
+	valueStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorFile)).Background(BaseBg)
 
 	// Collect all rows as (key, value, style) tuples.
 	type row struct {

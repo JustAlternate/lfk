@@ -72,7 +72,7 @@ func RenderLogViewer(lines []string, scroll, width, height int, follow, wrap, li
 	if statusMsg != "" {
 		style := HelpKeyStyle
 		if statusIsErr {
-			style = lipgloss.NewStyle().Foreground(lipgloss.Color(ColorError)).Bold(true)
+			style = lipgloss.NewStyle().Foreground(lipgloss.Color(ColorError)).Bold(true).Background(BarBg)
 		}
 		footer = StatusBarBgStyle.Width(width).MaxWidth(width).MaxHeight(1).Render(style.Render(statusMsg))
 	} else if searchActive {

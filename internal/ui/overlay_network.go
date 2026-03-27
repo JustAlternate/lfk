@@ -14,12 +14,12 @@ import (
 // of ingress/egress rules using box-drawing characters and arrows.
 func RenderNetworkPolicyOverlay(info NetworkPolicyEntry, scroll, width, height int) string {
 	// Styles for the diagram.
-	greenStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorSecondary))
-	arrowStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorPrimary)).Bold(true)
-	boxBorderStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorBorder))
-	labelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorPurple))
-	cidrStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorOrange))
-	sectionStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorPrimary)).Bold(true).Underline(true)
+	greenStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorSecondary)).Background(SurfaceBg)
+	arrowStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorPrimary)).Bold(true).Background(SurfaceBg)
+	boxBorderStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorBorder)).Background(SurfaceBg)
+	labelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorPurple)).Background(SurfaceBg)
+	cidrStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorOrange)).Background(SurfaceBg)
+	sectionStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorPrimary)).Bold(true).Underline(true).Background(SurfaceBg)
 
 	var lines []string
 

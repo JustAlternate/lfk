@@ -377,8 +377,8 @@ func RenderColumn(header string, items []model.Item, cursor int, width, height i
 		lines := 0
 		for ei := startEntry; ei < endEntry; ei++ {
 			e := entries[ei]
-			if e.hasSep {
-				lines++
+			if e.hasSep && ei > startEntry {
+				lines++ // separator (not rendered for first visible entry)
 			}
 			if e.hasHeader {
 				lines++
@@ -449,8 +449,8 @@ func RenderColumn(header string, items []model.Item, cursor int, width, height i
 	for endEntry < len(entries) {
 		entryLines := 0
 		e := entries[endEntry]
-		if e.hasSep {
-			entryLines++
+		if e.hasSep && endEntry > startEntry {
+			entryLines++ // separator (not rendered for first visible entry)
 		}
 		if e.hasHeader {
 			entryLines++
@@ -470,7 +470,7 @@ func RenderColumn(header string, items []model.Item, cursor int, width, height i
 		ActiveMiddleLineMap = ActiveMiddleLineMap[:0]
 		for ei := startEntry; ei < endEntry; ei++ {
 			e := entries[ei]
-			if e.hasSep {
+			if e.hasSep && ei > startEntry {
 				ActiveMiddleLineMap = append(ActiveMiddleLineMap, -1)
 			}
 			if e.hasHeader {

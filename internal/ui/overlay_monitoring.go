@@ -56,10 +56,10 @@ func RenderErrorLogOverlay(entries []ErrorLogEntry, scroll int, height int, show
 	end := min(scroll+maxVisible, len(reversed))
 
 	// Level styles.
-	errLevelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#ff5555")).Bold(true)
-	wrnLevelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#ffaa00")).Bold(true)
-	infLevelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#888888"))
-	dbgLevelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#6272a4"))
+	errLevelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#ff5555")).Bold(true).Background(SurfaceBg)
+	wrnLevelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#ffaa00")).Bold(true).Background(SurfaceBg)
+	infLevelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#888888")).Background(SurfaceBg)
+	dbgLevelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#6272a4")).Background(SurfaceBg)
 
 	for i := scroll; i < end; i++ {
 		entry := reversed[i]
@@ -243,7 +243,7 @@ func RenderRBACOverlay(results []RBACCheckEntry, kind string) string {
 	for _, r := range results {
 		indicator := OverlayWarningStyle.Render("\u2717") // cross mark
 		if r.Allowed {
-			indicator = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Render("\u2713") // check mark
+			indicator = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Background(SurfaceBg).Render("\u2713") // check mark
 		}
 		verb := OverlayNormalStyle.Render(fmt.Sprintf("  %-10s", r.Verb))
 		b.WriteString(verb)
@@ -308,13 +308,13 @@ func RenderPodStartupOverlay(entry PodStartupEntry) string {
 	}
 
 	// Phase color styles.
-	schedulingStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#7aa2f7")) // blue
-	pullStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#e0af68"))       // yellow
-	initStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#73daca"))       // cyan
-	containerStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#9ece6a"))  // green
-	readinessStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#bb9af7"))  // purple
-	inProgressStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#ff9e64")) // orange
-	unknownStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89"))    // dim
+	schedulingStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#7aa2f7")).Background(SurfaceBg) // blue
+	pullStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#e0af68")).Background(SurfaceBg)       // yellow
+	initStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#73daca")).Background(SurfaceBg)       // cyan
+	containerStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#9ece6a")).Background(SurfaceBg)  // green
+	readinessStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#bb9af7")).Background(SurfaceBg)  // purple
+	inProgressStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#ff9e64")).Background(SurfaceBg) // orange
+	unknownStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89")).Background(SurfaceBg)    // dim
 
 	// Max bar width (characters).
 	barWidth := 25
@@ -446,9 +446,9 @@ func RenderQuotaDashboardOverlay(quotas []QuotaEntry, width, height int) string 
 	}
 
 	// Severity color styles.
-	greenStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#9ece6a"))
-	yellowStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#e0af68"))
-	redStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#f7768e"))
+	greenStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#9ece6a")).Background(SurfaceBg)
+	yellowStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#e0af68")).Background(SurfaceBg)
+	redStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#f7768e")).Background(SurfaceBg)
 
 	for i, q := range quotas {
 		if i > 0 {
@@ -581,11 +581,11 @@ func RenderEventTimelineOverlay(events []EventTimelineEntry, resourceName string
 	}
 
 	// Styles for event type indicators.
-	normalDot := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorSecondary)).Render("\u25cf") // green filled circle
-	warningDot := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorError)).Render("\u25cf")    // red filled circle
-	reasonStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(ColorFile))
+	normalDot := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorSecondary)).Background(SurfaceBg).Render("\u25cf") // green filled circle
+	warningDot := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorError)).Background(SurfaceBg).Render("\u25cf")    // red filled circle
+	reasonStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(ColorFile)).Background(SurfaceBg)
 	sourceStyle := OverlayDimStyle
-	countStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorWarning))
+	countStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorWarning)).Background(SurfaceBg)
 
 	for i := scroll; i < end; i++ {
 		event := events[i]
@@ -710,21 +710,21 @@ func RenderAlertsOverlay(alerts []AlertEntry, scroll, width, height int) string 
 		switch alert.Severity {
 		case "critical":
 			severityIcon = "\u25cf" // filled circle
-			severityStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(ColorError)).Bold(true)
+			severityStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(ColorError)).Bold(true).Background(SurfaceBg)
 		case "warning":
 			severityIcon = "\u25cf"
-			severityStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(ColorWarning)).Bold(true)
+			severityStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(ColorWarning)).Bold(true).Background(SurfaceBg)
 		default:
 			severityIcon = "\u25cf"
-			severityStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(ColorPrimary))
+			severityStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(ColorPrimary)).Background(SurfaceBg)
 		}
 
 		stateLabel := alert.State
 		var stateStyle lipgloss.Style
 		if alert.State == "firing" {
-			stateStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(ColorError)).Bold(true)
+			stateStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(ColorError)).Bold(true).Background(SurfaceBg)
 		} else {
-			stateStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(ColorWarning))
+			stateStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(ColorWarning)).Background(SurfaceBg)
 		}
 
 		header := fmt.Sprintf("  %s %s  %s",

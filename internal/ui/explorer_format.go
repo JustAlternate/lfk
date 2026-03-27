@@ -413,7 +413,7 @@ func resourceColumnStyle(key, val string) lipgloss.Style {
 		// Percentage columns: color based on percentage value.
 		return pctStyle(val)
 	case "CPU Req", "CPU Lim", "Mem Req", "Mem Lim", "CPU Alloc", "Mem Alloc":
-		return lipgloss.NewStyle().Foreground(lipgloss.Color(ColorSecondary))
+		return lipgloss.NewStyle().Foreground(lipgloss.Color(ColorSecondary)).Background(BaseBg)
 	case "Last Sync", "Health", "Sync":
 		return StatusStyle(val)
 	default:
@@ -433,9 +433,9 @@ func pctStyle(val string) lipgloss.Style {
 	}
 	switch {
 	case pct >= 90:
-		return lipgloss.NewStyle().Foreground(lipgloss.Color(ColorError)).Bold(true)
+		return lipgloss.NewStyle().Foreground(lipgloss.Color(ColorError)).Bold(true).Background(BaseBg)
 	case pct >= 75:
-		return lipgloss.NewStyle().Foreground(lipgloss.Color(ColorOrange)).Bold(true)
+		return lipgloss.NewStyle().Foreground(lipgloss.Color(ColorOrange)).Bold(true).Background(BaseBg)
 	default:
 		return DimStyle
 	}
@@ -522,9 +522,11 @@ func RenderTabBar(tabLabels []string, activeTab, width int) string {
 		Padding(0, 1)
 	inactiveStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color(ColorDimmed)).
+		Background(BarBg).
 		Padding(0, 1)
 	separatorStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color(ColorBorder))
+		Foreground(lipgloss.Color(ColorBorder)).
+		Background(BarBg)
 	sep := separatorStyle.Render(" │ ")
 	sepW := lipgloss.Width(sep)
 

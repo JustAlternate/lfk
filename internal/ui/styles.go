@@ -253,22 +253,22 @@ func AgeStyle(age string) lipgloss.Style {
 	switch unit {
 	case 's', 'm':
 		// Seconds or minutes: less than 1 hour — very new.
-		return lipgloss.NewStyle().Foreground(lipgloss.Color(ColorCyan))
+		return lipgloss.NewStyle().Foreground(lipgloss.Color(ColorCyan)).Background(BaseBg)
 	case 'h':
 		// Hours: less than 24 hours — recent.
 		if num < 24 {
-			return lipgloss.NewStyle().Foreground(lipgloss.Color(ColorSecondary))
+			return lipgloss.NewStyle().Foreground(lipgloss.Color(ColorSecondary)).Background(BaseBg)
 		}
 		return DimStyle
 	case 'd':
 		// Days: 1-7 days is normal dim, > 7 days is extra dim.
 		if num > 7 {
-			return lipgloss.NewStyle().Foreground(lipgloss.Color(ColorBorder))
+			return lipgloss.NewStyle().Foreground(lipgloss.Color(ColorBorder)).Background(BaseBg)
 		}
 		return DimStyle
 	case 'y':
 		// Years: old.
-		return lipgloss.NewStyle().Foreground(lipgloss.Color(ColorBorder))
+		return lipgloss.NewStyle().Foreground(lipgloss.Color(ColorBorder)).Background(BaseBg)
 	default:
 		return DimStyle
 	}
@@ -278,7 +278,7 @@ func AgeStyle(age string) lipgloss.Style {
 func StatusStyle(status string) lipgloss.Style {
 	switch status {
 	case "default":
-		return lipgloss.NewStyle().Foreground(lipgloss.Color(ColorPrimary))
+		return lipgloss.NewStyle().Foreground(lipgloss.Color(ColorPrimary)).Background(BaseBg)
 	case "Running", "Active", "Bound", "Available", "Ready",
 		"Healthy", "Healthy/Synced", "Synced",
 		"Deployed":

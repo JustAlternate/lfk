@@ -143,6 +143,16 @@ var ActiveSchemeName = "tokyonight"
 // setting a background color so the terminal's own background shows through.
 var ConfigTransparentBg bool
 
+// BaseBg, BarBg, and SurfaceBg are exported TerminalColor values that inline
+// styles can use to set their background, respecting the transparency setting.
+// When ConfigTransparentBg is true they are NoColor{}; otherwise they hold
+// the theme's Base, BarBg, and Surface colors respectively.
+var (
+	BaseBg    lipgloss.TerminalColor = lipgloss.NoColor{}
+	BarBg     lipgloss.TerminalColor = lipgloss.NoColor{}
+	SurfaceBg lipgloss.TerminalColor = lipgloss.NoColor{}
+)
+
 type configFile struct {
 	// Colorscheme selects a built-in color scheme by name (e.g. "dracula", "nord").
 	// Custom theme overrides in the "theme" section are applied on top.
@@ -548,18 +558,27 @@ func ApplyTheme(t Theme) {
 		Background(baseBg).
 		Bold(true)
 
+	var surfaceBg lipgloss.TerminalColor = lipgloss.NoColor{}
+	if !ConfigTransparentBg {
+		surfaceBg = lipgloss.Color(t.Surface)
+	}
+
+	// Export background colors so inline styles across the codebase can use them.
+	BaseBg = baseBg
+	BarBg = barBg
+	SurfaceBg = surfaceBg
+
 	OverlayStyle = lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color(t.Primary)).
-		Background(lipgloss.Color(t.Surface)).
+		Background(surfaceBg).
 		Padding(1, 2)
 
 	innerPanelStyle = lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color(t.Border)).
+		Background(surfaceBg).
 		Padding(0, 1)
-
-	surfaceBg := lipgloss.Color(t.Surface)
 
 	OverlayTitleStyle = lipgloss.NewStyle().
 		Bold(true).

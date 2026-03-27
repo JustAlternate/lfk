@@ -91,11 +91,11 @@ func RenderDiffView(left, right, leftName, rightName string, scroll, width, heig
 	diffLines := computeDiff(left, right)
 
 	// Styles for diff highlighting.
-	removedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorError))
-	addedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorSecondary))
-	normalStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorFile))
-	headerNameStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorPrimary)).Bold(true)
-	separatorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorDimmed))
+	removedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorError)).Background(SurfaceBg)
+	addedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorSecondary)).Background(SurfaceBg)
+	normalStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorFile)).Background(SurfaceBg)
+	headerNameStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorPrimary)).Bold(true).Background(SurfaceBg)
+	separatorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorDimmed)).Background(SurfaceBg)
 
 	// Line number gutter width.
 	var gutterWidth int
@@ -228,10 +228,10 @@ func RenderUnifiedDiffView(left, right, leftName, rightName string, scroll, widt
 	diffLines := computeDiff(left, right)
 
 	// Styles.
-	removedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorError))
-	addedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorSecondary))
-	normalStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorFile))
-	headerStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorPrimary)).Bold(true)
+	removedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorError)).Background(SurfaceBg)
+	addedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorSecondary)).Background(SurfaceBg)
+	normalStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorFile)).Background(SurfaceBg)
+	headerStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorPrimary)).Bold(true).Background(SurfaceBg)
 
 	// Line number gutter width (for the unified line number).
 	var gutterWidth int

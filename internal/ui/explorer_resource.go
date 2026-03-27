@@ -86,7 +86,7 @@ func RenderResourceSummary(item *model.Item, yaml string, width, height int) str
 	keyW += 2 // spacing after key
 
 	// Style for detail keys: bold + primary, no underline (HeaderStyle has underline).
-	detailKeyStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(ColorPrimary))
+	detailKeyStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(ColorPrimary)).Background(BaseBg)
 
 	// Render rows as aligned key-value pairs (key styled, value as dim).
 	for _, r := range rows {
@@ -162,7 +162,7 @@ func RenderResourceSummary(item *model.Item, yaml string, width, height int) str
 // RenderResourceUsage renders CPU and memory usage bars for the preview.
 // If request/limit values are zero, usage is shown without a percentage bar.
 func RenderResourceUsage(cpuUsed, cpuReq, cpuLim, memUsed, memReq, memLim int64, width int) string {
-	labelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorSecondary)).Bold(true)
+	labelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorSecondary)).Bold(true).Background(BaseBg)
 
 	lines := make([]string, 0, 4)
 	lines = append(lines, DimStyle.Bold(true).Render("RESOURCE USAGE"))
@@ -222,8 +222,8 @@ func renderUsageBar(used, req, lim int64, barWidth int, formatFn func(int64) str
 		barColor = ColorDimmed
 	}
 
-	barStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(barColor))
-	emptyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorBorder))
+	barStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(barColor)).Background(BaseBg)
+	emptyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorBorder)).Background(BaseBg)
 
 	bar := "[" + barStyle.Render(strings.Repeat("\u2588", filled)) + emptyStyle.Render(strings.Repeat("\u2591", empty)) + "]"
 	return bar + suffix
@@ -240,10 +240,10 @@ func RenderPreviewEvents(events []EventTimelineEntry, width int) string {
 	b.WriteString(DimStyle.Bold(true).Render("EVENTS"))
 	b.WriteString("\n")
 
-	warningStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorWarning))
-	errorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorError))
-	normalStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorSecondary))
-	reasonStyle := lipgloss.NewStyle().Bold(true)
+	warningStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorWarning)).Background(BaseBg)
+	errorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorError)).Background(BaseBg)
+	normalStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorSecondary)).Background(BaseBg)
+	reasonStyle := lipgloss.NewStyle().Bold(true).Background(BaseBg)
 	dimStyle := DimStyle
 
 	// Show at most 20 events to avoid making the preview pane too long.
