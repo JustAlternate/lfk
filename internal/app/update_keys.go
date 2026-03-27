@@ -181,6 +181,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.schemeCursor = 0
 		m.schemeFilter.Clear()
 		m.schemeOriginalName = ui.ActiveSchemeName
+		ui.ResetOverlaySchemeScroll()
 		// Position cursor on the currently active scheme.
 		selectIdx := 0
 		for _, e := range m.schemeEntries {

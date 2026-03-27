@@ -8,6 +8,12 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// overlaySchemeScroll is the persistent scroll position for the colorscheme overlay.
+var overlaySchemeScroll int
+
+// ResetOverlaySchemeScroll resets the colorscheme overlay scroll to the top.
+func ResetOverlaySchemeScroll() { overlaySchemeScroll = 0 }
+
 // RenderErrorLogOverlay renders the application log overlay showing timestamped
 // log entries with level indicators. The scroll parameter controls which portion is visible.
 // When showDebug is false, DBG entries are filtered out.
@@ -144,8 +150,15 @@ func RenderColorschemeOverlay(entries []SchemeEntry, filter string, cursor int, 
 		return b.String()
 	}
 
-	// Scrolling window based on selectable cursor position.
+	// Scrolling window with vim-style scrolloff for stable viewport.
 	maxVisible := 20
+	scrollOff := 3
+	if len(items) <= maxVisible {
+		scrollOff = 0
+	} else if maxSO := (maxVisible - 1) / 2; scrollOff > maxSO {
+		scrollOff = maxSO
+	}
+
 	// Find the display index of the cursor item.
 	cursorDisplayIdx := 0
 	for i, it := range items {
@@ -155,10 +168,10 @@ func RenderColorschemeOverlay(entries []SchemeEntry, filter string, cursor int, 
 		}
 	}
 
-	start := 0
-	if cursorDisplayIdx >= maxVisible {
-		start = cursorDisplayIdx - maxVisible + 1
-	}
+	displayLines := func(from, to int) int { return to - from }
+	start := VimScrollOff(overlaySchemeScroll, cursorDisplayIdx, len(items), maxVisible, scrollOff, displayLines)
+	overlaySchemeScroll = start
+
 	end := start + maxVisible
 	if end > len(items) {
 		end = len(items)

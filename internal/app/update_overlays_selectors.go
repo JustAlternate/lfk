@@ -557,23 +557,27 @@ func (m Model) handleColorschemeFilterMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) 
 		m.schemeFilterMode = false
 		m.schemeFilter.Clear()
 		m.schemeCursor = 0
+		ui.ResetOverlaySchemeScroll()
 		m.previewSchemeAtCursor(m.filteredSchemeNames())
 		return m, nil
 	case "enter":
 		m.schemeFilterMode = false
 		m.schemeCursor = 0
+		ui.ResetOverlaySchemeScroll()
 		m.previewSchemeAtCursor(m.filteredSchemeNames())
 		return m, nil
 	case "backspace":
 		if len(m.schemeFilter.Value) > 0 {
 			m.schemeFilter.Backspace()
 			m.schemeCursor = 0
+			ui.ResetOverlaySchemeScroll()
 			m.previewSchemeAtCursor(m.filteredSchemeNames())
 		}
 		return m, nil
 	case "ctrl+w":
 		m.schemeFilter.DeleteWord()
 		m.schemeCursor = 0
+		ui.ResetOverlaySchemeScroll()
 		m.previewSchemeAtCursor(m.filteredSchemeNames())
 		return m, nil
 	case "ctrl+a":
@@ -595,6 +599,7 @@ func (m Model) handleColorschemeFilterMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) 
 		if len(key) == 1 && key[0] >= 32 && key[0] < 127 {
 			m.schemeFilter.Insert(key)
 			m.schemeCursor = 0
+			ui.ResetOverlaySchemeScroll()
 			m.previewSchemeAtCursor(m.filteredSchemeNames())
 		}
 		return m, nil
