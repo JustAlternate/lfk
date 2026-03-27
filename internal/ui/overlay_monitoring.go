@@ -183,12 +183,12 @@ func RenderColorschemeOverlay(entries []SchemeEntry, filter string, cursor int, 
 		end = len(items)
 	}
 
-	renderedLines := 0
+	var lines []string
 	for i := start; i < end; i++ {
 		it := items[i]
 		if it.isHeader {
-			b.WriteString("\n")
-			b.WriteString(CategoryStyle.Render("\u2500\u2500 " + it.label + " \u2500\u2500"))
+			lines = append(lines, "") // separator line
+			lines = append(lines, CategoryStyle.Render("\u2500\u2500 "+it.label+" \u2500\u2500"))
 		} else {
 			prefix := "  "
 			if it.label == ActiveSchemeName {
@@ -196,22 +196,21 @@ func RenderColorschemeOverlay(entries []SchemeEntry, filter string, cursor int, 
 			}
 			line := prefix + it.label
 			if it.selectIdx == cursor {
-				b.WriteString(OverlaySelectedStyle.Render(line))
+				lines = append(lines, OverlaySelectedStyle.Render(line))
 			} else {
-				b.WriteString(OverlayNormalStyle.Render(line))
+				lines = append(lines, OverlayNormalStyle.Render(line))
 			}
-		}
-		renderedLines++
-		if i < end-1 {
-			b.WriteString("\n")
 		}
 	}
 
-	// Pad to fixed height so the overlay doesn't resize when headers scroll in/out of view.
-	for renderedLines < maxVisible {
-		b.WriteString("\n")
-		renderedLines++
+	// Pad or truncate to fixed height so the overlay doesn't resize.
+	for len(lines) < maxVisible {
+		lines = append(lines, "")
 	}
+	if len(lines) > maxVisible {
+		lines = lines[:maxVisible]
+	}
+	b.WriteString(strings.Join(lines, "\n"))
 
 	return b.String()
 }
