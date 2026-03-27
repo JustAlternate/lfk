@@ -412,11 +412,17 @@ func ApplyTheme(t Theme) {
 		Padding(0, 1).
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color(t.Primary))
+	if !ConfigTransparentBg {
+		ActiveColumnStyle = ActiveColumnStyle.Background(lipgloss.Color(t.Base))
+	}
 
 	InactiveColumnStyle = lipgloss.NewStyle().
 		Padding(0, 1).
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color(t.Border))
+	if !ConfigTransparentBg {
+		InactiveColumnStyle = InactiveColumnStyle.Background(lipgloss.Color(t.Base))
+	}
 
 	SelectedStyle = lipgloss.NewStyle().
 		Bold(true).
@@ -523,6 +529,7 @@ func ApplyTheme(t Theme) {
 	OverlayStyle = lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color(t.Primary)).
+		Background(lipgloss.Color(t.Surface)).
 		Padding(1, 2)
 
 	innerPanelStyle = lipgloss.NewStyle().

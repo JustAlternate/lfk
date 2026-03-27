@@ -246,7 +246,7 @@ func TestTransparentBgConfig(t *testing.T) {
 
 		theme := DefaultTheme()
 
-		// Opaque mode: bars should have background set.
+		// Opaque mode: bars and columns should have background set.
 		ConfigTransparentBg = false
 		ApplyTheme(theme)
 		// lipgloss.NoColor{} is the zero type when no background is set.
@@ -256,7 +256,10 @@ func TestTransparentBgConfig(t *testing.T) {
 		_, isNoColor = StatusBarBgStyle.GetBackground().(lipgloss.NoColor)
 		assert.False(t, isNoColor, "opaque StatusBarBgStyle should have a background color")
 
-		// Transparent mode: bars should NOT have background set.
+		_, isNoColor = ActiveColumnStyle.GetBackground().(lipgloss.NoColor)
+		assert.False(t, isNoColor, "opaque ActiveColumnStyle should have a background color")
+
+		// Transparent mode: bars and columns should NOT have background set.
 		ConfigTransparentBg = true
 		ApplyTheme(theme)
 		_, isNoColor = TitleBarStyle.GetBackground().(lipgloss.NoColor)
@@ -264,6 +267,9 @@ func TestTransparentBgConfig(t *testing.T) {
 
 		_, isNoColor = StatusBarBgStyle.GetBackground().(lipgloss.NoColor)
 		assert.True(t, isNoColor, "transparent StatusBarBgStyle should have no background")
+
+		_, isNoColor = ActiveColumnStyle.GetBackground().(lipgloss.NoColor)
+		assert.True(t, isNoColor, "transparent ActiveColumnStyle should have no background")
 	})
 
 	t.Run("transparent mode keeps selection backgrounds", func(t *testing.T) {

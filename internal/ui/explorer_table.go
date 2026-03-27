@@ -487,8 +487,8 @@ func RenderTable(headerLabel string, items []model.Item, cursor int, width, heig
 		for i := start; i < end && i < len(items); i++ {
 			if categoryForItem[i] != "" {
 				n++ // category header line
-				if i > 0 {
-					n++ // separator line before category
+				if i > start {
+					n++ // separator line before category (not for first item in range)
 				}
 			}
 		}
@@ -548,9 +548,9 @@ func RenderTable(headerLabel string, items []model.Item, cursor int, width, heig
 	for endIdx < len(items) {
 		extraLines := 0
 		if categoryForItem[endIdx] != "" {
-			extraLines++
-			if endIdx > 0 {
-				extraLines++
+			extraLines++ // category header line
+			if endIdx > startIdx {
+				extraLines++ // separator line (not shown for first visible item)
 			}
 		}
 		wrapLines := itemExtraLines(&items[endIdx], extraCols)
