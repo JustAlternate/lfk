@@ -238,21 +238,40 @@ var (
 				Foreground(lipgloss.Color(ColorWarning))
 )
 
-// FillLinesBg post-processes a multi-line string so that every line is padded
-// to the given width with the specified background color. This fills the gaps
-// left by ANSI resets from inner styled text, ensuring the theme background is
-// continuous across each line. bg should be BaseBg, BarBg, or SurfaceBg.
+// FillLinesBg post-processes a multi-line string so that the background color
+// is continuous across each line. It does two things:
+//  1. Re-establishes the background after every ANSI reset (\x1b[0m) within a line,
+//     so gaps between styled segments get the background.
+//  2. Pads each line to the given width with the background color.
+//
+// bg should be BaseBg, BarBg, or SurfaceBg.
 func FillLinesBg(content string, width int, bg lipgloss.TerminalColor) string {
 	if _, ok := bg.(lipgloss.NoColor); ok {
 		return content // transparent mode, nothing to fill
 	}
+	// Extract the raw ANSI background sequence from a styled render.
+	// lipgloss.NewStyle().Background(bg).Render("X") produces "<bg>X<reset>".
+	// We extract everything before "X".
+	sample := lipgloss.NewStyle().Background(bg).Render("X")
+	idx := strings.Index(sample, "X")
+	if idx <= 0 {
+		return content // cannot extract bg sequence
+	}
+	bgSeq := sample[:idx]
+
 	fill := lipgloss.NewStyle().Background(bg)
+	reset := "\x1b[0m"
+
 	lines := strings.Split(content, "\n")
 	for i, line := range lines {
+		// Prepend bg at start of line and after every ANSI reset.
+		line = bgSeq + strings.ReplaceAll(line, reset, reset+bgSeq)
+		// Pad to full width.
 		w := lipgloss.Width(line)
 		if w < width {
-			lines[i] = line + fill.Render(strings.Repeat(" ", width-w))
+			line += fill.Render(strings.Repeat(" ", width-w))
 		}
+		lines[i] = line
 	}
 	return strings.Join(lines, "\n")
 }
