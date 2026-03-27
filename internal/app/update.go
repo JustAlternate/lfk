@@ -14,6 +14,7 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/creack/pty"
+	"github.com/janosmiko/lfk/internal/k8s"
 	"github.com/janosmiko/lfk/internal/logger"
 	"github.com/janosmiko/lfk/internal/model"
 	"github.com/janosmiko/lfk/internal/ui"
@@ -458,6 +459,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case portForwardUpdateMsg:
 		// Port forward state changed (e.g., port resolved, process exited).
 		cmds := []tea.Cmd{m.waitForPortForwardUpdate()}
+		if msg.err != nil {
+			m.addLogEntry("ERR", msg.err.Error())
+		}
+		// Log newly failed port forwards.
+		for _, e := range m.portForwardMgr.Entries() {
+			if e.Status == k8s.PortForwardFailed && e.Error != "" {
+				if _, seen := m.pfLoggedErrors[e.ID]; !seen {
+					m.addLogEntry("ERR", fmt.Sprintf("Port forward %s/%s failed: %s", e.ResourceKind, e.ResourceName, e.Error))
+					if m.pfLoggedErrors == nil {
+						m.pfLoggedErrors = make(map[int]struct{})
+					}
+					m.pfLoggedErrors[e.ID] = struct{}{}
+				}
+			}
+		}
 		// Show resolved port notification for recently created port forward.
 		if m.pfLastCreatedID > 0 {
 			for _, e := range m.portForwardMgr.Entries() {

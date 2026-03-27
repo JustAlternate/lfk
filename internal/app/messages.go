@@ -284,7 +284,10 @@ type portForwardStoppedMsg struct {
 }
 
 // portForwardUpdateMsg is sent when port forward state changes (process exits, etc).
-type portForwardUpdateMsg struct{}
+// An optional err indicates a background failure (e.g., port forward restore failed).
+type portForwardUpdateMsg struct {
+	err error
+}
 
 // templateApplyMsg is sent after the editor closes, carrying the temp file path for kubectl apply.
 type templateApplyMsg struct {

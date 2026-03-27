@@ -99,6 +99,7 @@ func (m *Model) restorePortForwards() []tea.Cmd {
 	kubectlPath, err := exec.LookPath("kubectl")
 	if err != nil {
 		logger.Error("Cannot restore port forwards: kubectl not found", "error", err)
+		m.addLogEntry("ERR", fmt.Sprintf("Cannot restore port forwards: kubectl not found: %v", err))
 		return nil
 	}
 	kubeconfigPaths := m.client.KubeconfigPaths()
@@ -113,8 +114,7 @@ func (m *Model) restorePortForwards() []tea.Cmd {
 				logger.Error("Failed to restore port forward",
 					"resource", fmt.Sprintf("%s/%s", pf.ResourceKind, pf.ResourceName),
 					"error", err)
-				// Don't propagate error to UI — restoration failures are non-fatal.
-				return portForwardUpdateMsg{}
+				return portForwardUpdateMsg{err: fmt.Errorf("restore port forward %s/%s: %w", pf.ResourceKind, pf.ResourceName, err)}
 			}
 			logger.Info("Restored port forward",
 				"id", id,

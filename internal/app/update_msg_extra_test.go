@@ -2,6 +2,8 @@ package app
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 	"sync"
 	"testing"
 
@@ -412,6 +414,26 @@ func TestUpdateStderrCaptured(t *testing.T) {
 	assert.Contains(t, mdl.statusMessage, "stderr:")
 	assert.True(t, mdl.statusMessageErr)
 	assert.NotNil(t, cmd) // scheduleStatusClear + waitForStderr batch
+}
+
+// --- portForwardUpdateMsg ---
+
+func TestUpdatePortForwardUpdateMsgWithError(t *testing.T) {
+	m := baseModel()
+	m.portForwardMgr = k8s.NewPortForwardManager()
+
+	result, _ := m.Update(portForwardUpdateMsg{err: fmt.Errorf("restore port forward svc/my-svc: connection refused")})
+	mdl := result.(Model)
+
+	// The error should appear in the error log.
+	found := false
+	for _, entry := range mdl.errorLog {
+		if entry.Level == "ERR" && strings.Contains(entry.Message, "connection refused") {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "port forward error should appear in error log")
 }
 
 // --- watchTickMsg ---

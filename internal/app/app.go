@@ -625,8 +625,9 @@ type Model struct {
 
 	// Port forward overlay state: discovered ports for the selected resource.
 	pfAvailablePorts []ui.PortInfo
-	pfPortCursor     int // cursor in the available ports list (-1 = manual input)
-	pfLastCreatedID  int // ID of the most recently created port forward (for showing resolved port)
+	pfPortCursor     int              // cursor in the available ports list (-1 = manual input)
+	pfLastCreatedID  int              // ID of the most recently created port forward (for showing resolved port)
+	pfLoggedErrors   map[int]struct{} // port forward IDs whose failures have been logged to errorLog
 
 	// Explain view state (API browser).
 	explainFields                []model.ExplainField
