@@ -166,13 +166,13 @@ func (m Model) statusBar() string {
 	cur := m.cursor() + 1
 
 	if m.filterText != "" {
-		parts = append(parts, ui.DimStyle.Render(fmt.Sprintf("[%d/%d filtered: %d/%d]", cur, len(visible), len(visible), total)))
+		parts = append(parts, ui.BarDimStyle.Render(fmt.Sprintf("[%d/%d filtered: %d/%d]", cur, len(visible), len(visible), total)))
 	} else {
-		parts = append(parts, ui.DimStyle.Render(fmt.Sprintf("[%d/%d]", cur, total)))
+		parts = append(parts, ui.BarDimStyle.Render(fmt.Sprintf("[%d/%d]", cur, total)))
 	}
 
 	// Sort mode indicator.
-	parts = append(parts, ui.DimStyle.Render("sort:"+m.sortModeName()))
+	parts = append(parts, ui.BarDimStyle.Render("sort:"+m.sortModeName()))
 
 	// Styled key hints -- show a reduced set for dashboard views.
 	var hints []struct{ key, desc string }
@@ -206,9 +206,9 @@ func (m Model) statusBar() string {
 	}
 	hintParts := make([]string, 0, len(hints))
 	for _, h := range hints {
-		hintParts = append(hintParts, ui.HelpKeyStyle.Render(h.key)+ui.DimStyle.Render(": "+h.desc))
+		hintParts = append(hintParts, ui.HelpKeyStyle.Render(h.key)+ui.BarDimStyle.Render(": "+h.desc))
 	}
-	parts = append(parts, strings.Join(hintParts, ui.DimStyle.Render(" \u2502 ")))
+	parts = append(parts, strings.Join(hintParts, ui.BarDimStyle.Render(" \u2502 ")))
 
 	content := strings.Join(parts, "  ")
 	return ui.StatusBarBgStyle.Width(m.width).MaxWidth(m.width).MaxHeight(1).Render(content)

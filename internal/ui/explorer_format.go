@@ -574,7 +574,8 @@ func RenderTabBar(tabLabels []string, activeTab, width int) string {
 				parts = append(parts, sep)
 			}
 		}
-		return " " + strings.Join(parts, "")
+		tabContent := " " + strings.Join(parts, "")
+		return lipgloss.NewStyle().Background(BarBg).Width(width).MaxWidth(width).Render(tabContent)
 	}
 
 	// Window around active tab.
@@ -621,5 +622,6 @@ func RenderTabBar(tabLabels []string, activeTab, width int) string {
 		parts = append(parts, inactiveStyle.Render("▸"))
 	}
 
-	return " " + strings.Join(parts, "")
+	tabContent := " " + strings.Join(parts, "")
+	return lipgloss.NewStyle().Background(BarBg).Width(width).MaxWidth(width).Render(tabContent)
 }

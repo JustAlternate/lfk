@@ -313,7 +313,7 @@ type hintEntry struct {
 func (m Model) renderHints(hints []hintEntry) string {
 	parts := make([]string, 0, len(hints))
 	for _, h := range hints {
-		parts = append(parts, ui.HelpKeyStyle.Render(h.key)+ui.DimStyle.Render(": "+h.desc))
+		parts = append(parts, ui.HelpKeyStyle.Render(h.key)+ui.BarDimStyle.Render(": "+h.desc))
 	}
-	return strings.Join(parts, ui.DimStyle.Render(" \u2502 "))
+	return strings.Join(parts, ui.BarDimStyle.Render(" \u2502 "))
 }

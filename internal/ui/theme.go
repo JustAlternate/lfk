@@ -473,6 +473,10 @@ func ApplyTheme(t Theme) {
 		barBg = lipgloss.Color(t.BarBg)
 	}
 
+	BarDimStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color(t.Dimmed)).
+		Background(barBg)
+
 	TitleBarStyle = lipgloss.NewStyle().
 		Foreground(lipgloss.Color(t.Text)).
 		Background(barBg).
@@ -571,12 +575,14 @@ func ApplyTheme(t Theme) {
 	OverlayStyle = lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color(t.Primary)).
+		BorderBackground(surfaceBg).
 		Background(surfaceBg).
 		Padding(1, 2)
 
 	innerPanelStyle = lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color(t.Border)).
+		BorderBackground(surfaceBg).
 		Background(surfaceBg).
 		Padding(0, 1)
 

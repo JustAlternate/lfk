@@ -50,6 +50,10 @@ var (
 	DimStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color(ColorDimmed))
 
+	// BarDimStyle is DimStyle but with bar background (for status bar hints).
+	BarDimStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color(ColorDimmed))
+
 	// Category header in resource type list.
 	CategoryStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color(ColorDimmed)).
