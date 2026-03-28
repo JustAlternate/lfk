@@ -237,12 +237,14 @@ func collectExtraColumns(items []model.Item, totalWidth, usedWidth int, kind str
 		if threshold < 1 {
 			threshold = 1
 		}
+		// Always-show columns bypass the threshold check.
+		alwaysShow := map[string]bool{"Condition": true}
 		for _, key := range order {
 			if blocked[key] || strings.HasPrefix(key, "__") || strings.HasPrefix(key, "secret:") || strings.HasPrefix(key, "owner:") || strings.HasPrefix(key, "data:") || strings.HasPrefix(key, "condition:") {
 				continue
 			}
 			info := seen[key]
-			if info.count >= threshold {
+			if info.count >= threshold || alwaysShow[key] {
 				candidates = append(candidates, key)
 			}
 		}
