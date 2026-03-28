@@ -65,7 +65,7 @@ func RenderLogViewer(lines []string, scroll, width, height int, follow, wrap, li
 	if ansi.StringWidth(titleText) > maxTitleWidth {
 		titleText = ansi.Truncate(titleText, maxTitleWidth, "…")
 	}
-	titleBar := TitleStyle.Width(width).MaxWidth(width).MaxHeight(1).Render(titleText)
+	titleBar := FillLinesBg(TitleStyle.Width(width).MaxWidth(width).MaxHeight(1).Render(titleText), width, BarBg)
 
 	// Footer: show status message, search input, or key hints.
 	// Use BarDimStyle (not DimStyle) so hint text matches the bar background.
@@ -186,6 +186,16 @@ func RenderLogViewer(lines []string, scroll, width, height int, follow, wrap, li
 	// Pad to fill content height.
 	for len(rendered) < contentHeight {
 		rendered = append(rendered, "")
+	}
+
+	// Ensure no rendered line exceeds contentWidth visual cells. Wrapped lines
+	// or FillLinesBg padding can occasionally produce lines wider than the border
+	// container expects, causing lipgloss to re-wrap them internally and push the
+	// bottom border out of view.
+	for i, line := range rendered {
+		if lipgloss.Width(line) > contentWidth {
+			rendered[i] = ansi.Truncate(line, contentWidth, "")
+		}
 	}
 
 	bodyContent := strings.Join(rendered, "\n")
