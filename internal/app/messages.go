@@ -88,6 +88,9 @@ type startupTipMsg struct{ tip string }
 // watchTickMsg triggers a periodic refresh in watch mode.
 type watchTickMsg struct{}
 
+// describeRefreshTickMsg triggers a periodic refresh in the describe viewer.
+type describeRefreshTickMsg struct{}
+
 // containerSelectMsg carries the container list for action container selection.
 type containerSelectMsg struct {
 	items []model.Item

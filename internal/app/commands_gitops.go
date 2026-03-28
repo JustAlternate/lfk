@@ -211,6 +211,19 @@ func (m Model) resumeCronWorkflow() tea.Cmd {
 	}
 }
 
+func (m Model) watchArgoWorkflow() tea.Cmd {
+	ctx := m.actionCtx.context
+	ns := m.actionNamespace()
+	name := m.actionCtx.name
+	return func() tea.Msg {
+		content, _, err := m.client.GetWorkflowStatus(ctx, ns, name)
+		if err != nil {
+			return describeLoadedMsg{title: "Watch: " + name, err: err}
+		}
+		return describeLoadedMsg{title: "Watch: " + name, content: content}
+	}
+}
+
 // forceRefreshExternalSecret triggers a force sync on an ESO resource.
 func (m Model) forceRefreshExternalSecret() tea.Cmd {
 	ctx := m.actionCtx.context

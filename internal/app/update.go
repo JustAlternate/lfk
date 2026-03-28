@@ -867,9 +867,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.mode = modeDescribe
 		m.describeContent = msg.content
-		m.describeScroll = 0
+		// Preserve scroll on auto-refresh, reset on first load.
+		if !m.describeAutoRefresh {
+			m.describeScroll = 0
+		}
 		m.describeTitle = msg.title
+		if m.describeAutoRefresh {
+			return m, scheduleDescribeRefresh()
+		}
 		return m, nil
+
+	case describeRefreshTickMsg:
+		if m.mode != modeDescribe || !m.describeAutoRefresh || m.describeRefreshFunc == nil {
+			return m, nil
+		}
+		return m, m.describeRefreshFunc()
 
 	case helmValuesLoadedMsg:
 		m.loading = false

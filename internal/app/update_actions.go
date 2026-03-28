@@ -524,6 +524,12 @@ func (m Model) executeAction(actionLabel string) (tea.Model, tea.Cmd) {
 		m.addLogEntry("DBG", fmt.Sprintf("Terminate sync for %s/%s in %s", ns, name, ctx))
 		m.loading = true
 		return m, m.terminateArgoSync()
+	case "Watch Workflow":
+		m.addLogEntry("DBG", fmt.Sprintf("Watching workflow %s in %s", name, ns))
+		m.loading = true
+		m.describeAutoRefresh = true
+		m.describeRefreshFunc = func() tea.Cmd { return m.watchArgoWorkflow() }
+		return m, m.watchArgoWorkflow()
 	case "Suspend Workflow":
 		m.addLogEntry("DBG", fmt.Sprintf("Suspending workflow %s in %s", name, ns))
 		m.loading = true

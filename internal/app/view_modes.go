@@ -25,13 +25,17 @@ func (m Model) viewLogs() string {
 
 func (m Model) viewDescribe() string {
 	title := ui.TitleStyle.Width(m.width).MaxWidth(m.width).MaxHeight(1).Render(m.describeTitle)
-	hint := ui.RenderHintBar([]ui.HintEntry{
+	hints := []ui.HintEntry{
 		{Key: "j/k", Desc: "scroll"},
 		{Key: "g/G", Desc: "top/bottom"},
 		{Key: "ctrl+d/u", Desc: "half page"},
 		{Key: "ctrl+f/b", Desc: "page"},
 		{Key: "q/esc", Desc: "back"},
-	}, m.width)
+	}
+	if m.describeAutoRefresh {
+		hints = append(hints, ui.HintEntry{Key: "LIVE", Desc: "auto-refresh"})
+	}
+	hint := ui.RenderHintBar(hints, m.width)
 
 	lines := strings.Split(m.describeContent, "\n")
 

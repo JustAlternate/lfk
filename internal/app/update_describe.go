@@ -30,6 +30,8 @@ func (m Model) handleDescribeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "q", "esc":
 		m.mode = modeExplorer
 		m.describeScroll = 0
+		m.describeAutoRefresh = false
+		m.describeRefreshFunc = nil
 		return m, nil
 	case "j", "down":
 		m.describeScroll++

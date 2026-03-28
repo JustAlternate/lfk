@@ -419,9 +419,11 @@ type Model struct {
 	logSearchQuery  string // applied search
 
 	// Describe viewer state.
-	describeContent string
-	describeScroll  int
-	describeTitle   string
+	describeContent     string
+	describeScroll      int
+	describeTitle       string
+	describeAutoRefresh bool           // when true, describe viewer auto-refreshes every 2s
+	describeRefreshFunc func() tea.Cmd // returns the load command for auto-refresh
 
 	// Diff viewer state.
 	diffLeft        string // YAML content of first resource

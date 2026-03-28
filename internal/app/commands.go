@@ -70,6 +70,13 @@ func scheduleWatchTick(interval time.Duration) tea.Cmd {
 	})
 }
 
+// scheduleDescribeRefresh returns a command that sends a describeRefreshTickMsg after 2 seconds.
+func scheduleDescribeRefresh() tea.Cmd {
+	return tea.Tick(2*time.Second, func(_ time.Time) tea.Msg {
+		return describeRefreshTickMsg{}
+	})
+}
+
 // openInBrowser opens the given URL in the user's default browser using
 // platform-specific commands (open on macOS, xdg-open on Linux, start on Windows).
 func openInBrowser(url string) tea.Cmd {

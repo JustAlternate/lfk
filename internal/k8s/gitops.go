@@ -667,6 +667,102 @@ func (c *Client) SubmitWorkflowFromTemplate(contextName, namespace, templateName
 	return wfName, nil
 }
 
+// GetWorkflowStatus fetches an Argo Workflow and returns a formatted status string
+// showing the phase and each node's name, type, phase, and duration.
+func (c *Client) GetWorkflowStatus(contextName, namespace, name string) (string, bool, error) {
+	dynClient, err := c.dynamicForContext(contextName)
+	if err != nil {
+		return "", false, err
+	}
+
+	gvr := schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "workflows"}
+	wf, err := dynClient.Resource(gvr).Namespace(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		return "", false, fmt.Errorf("getting workflow %s: %w", name, err)
+	}
+
+	status, _ := wf.Object["status"].(map[string]interface{})
+	phase, _ := status["phase"].(string)
+	startedAt, _ := status["startedAt"].(string)
+	finishedAt, _ := status["finishedAt"].(string)
+	message, _ := status["message"].(string)
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "Workflow:  %s\n", name)
+	fmt.Fprintf(&b, "Phase:    %s\n", phase)
+	if startedAt != "" {
+		fmt.Fprintf(&b, "Started:  %s\n", startedAt)
+	}
+	if finishedAt != "" {
+		fmt.Fprintf(&b, "Finished: %s\n", finishedAt)
+	}
+	if message != "" {
+		fmt.Fprintf(&b, "Message:  %s\n", message)
+	}
+	b.WriteString("\n")
+
+	// Format nodes table.
+	nodes, _ := status["nodes"].(map[string]interface{})
+	if len(nodes) > 0 {
+		fmt.Fprintf(&b, "%-45s %-15s %-12s %s\n", "NODE", "TYPE", "PHASE", "DURATION")
+		b.WriteString(strings.Repeat("-", 90))
+		b.WriteString("\n")
+
+		// Sort node keys for stable output.
+		nodeKeys := make([]string, 0, len(nodes))
+		for k := range nodes {
+			nodeKeys = append(nodeKeys, k)
+		}
+		sort.Strings(nodeKeys)
+
+		for _, key := range nodeKeys {
+			node, ok := nodes[key].(map[string]interface{})
+			if !ok {
+				continue
+			}
+			nodeName, _ := node["displayName"].(string)
+			if nodeName == "" {
+				nodeName, _ = node["name"].(string)
+			}
+			nodeType, _ := node["type"].(string)
+			nodePhase, _ := node["phase"].(string)
+			duration := ""
+			if ns, ok := node["startedAt"].(string); ok {
+				if nf, ok := node["finishedAt"].(string); ok {
+					st, _ := time.Parse(time.RFC3339, ns)
+					ft, _ := time.Parse(time.RFC3339, nf)
+					if !st.IsZero() && !ft.IsZero() {
+						duration = ft.Sub(st).Truncate(time.Second).String()
+					}
+				} else if !phaseIsTerminal(nodePhase) {
+					st, _ := time.Parse(time.RFC3339, ns)
+					if !st.IsZero() {
+						duration = time.Since(st).Truncate(time.Second).String()
+					}
+				}
+			}
+
+			fmt.Fprintf(&b, "%-45s %-15s %-12s %s\n", truncate(nodeName, 45), nodeType, nodePhase, duration)
+		}
+	} else {
+		b.WriteString("No nodes yet.\n")
+	}
+
+	running := phase == "" || phase == "Running" || phase == "Pending"
+	return b.String(), running, nil
+}
+
+func phaseIsTerminal(phase string) bool {
+	return phase == "Succeeded" || phase == "Failed" || phase == "Error" || phase == "Skipped" || phase == "Omitted"
+}
+
+func truncate(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen-1] + "~"
+}
+
 // SuspendCronWorkflow sets spec.suspend=true on an Argo CronWorkflow.
 func (c *Client) SuspendCronWorkflow(contextName, namespace, name string) error {
 	dynClient, err := c.dynamicForContext(contextName)

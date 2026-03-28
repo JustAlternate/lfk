@@ -168,6 +168,7 @@ func ActionsForKind(kind string) []ActionMenuItem {
 	case "Workflow":
 		// Argo Workflows
 		return []ActionMenuItem{
+			{Label: "Watch Workflow", Description: "Live status of workflow nodes", Key: "w"},
 			{Label: "Suspend Workflow", Description: "Pause workflow execution", Key: "s"},
 			{Label: "Resume Workflow", Description: "Resume paused workflow", Key: "r"},
 			{Label: "Stop Workflow", Description: "Stop workflow (allow exit handlers)", Key: "S"},
