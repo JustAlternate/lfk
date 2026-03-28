@@ -141,9 +141,7 @@ func (m *Model) bookmarkDeleteCurrent() tea.Cmd {
 	}
 	_ = saveBookmarks(m.bookmarks)
 	newFiltered := m.filteredBookmarks()
-	if m.overlayCursor >= len(newFiltered) && m.overlayCursor > 0 {
-		m.overlayCursor--
-	}
+	m.overlayCursor = clampOverlayCursor(m.overlayCursor, 0, len(newFiltered)-1)
 	m.setStatusMessage("Removed bookmark: "+target.Name, false)
 	if len(m.bookmarks) == 0 {
 		m.overlay = overlayNone
@@ -215,14 +213,10 @@ func (m Model) handleBookmarkNormalMode(msg tea.KeyMsg, filtered []model.Bookmar
 		}
 		return m, nil
 	case "j", "down", "ctrl+n":
-		if m.overlayCursor < len(filtered)-1 {
-			m.overlayCursor++
-		}
+		m.overlayCursor = clampOverlayCursor(m.overlayCursor, 1, len(filtered)-1)
 		return m, nil
 	case "k", "up", "ctrl+p":
-		if m.overlayCursor > 0 {
-			m.overlayCursor--
-		}
+		m.overlayCursor = clampOverlayCursor(m.overlayCursor, -1, len(filtered)-1)
 		return m, nil
 	case "g":
 		if m.pendingG {
@@ -238,28 +232,16 @@ func (m Model) handleBookmarkNormalMode(msg tea.KeyMsg, filtered []model.Bookmar
 		}
 		return m, nil
 	case "ctrl+d":
-		m.overlayCursor += 10
-		if m.overlayCursor >= len(filtered) {
-			m.overlayCursor = len(filtered) - 1
-		}
+		m.overlayCursor = clampOverlayCursor(m.overlayCursor, 10, len(filtered)-1)
 		return m, nil
 	case "ctrl+u":
-		m.overlayCursor -= 10
-		if m.overlayCursor < 0 {
-			m.overlayCursor = 0
-		}
+		m.overlayCursor = clampOverlayCursor(m.overlayCursor, -10, len(filtered)-1)
 		return m, nil
 	case "ctrl+f":
-		m.overlayCursor += 20
-		if m.overlayCursor >= len(filtered) {
-			m.overlayCursor = len(filtered) - 1
-		}
+		m.overlayCursor = clampOverlayCursor(m.overlayCursor, 20, len(filtered)-1)
 		return m, nil
 	case "ctrl+b":
-		m.overlayCursor -= 20
-		if m.overlayCursor < 0 {
-			m.overlayCursor = 0
-		}
+		m.overlayCursor = clampOverlayCursor(m.overlayCursor, -20, len(filtered)-1)
 		return m, nil
 	case "/":
 		m.bookmarkSearchMode = bookmarkModeFilter
@@ -297,47 +279,22 @@ func (m Model) handleBookmarkNormalMode(msg tea.KeyMsg, filtered []model.Bookmar
 
 // handleBookmarkFilterMode handles keys when the bookmark overlay is in filter input mode.
 func (m Model) handleBookmarkFilterMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "esc":
+	switch handleFilterKey(&m.bookmarkFilter, msg.String()) {
+	case filterEscape:
 		m.bookmarkSearchMode = bookmarkModeNormal
 		m.bookmarkFilter.Clear()
 		m.overlayCursor = 0
 		return m, nil
-	case "enter":
+	case filterAccept:
 		m.bookmarkSearchMode = bookmarkModeNormal
 		return m, nil
-	case "backspace":
-		if len(m.bookmarkFilter.Value) > 0 {
-			m.bookmarkFilter.Backspace()
-			m.overlayCursor = 0
-		}
-		return m, nil
-	case "ctrl+w":
-		m.bookmarkFilter.DeleteWord()
+	case filterClose:
+		return m.closeTabOrQuit()
+	case filterContinue:
 		m.overlayCursor = 0
 		return m, nil
-	case "ctrl+a":
-		m.bookmarkFilter.Home()
-		return m, nil
-	case "ctrl+e":
-		m.bookmarkFilter.End()
-		return m, nil
-	case "left":
-		m.bookmarkFilter.Left()
-		return m, nil
-	case "right":
-		m.bookmarkFilter.Right()
-		return m, nil
-	case "ctrl+c":
-		return m.closeTabOrQuit()
-	default:
-		key := msg.String()
-		if len(key) == 1 && key[0] >= 32 && key[0] < 127 {
-			m.bookmarkFilter.Insert(key)
-			m.overlayCursor = 0
-		}
-		return m, nil
 	}
+	return m, nil
 }
 
 // handleBookmarkConfirmDelete handles y/n confirmation for single bookmark deletion.

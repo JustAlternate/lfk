@@ -484,43 +484,27 @@ func (m Model) handleCanISubjectNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) 
 		return m, nil
 
 	case "j", "down", "ctrl+n":
-		if m.overlayCursor < len(items)-1 {
-			m.overlayCursor++
-		}
+		m.overlayCursor = clampOverlayCursor(m.overlayCursor, 1, len(items)-1)
 		return m, nil
 
 	case "k", "up", "ctrl+p":
-		if m.overlayCursor > 0 {
-			m.overlayCursor--
-		}
+		m.overlayCursor = clampOverlayCursor(m.overlayCursor, -1, len(items)-1)
 		return m, nil
 
 	case "ctrl+d":
-		m.overlayCursor += 10
-		if m.overlayCursor >= len(items) {
-			m.overlayCursor = len(items) - 1
-		}
+		m.overlayCursor = clampOverlayCursor(m.overlayCursor, 10, len(items)-1)
 		return m, nil
 
 	case "ctrl+u":
-		m.overlayCursor -= 10
-		if m.overlayCursor < 0 {
-			m.overlayCursor = 0
-		}
+		m.overlayCursor = clampOverlayCursor(m.overlayCursor, -10, len(items)-1)
 		return m, nil
 
 	case "ctrl+f":
-		m.overlayCursor += 20
-		if m.overlayCursor >= len(items) {
-			m.overlayCursor = len(items) - 1
-		}
+		m.overlayCursor = clampOverlayCursor(m.overlayCursor, 20, len(items)-1)
 		return m, nil
 
 	case "ctrl+b":
-		m.overlayCursor -= 20
-		if m.overlayCursor < 0 {
-			m.overlayCursor = 0
-		}
+		m.overlayCursor = clampOverlayCursor(m.overlayCursor, -20, len(items)-1)
 		return m, nil
 
 	case "ctrl+c":
@@ -531,48 +515,23 @@ func (m Model) handleCanISubjectNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) 
 
 // handleCanISubjectFilterMode handles filter-mode keys in the subject selector overlay.
 func (m Model) handleCanISubjectFilterMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "enter":
-		m.canISubjectFilterMode = false
-		m.overlayCursor = 0
-		return m, nil
-	case "esc":
+	switch handleFilterKey(&m.overlayFilter, msg.String()) {
+	case filterEscape:
 		m.canISubjectFilterMode = false
 		m.overlayFilter.Clear()
 		m.overlayCursor = 0
 		return m, nil
-	case "backspace":
-		if len(m.overlayFilter.Value) > 0 {
-			m.overlayFilter.Backspace()
-			m.overlayCursor = 0
-		}
-		return m, nil
-	case "ctrl+w":
-		m.overlayFilter.DeleteWord()
+	case filterAccept:
+		m.canISubjectFilterMode = false
 		m.overlayCursor = 0
 		return m, nil
-	case "ctrl+a":
-		m.overlayFilter.Home()
-		return m, nil
-	case "ctrl+e":
-		m.overlayFilter.End()
-		return m, nil
-	case "left":
-		m.overlayFilter.Left()
-		return m, nil
-	case "right":
-		m.overlayFilter.Right()
-		return m, nil
-	case "ctrl+c":
+	case filterClose:
 		return m.closeTabOrQuit()
-	default:
-		key := msg.String()
-		if len(key) == 1 && key[0] >= 32 && key[0] < 127 {
-			m.overlayFilter.Insert(key)
-			m.overlayCursor = 0
-		}
+	case filterContinue:
+		m.overlayCursor = 0
 		return m, nil
 	}
+	return m, nil
 }
 
 // canIVisibleLines returns the number of visible content lines in the Can-I

@@ -10,9 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/janosmiko/lfk/internal/model"
+	"github.com/janosmiko/lfk/internal/ui"
 )
 
-// --- padToHeight ---
+// --- ui.PadToHeight ---
 
 func TestPadToHeight(t *testing.T) {
 	tests := []struct {
@@ -30,7 +31,7 @@ func TestPadToHeight(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := padToHeight(tt.content, tt.height)
+			result := ui.PadToHeight(tt.content, tt.height)
 			lines := strings.Split(result, "\n")
 			if tt.height == 0 {
 				// padToHeight truncates to 0 lines but Split always gives at least 1
@@ -43,7 +44,7 @@ func TestPadToHeight(t *testing.T) {
 
 	// Verify padding uses empty strings
 	t.Run("padding is empty lines", func(t *testing.T) {
-		result := padToHeight("line1", 3)
+		result := ui.PadToHeight("line1", 3)
 		lines := strings.Split(result, "\n")
 		assert.Equal(t, "line1", lines[0])
 		assert.Equal(t, "", lines[1])
@@ -52,7 +53,7 @@ func TestPadToHeight(t *testing.T) {
 
 	// Verify truncation preserves first lines
 	t.Run("truncation preserves order", func(t *testing.T) {
-		result := padToHeight("a\nb\nc\nd", 2)
+		result := ui.PadToHeight("a\nb\nc\nd", 2)
 		lines := strings.Split(result, "\n")
 		assert.Equal(t, "a", lines[0])
 		assert.Equal(t, "b", lines[1])

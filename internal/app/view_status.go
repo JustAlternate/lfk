@@ -125,11 +125,11 @@ func (m Model) statusBar() string {
 				ui.HelpKeyStyle.Render("/") + ui.BarDimStyle.Render(" edit") + "  " +
 				ui.HelpKeyStyle.Render("Esc") + ui.BarDimStyle.Render(" close")
 		default:
-			helpHint = m.renderHints([]hintEntry{
-				{"j/k", "scroll"},
-				{"^d/^u", "half-page"},
-				{"/", "search"},
-				{"Esc/?/q", "close"},
+			helpHint = m.renderHints([]ui.HintEntry{
+				{Key: "j/k", Desc: "scroll"},
+				{Key: "^d/^u", Desc: "half-page"},
+				{Key: "/", Desc: "search"},
+				{Key: "Esc/?/q", Desc: "close"},
 			})
 		}
 		return ui.StatusBarBgStyle.Width(m.width).MaxWidth(m.width).MaxHeight(1).Render(helpHint)
@@ -141,10 +141,10 @@ func (m Model) statusBar() string {
 		if m.showDebugLogs {
 			debugHint = "hide debug"
 		}
-		hint := m.renderHints([]hintEntry{
-			{"j/k", "scroll"},
-			{"d", debugHint},
-			{"esc", "close"},
+		hint := m.renderHints([]ui.HintEntry{
+			{Key: "j/k", Desc: "scroll"},
+			{Key: "d", Desc: debugHint},
+			{Key: "esc", Desc: "close"},
 		})
 		return ui.StatusBarBgStyle.Width(m.width).MaxWidth(m.width).MaxHeight(1).Render(hint)
 	}
@@ -431,7 +431,7 @@ func (m Model) renderOverlay(background string) string {
 			netpolContent := ui.RenderNetworkPolicyOverlay(entry, m.netpolScroll, innerW, innerH)
 			netpolContent = ui.FillLinesBg(netpolContent, innerW, ui.SurfaceBg)
 			overlay := ui.OverlayStyle.Width(overlayW).Render(netpolContent)
-			bg := padToHeight(background, m.height)
+			bg := ui.PadToHeight(background, m.height)
 			return ui.PlaceOverlay(m.width, m.height, overlay, bg)
 		}
 	case overlaySecretEditor:
@@ -440,7 +440,7 @@ func (m Model) renderOverlay(background string) string {
 			m.secretEditing, m.secretEditKey.Value, m.secretEditValue.Value, m.secretEditColumn,
 			m.width, m.height,
 		)
-		bg := padToHeight(background, m.height)
+		bg := ui.PadToHeight(background, m.height)
 		return ui.PlaceOverlay(m.width, m.height, overlay, bg)
 	case overlayConfigMapEditor:
 		overlay := ui.RenderConfigMapEditorOverlay(
@@ -448,15 +448,15 @@ func (m Model) renderOverlay(background string) string {
 			m.configMapEditing, m.configMapEditKey.Value, m.configMapEditValue.Value, m.configMapEditColumn,
 			m.width, m.height,
 		)
-		bg := padToHeight(background, m.height)
+		bg := ui.PadToHeight(background, m.height)
 		return ui.PlaceOverlay(m.width, m.height, overlay, bg)
 	case overlayRollback:
 		overlay := ui.RenderRollbackOverlay(m.rollbackRevisions, m.rollbackCursor, m.width, m.height)
-		bg := padToHeight(background, m.height)
+		bg := ui.PadToHeight(background, m.height)
 		return ui.PlaceOverlay(m.width, m.height, overlay, bg)
 	case overlayHelmRollback:
 		overlay := ui.RenderHelmRollbackOverlay(m.helmRollbackRevisions, m.helmRollbackCursor, m.width, m.height)
-		bg := padToHeight(background, m.height)
+		bg := ui.PadToHeight(background, m.height)
 		return ui.PlaceOverlay(m.width, m.height, overlay, bg)
 	case overlayLabelEditor:
 		overlay := ui.RenderLabelEditorOverlay(
@@ -464,7 +464,7 @@ func (m Model) renderOverlay(background string) string {
 			m.labelEditing, m.labelEditKey.Value, m.labelEditValue.Value, m.labelEditColumn,
 			m.width, m.height,
 		)
-		bg := padToHeight(background, m.height)
+		bg := ui.PadToHeight(background, m.height)
 		return ui.PlaceOverlay(m.width, m.height, overlay, bg)
 	default:
 		return background
@@ -481,7 +481,7 @@ func (m Model) renderOverlay(background string) string {
 	overlay := ui.OverlayStyle.Width(overlayW).Height(overlayH).Render(content)
 
 	// Ensure background has exactly m.height lines for correct overlay placement.
-	bg := padToHeight(background, m.height)
+	bg := ui.PadToHeight(background, m.height)
 	return ui.PlaceOverlay(m.width, m.height, overlay, bg)
 }
 
@@ -536,7 +536,7 @@ func (m Model) renderCanIOverlay(background string) string {
 	)
 	canIContent = ui.FillLinesBg(canIContent, overlayW-4, ui.SurfaceBg)
 	overlay := ui.OverlayStyle.Width(overlayW).Height(overlayH).Render(canIContent)
-	bg := padToHeight(background, m.height)
+	bg := ui.PadToHeight(background, m.height)
 	return ui.PlaceOverlay(m.width, m.height, overlay, bg)
 }
 
@@ -554,6 +554,6 @@ func (m Model) renderErrorLogOverlay(background string) string {
 	content := ui.RenderErrorLogOverlay(m.errorLog, m.errorLogScroll, overlayH, m.showDebugLogs)
 	content = ui.FillLinesBg(content, overlayW-4, ui.SurfaceBg)
 	overlay := ui.OverlayStyle.Width(overlayW).Height(overlayH).Render(content)
-	bg := padToHeight(background, m.height)
+	bg := ui.PadToHeight(background, m.height)
 	return ui.PlaceOverlay(m.width, m.height, overlay, bg)
 }

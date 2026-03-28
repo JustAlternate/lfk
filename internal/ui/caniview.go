@@ -54,7 +54,7 @@ func RenderCanIView(groups []string, resources []model.CanIResource, groupCursor
 	leftHeader := DimStyle.Bold(true).Render("API Groups")
 	leftLines := renderCanIGroups(groups, groupCursor, groupScroll, leftInner, contentHeight-1)
 	leftContent := leftHeader + "\n" + strings.Join(leftLines, "\n")
-	leftContent = padCanIToHeight(leftContent, contentHeight)
+	leftContent = PadToHeight(leftContent, contentHeight)
 
 	left := ActiveColumnStyle.Width(leftW).Height(contentHeight).MaxHeight(contentHeight + 2).Render(leftContent)
 
@@ -62,7 +62,7 @@ func RenderCanIView(groups []string, resources []model.CanIResource, groupCursor
 	middleLines := renderCanIResources(resources, middleInner, contentHeight-1, resourceScroll)
 	middleHeader := DimStyle.Bold(true).Render(renderCanIMiddleHeader(middleInner))
 	middleContent := middleHeader + "\n" + strings.Join(middleLines, "\n")
-	middleContent = padCanIToHeight(middleContent, contentHeight)
+	middleContent = PadToHeight(middleContent, contentHeight)
 	middle := InactiveColumnStyle.Width(middleW).Height(contentHeight).MaxHeight(contentHeight + 2).Render(middleContent)
 
 	columns := lipgloss.JoinHorizontal(lipgloss.Top, left, middle)
@@ -273,13 +273,4 @@ func RenderCanISubjectOverlay(items []model.Item, filter string, cursor int, fil
 	}
 
 	return b.String()
-}
-
-// padCanIToHeight pads a rendered string to exactly the given height in lines.
-func padCanIToHeight(s string, height int) string {
-	lines := strings.Split(s, "\n")
-	for len(lines) < height {
-		lines = append(lines, "")
-	}
-	return strings.Join(lines[:height], "\n")
 }

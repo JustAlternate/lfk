@@ -25,18 +25,13 @@ func (m Model) viewLogs() string {
 
 func (m Model) viewDescribe() string {
 	title := ui.TitleStyle.Width(m.width).MaxWidth(m.width).MaxHeight(1).Render(m.describeTitle)
-	hints := []struct{ key, desc string }{
-		{"j/k", "scroll"},
-		{"g/G", "top/bottom"},
-		{"ctrl+d/u", "half page"},
-		{"ctrl+f/b", "page"},
-		{"q/esc", "back"},
-	}
-	hintParts := make([]string, 0, len(hints))
-	for _, h := range hints {
-		hintParts = append(hintParts, ui.HelpKeyStyle.Render(h.key)+ui.BarDimStyle.Render(": "+h.desc))
-	}
-	hint := ui.StatusBarBgStyle.Width(m.width).MaxWidth(m.width).MaxHeight(1).Render(strings.Join(hintParts, ui.BarDimStyle.Render(" \u2502 ")))
+	hint := ui.RenderHintBar([]ui.HintEntry{
+		{Key: "j/k", Desc: "scroll"},
+		{Key: "g/G", Desc: "top/bottom"},
+		{Key: "ctrl+d/u", Desc: "half page"},
+		{Key: "ctrl+f/b", Desc: "page"},
+		{Key: "q/esc", Desc: "back"},
+	}, m.width)
 
 	lines := strings.Split(m.describeContent, "\n")
 
@@ -63,13 +58,7 @@ func (m Model) viewDescribe() string {
 	}
 
 	bodyContent := strings.Join(visible, "\n")
-	borderStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color(ui.ColorPrimary)).
-		Padding(0, 1).
-		Width(m.width - 2).
-		Height(maxLines).
-		MaxHeight(maxLines + 2)
+	borderStyle := ui.FullscreenBorderStyle(m.width, maxLines)
 	body := borderStyle.Render(bodyContent)
 
 	return lipgloss.JoinVertical(lipgloss.Left, title, body, hint)
@@ -82,20 +71,15 @@ func (m Model) viewExplain() string {
 	}
 
 	// Build hint bar (default key hints).
-	hints := []struct{ key, desc string }{
-		{"j/k", "navigate"},
-		{"l/Enter", "drill in"},
-		{"h/Backspace", "back"},
-		{"/", "search"},
-		{"n/N", "next/prev match"},
-		{"q", "close"},
-		{"Esc", "back/close"},
-	}
-	hintParts := make([]string, 0, len(hints))
-	for _, h := range hints {
-		hintParts = append(hintParts, ui.HelpKeyStyle.Render(h.key)+ui.BarDimStyle.Render(": "+h.desc))
-	}
-	hint := ui.StatusBarBgStyle.Width(m.width).MaxWidth(m.width).MaxHeight(1).Render(strings.Join(hintParts, ui.BarDimStyle.Render(" | ")))
+	hint := ui.RenderHintBar([]ui.HintEntry{
+		{Key: "j/k", Desc: "navigate"},
+		{Key: "l/Enter", Desc: "drill in"},
+		{Key: "h/Backspace", Desc: "back"},
+		{Key: "/", Desc: "search"},
+		{Key: "n/N", Desc: "next/prev match"},
+		{Key: "q", Desc: "close"},
+		{Key: "Esc", Desc: "back/close"},
+	}, m.width)
 
 	// If search is active, show search bar instead of hints.
 	if m.explainSearchActive {

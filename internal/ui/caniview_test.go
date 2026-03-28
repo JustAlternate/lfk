@@ -165,18 +165,18 @@ func TestRenderCanIResources(t *testing.T) {
 	})
 }
 
-// --- padCanIToHeight ---
+// --- PadToHeight (was padCanIToHeight) ---
 
 func TestPadCanIToHeight(t *testing.T) {
 	t.Run("already at height unchanged", func(t *testing.T) {
 		input := "line1\nline2\nline3"
-		result := padCanIToHeight(input, 3)
+		result := PadToHeight(input, 3)
 		assert.Equal(t, 3, len(strings.Split(result, "\n")))
 	})
 
 	t.Run("shorter string padded", func(t *testing.T) {
 		input := "line1"
-		result := padCanIToHeight(input, 5)
+		result := PadToHeight(input, 5)
 		lines := strings.Split(result, "\n")
 		assert.Equal(t, 5, len(lines))
 		assert.Equal(t, "line1", lines[0])
@@ -185,7 +185,7 @@ func TestPadCanIToHeight(t *testing.T) {
 
 	t.Run("taller string truncated", func(t *testing.T) {
 		input := "a\nb\nc\nd\ne"
-		result := padCanIToHeight(input, 3)
+		result := PadToHeight(input, 3)
 		lines := strings.Split(result, "\n")
 		assert.Equal(t, 3, len(lines))
 		assert.Equal(t, "a", lines[0])

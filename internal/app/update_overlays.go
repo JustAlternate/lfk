@@ -90,37 +90,21 @@ func (m Model) handleEventTimelineOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd
 	case "esc", "q":
 		m.overlay = overlayNone
 	case "j", "down":
-		if m.eventTimelineScroll < maxScroll {
-			m.eventTimelineScroll++
-		}
+		m.eventTimelineScroll = clampOverlayCursor(m.eventTimelineScroll, 1, maxScroll)
 	case "k", "up":
-		if m.eventTimelineScroll > 0 {
-			m.eventTimelineScroll--
-		}
+		m.eventTimelineScroll = clampOverlayCursor(m.eventTimelineScroll, -1, maxScroll)
 	case "g":
 		m.eventTimelineScroll = 0
 	case "G":
 		m.eventTimelineScroll = maxScroll
 	case "ctrl+d":
-		m.eventTimelineScroll += 10
-		if m.eventTimelineScroll > maxScroll {
-			m.eventTimelineScroll = maxScroll
-		}
+		m.eventTimelineScroll = clampOverlayCursor(m.eventTimelineScroll, 10, maxScroll)
 	case "ctrl+u":
-		m.eventTimelineScroll -= 10
-		if m.eventTimelineScroll < 0 {
-			m.eventTimelineScroll = 0
-		}
+		m.eventTimelineScroll = clampOverlayCursor(m.eventTimelineScroll, -10, maxScroll)
 	case "ctrl+f":
-		m.eventTimelineScroll += 20
-		if m.eventTimelineScroll > maxScroll {
-			m.eventTimelineScroll = maxScroll
-		}
+		m.eventTimelineScroll = clampOverlayCursor(m.eventTimelineScroll, 20, maxScroll)
 	case "ctrl+b":
-		m.eventTimelineScroll -= 20
-		if m.eventTimelineScroll < 0 {
-			m.eventTimelineScroll = 0
-		}
+		m.eventTimelineScroll = clampOverlayCursor(m.eventTimelineScroll, -20, maxScroll)
 	}
 	return m, nil
 }
@@ -191,14 +175,10 @@ func (m Model) handleErrorLogOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.errorLogScroll = 0
 		return m, nil
 	case "j", "down":
-		if m.errorLogScroll < maxScroll {
-			m.errorLogScroll++
-		}
+		m.errorLogScroll = clampOverlayCursor(m.errorLogScroll, 1, maxScroll)
 		return m, nil
 	case "k", "up":
-		if m.errorLogScroll > 0 {
-			m.errorLogScroll--
-		}
+		m.errorLogScroll = clampOverlayCursor(m.errorLogScroll, -1, maxScroll)
 		return m, nil
 	case "g":
 		if m.pendingG {
@@ -213,29 +193,17 @@ func (m Model) handleErrorLogOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "ctrl+d":
 		halfPage := maxVisible / 2
-		m.errorLogScroll += halfPage
-		if m.errorLogScroll > maxScroll {
-			m.errorLogScroll = maxScroll
-		}
+		m.errorLogScroll = clampOverlayCursor(m.errorLogScroll, halfPage, maxScroll)
 		return m, nil
 	case "ctrl+u":
 		halfPage := maxVisible / 2
-		m.errorLogScroll -= halfPage
-		if m.errorLogScroll < 0 {
-			m.errorLogScroll = 0
-		}
+		m.errorLogScroll = clampOverlayCursor(m.errorLogScroll, -halfPage, maxScroll)
 		return m, nil
 	case "ctrl+f":
-		m.errorLogScroll += maxVisible
-		if m.errorLogScroll > maxScroll {
-			m.errorLogScroll = maxScroll
-		}
+		m.errorLogScroll = clampOverlayCursor(m.errorLogScroll, maxVisible, maxScroll)
 		return m, nil
 	case "ctrl+b":
-		m.errorLogScroll -= maxVisible
-		if m.errorLogScroll < 0 {
-			m.errorLogScroll = 0
-		}
+		m.errorLogScroll = clampOverlayCursor(m.errorLogScroll, -maxVisible, maxScroll)
 		return m, nil
 	}
 	return m, nil
@@ -254,14 +222,10 @@ func (m Model) handleFilterPresetOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 		m.overlay = overlayNone
 		return m, nil
 	case "up", "k":
-		if m.overlayCursor > 0 {
-			m.overlayCursor--
-		}
+		m.overlayCursor = clampOverlayCursor(m.overlayCursor, -1, len(m.filterPresets)-1)
 		return m, nil
 	case "down", "j":
-		if m.overlayCursor < len(m.filterPresets)-1 {
-			m.overlayCursor++
-		}
+		m.overlayCursor = clampOverlayCursor(m.overlayCursor, 1, len(m.filterPresets)-1)
 		return m, nil
 	case "ctrl+c":
 		return m.closeTabOrQuit()
@@ -324,19 +288,13 @@ func (m Model) handleAlertsOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.alertsScroll += 10
 		return m, nil
 	case "ctrl+u":
-		m.alertsScroll -= 10
-		if m.alertsScroll < 0 {
-			m.alertsScroll = 0
-		}
+		m.alertsScroll = max(m.alertsScroll-10, 0)
 		return m, nil
 	case "ctrl+f":
 		m.alertsScroll += 20
 		return m, nil
 	case "ctrl+b":
-		m.alertsScroll -= 20
-		if m.alertsScroll < 0 {
-			m.alertsScroll = 0
-		}
+		m.alertsScroll = max(m.alertsScroll-20, 0)
 		return m, nil
 	case "ctrl+c":
 		return m.closeTabOrQuit()
@@ -427,14 +385,10 @@ func (m Model) handleActionOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.overlay = overlayNone
 		return m, nil
 	case "up", "k", "ctrl+p":
-		if m.overlayCursor > 0 {
-			m.overlayCursor--
-		}
+		m.overlayCursor = clampOverlayCursor(m.overlayCursor, -1, len(m.overlayItems)-1)
 		return m, nil
 	case "down", "j", "ctrl+n":
-		if m.overlayCursor < len(m.overlayItems)-1 {
-			m.overlayCursor++
-		}
+		m.overlayCursor = clampOverlayCursor(m.overlayCursor, 1, len(m.overlayItems)-1)
 		return m, nil
 	case "ctrl+c":
 		return m.closeTabOrQuit()
@@ -729,14 +683,10 @@ func (m Model) handleContainerSelectOverlayKey(msg tea.KeyMsg) (tea.Model, tea.C
 		m.overlay = overlayNone
 		return m, nil
 	case "up", "k", "ctrl+p":
-		if m.overlayCursor > 0 {
-			m.overlayCursor--
-		}
+		m.overlayCursor = clampOverlayCursor(m.overlayCursor, -1, len(m.overlayItems)-1)
 		return m, nil
 	case "down", "j", "ctrl+n":
-		if m.overlayCursor < len(m.overlayItems)-1 {
-			m.overlayCursor++
-		}
+		m.overlayCursor = clampOverlayCursor(m.overlayCursor, 1, len(m.overlayItems)-1)
 		return m, nil
 	case "ctrl+c":
 		return m.closeTabOrQuit()

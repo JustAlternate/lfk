@@ -55,26 +55,16 @@ func (m Model) handlePodSelectOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.logPodFilterText = ""
 		return m, nil
 	case "j", "down", "ctrl+n":
-		if m.overlayCursor < len(items)-1 {
-			m.overlayCursor++
-		}
+		m.overlayCursor = clampOverlayCursor(m.overlayCursor, 1, len(items)-1)
 		return m, nil
 	case "k", "up", "ctrl+p":
-		if m.overlayCursor > 0 {
-			m.overlayCursor--
-		}
+		m.overlayCursor = clampOverlayCursor(m.overlayCursor, -1, len(items)-1)
 		return m, nil
 	case "ctrl+d":
-		m.overlayCursor += 10
-		if m.overlayCursor >= len(items) {
-			m.overlayCursor = len(items) - 1
-		}
+		m.overlayCursor = clampOverlayCursor(m.overlayCursor, 10, len(items)-1)
 		return m, nil
 	case "ctrl+u":
-		m.overlayCursor -= 10
-		if m.overlayCursor < 0 {
-			m.overlayCursor = 0
-		}
+		m.overlayCursor = clampOverlayCursor(m.overlayCursor, -10, len(items)-1)
 		return m, nil
 	case "ctrl+c":
 		return m.closeTabOrQuit()
@@ -153,26 +143,16 @@ func (m Model) handleLogPodSelectOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 		m.logPodFilterText = ""
 		return m, nil
 	case "j", "down", "ctrl+n":
-		if m.overlayCursor < len(items)-1 {
-			m.overlayCursor++
-		}
+		m.overlayCursor = clampOverlayCursor(m.overlayCursor, 1, len(items)-1)
 		return m, nil
 	case "k", "up", "ctrl+p":
-		if m.overlayCursor > 0 {
-			m.overlayCursor--
-		}
+		m.overlayCursor = clampOverlayCursor(m.overlayCursor, -1, len(items)-1)
 		return m, nil
 	case "ctrl+d":
-		m.overlayCursor += 10
-		if m.overlayCursor >= len(items) {
-			m.overlayCursor = len(items) - 1
-		}
+		m.overlayCursor = clampOverlayCursor(m.overlayCursor, 10, len(items)-1)
 		return m, nil
 	case "ctrl+u":
-		m.overlayCursor -= 10
-		if m.overlayCursor < 0 {
-			m.overlayCursor = 0
-		}
+		m.overlayCursor = clampOverlayCursor(m.overlayCursor, -10, len(items)-1)
 		return m, nil
 	case "ctrl+c":
 		return m.closeTabOrQuit()
@@ -182,45 +162,23 @@ func (m Model) handleLogPodSelectOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 
 // handleLogPodFilterMode handles keyboard input while the pod selector filter is active.
 func (m Model) handleLogPodFilterMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "esc":
+	switch handleFilterKey(&stringFilterInput{ptr: &m.logPodFilterText}, msg.String()) {
+	case filterEscape:
 		m.logPodFilterActive = false
 		m.logPodFilterText = ""
 		m.overlayCursor = 0
 		return m, nil
-	case "enter":
+	case filterAccept:
 		m.logPodFilterActive = false
 		m.overlayCursor = 0
 		return m, nil
-	case "backspace":
-		if len(m.logPodFilterText) > 0 {
-			m.logPodFilterText = m.logPodFilterText[:len(m.logPodFilterText)-1]
-			m.overlayCursor = 0
-		}
-		return m, nil
-	case "ctrl+w":
-		// Delete word.
-		t := m.logPodFilterText
-		i := len(t) - 1
-		for i >= 0 && t[i] == ' ' {
-			i--
-		}
-		for i >= 0 && t[i] != ' ' {
-			i--
-		}
-		m.logPodFilterText = t[:i+1]
+	case filterClose:
+		return m.closeTabOrQuit()
+	case filterContinue:
 		m.overlayCursor = 0
 		return m, nil
-	case "ctrl+c":
-		return m.closeTabOrQuit()
-	default:
-		key := msg.String()
-		if len(key) == 1 && key[0] >= 32 && key[0] < 127 {
-			m.logPodFilterText += key
-			m.overlayCursor = 0
-		}
-		return m, nil
 	}
+	return m, nil
 }
 
 // handleLogContainerSelectOverlayKey handles keyboard input for the log container
@@ -309,26 +267,16 @@ func (m Model) handleLogContainerSelectOverlayKey(msg tea.KeyMsg) (tea.Model, te
 		m.logContainerFilterText = ""
 		return m, nil
 	case "j", "down", "ctrl+n":
-		if m.overlayCursor < len(items)-1 {
-			m.overlayCursor++
-		}
+		m.overlayCursor = clampOverlayCursor(m.overlayCursor, 1, len(items)-1)
 		return m, nil
 	case "k", "up", "ctrl+p":
-		if m.overlayCursor > 0 {
-			m.overlayCursor--
-		}
+		m.overlayCursor = clampOverlayCursor(m.overlayCursor, -1, len(items)-1)
 		return m, nil
 	case "ctrl+d":
-		m.overlayCursor += 10
-		if m.overlayCursor >= len(items) {
-			m.overlayCursor = len(items) - 1
-		}
+		m.overlayCursor = clampOverlayCursor(m.overlayCursor, 10, len(items)-1)
 		return m, nil
 	case "ctrl+u":
-		m.overlayCursor -= 10
-		if m.overlayCursor < 0 {
-			m.overlayCursor = 0
-		}
+		m.overlayCursor = clampOverlayCursor(m.overlayCursor, -10, len(items)-1)
 		return m, nil
 	case "P", "\\":
 		// Switch to pod selector if available (group resources like Deployment).
@@ -363,45 +311,23 @@ func (m Model) handleLogContainerSelectOverlayKey(msg tea.KeyMsg) (tea.Model, te
 
 // handleLogContainerFilterMode handles keyboard input while the container selector filter is active.
 func (m Model) handleLogContainerFilterMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "esc":
+	switch handleFilterKey(&stringFilterInput{ptr: &m.logContainerFilterText}, msg.String()) {
+	case filterEscape:
 		m.logContainerFilterActive = false
 		m.logContainerFilterText = ""
 		m.overlayCursor = 0
 		return m, nil
-	case "enter":
+	case filterAccept:
 		m.logContainerFilterActive = false
 		m.overlayCursor = 0
 		return m, nil
-	case "backspace":
-		if len(m.logContainerFilterText) > 0 {
-			m.logContainerFilterText = m.logContainerFilterText[:len(m.logContainerFilterText)-1]
-			m.overlayCursor = 0
-		}
-		return m, nil
-	case "ctrl+w":
-		// Delete word.
-		t := m.logContainerFilterText
-		i := len(t) - 1
-		for i >= 0 && t[i] == ' ' {
-			i--
-		}
-		for i >= 0 && t[i] != ' ' {
-			i--
-		}
-		m.logContainerFilterText = t[:i+1]
+	case filterClose:
+		return m.closeTabOrQuit()
+	case filterContinue:
 		m.overlayCursor = 0
 		return m, nil
-	case "ctrl+c":
-		return m.closeTabOrQuit()
-	default:
-		key := msg.String()
-		if len(key) == 1 && key[0] >= 32 && key[0] < 127 {
-			m.logContainerFilterText += key
-			m.overlayCursor = 0
-		}
-		return m, nil
 	}
+	return m, nil
 }
 
 // restartLogStreamForContainerFilter cancels the current log stream and restarts

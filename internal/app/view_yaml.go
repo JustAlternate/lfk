@@ -23,32 +23,28 @@ func (m Model) viewYAML() string {
 		}
 	}
 	title := ui.TitleStyle.Width(m.width).MaxWidth(m.width).MaxHeight(1).Render(yamlTitleText)
-	var yamlHints []struct{ key, desc string }
+	var yamlHints []ui.HintEntry
 	if m.yamlVisualMode {
-		yamlHints = []struct{ key, desc string }{
-			{"j/k", "extend selection"},
-			{"y", "copy selected"},
-			{"v/V/ctrl+v", "switch mode"},
-			{"esc", "cancel"},
+		yamlHints = []ui.HintEntry{
+			{Key: "j/k", Desc: "extend selection"},
+			{Key: "y", Desc: "copy selected"},
+			{Key: "v/V/ctrl+v", Desc: "switch mode"},
+			{Key: "esc", Desc: "cancel"},
 		}
 	} else {
-		yamlHints = []struct{ key, desc string }{
-			{"j/k", "scroll"},
-			{"g/G", "top/bottom"},
-			{"ctrl+d/u", "half page"},
-			{"ctrl+f/b", "page"},
-			{"/", "search"},
-			{"v/V/ctrl+v", "visual select"},
-			{"tab/z", "fold"},
-			{"ctrl+e", "edit"},
-			{"q/esc", "back"},
+		yamlHints = []ui.HintEntry{
+			{Key: "j/k", Desc: "scroll"},
+			{Key: "g/G", Desc: "top/bottom"},
+			{Key: "ctrl+d/u", Desc: "half page"},
+			{Key: "ctrl+f/b", Desc: "page"},
+			{Key: "/", Desc: "search"},
+			{Key: "v/V/ctrl+v", Desc: "visual select"},
+			{Key: "tab/z", Desc: "fold"},
+			{Key: "ctrl+e", Desc: "edit"},
+			{Key: "q/esc", Desc: "back"},
 		}
 	}
-	yamlHintParts := make([]string, 0, len(yamlHints))
-	for _, h := range yamlHints {
-		yamlHintParts = append(yamlHintParts, ui.HelpKeyStyle.Render(h.key)+ui.BarDimStyle.Render(": "+h.desc))
-	}
-	hint := ui.StatusBarBgStyle.Width(m.width).MaxWidth(m.width).MaxHeight(1).Render(strings.Join(yamlHintParts, ui.BarDimStyle.Render(" \u2502 ")))
+	hint := ui.RenderHintBar(yamlHints, m.width)
 
 	// If search is active, show search bar instead of hints.
 	if m.yamlSearchMode {
@@ -196,15 +192,7 @@ func (m Model) viewYAML() string {
 		contentWidth = 10
 	}
 	bodyContent = ui.FillLinesBg(bodyContent, contentWidth, ui.BaseBg)
-	borderStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color(ui.ColorPrimary)).
-		BorderBackground(ui.BaseBg).
-		Background(ui.BaseBg).
-		Padding(0, 1).
-		Width(m.width - 2).
-		Height(maxLines).
-		MaxHeight(maxLines + 2)
+	borderStyle := ui.FullscreenBorderStyle(m.width, maxLines)
 	body := borderStyle.Render(bodyContent)
 
 	return lipgloss.JoinVertical(lipgloss.Left, title, body, hint)

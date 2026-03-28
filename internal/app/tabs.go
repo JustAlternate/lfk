@@ -682,19 +682,6 @@ func copyItemCache(m map[string][]model.Item) map[string][]model.Item {
 	return c
 }
 
-// padToHeight ensures a string has exactly `height` newline-separated lines,
-// padding with empty lines or truncating as needed.
-func padToHeight(content string, height int) string {
-	lines := strings.Split(content, "\n")
-	if len(lines) > height {
-		lines = lines[:height]
-	}
-	for len(lines) < height {
-		lines = append(lines, "")
-	}
-	return strings.Join(lines, "\n")
-}
-
 // actionNamespace returns the namespace to use for action commands.
 // It prefers the namespace captured when the action menu was opened.
 func (m Model) actionNamespace() string {

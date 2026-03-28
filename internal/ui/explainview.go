@@ -32,7 +32,7 @@ func RenderExplainView(fields []model.ExplainField, cursor, scroll int, resource
 
 	// Left column: path breadcrumb.
 	leftCol := renderExplainPath(path, title, leftInner, contentHeight)
-	leftCol = padExplainToHeight(leftCol, contentHeight)
+	leftCol = PadToHeight(leftCol, contentHeight)
 	leftCol = FillLinesBg(leftCol, leftInner, BaseBg)
 	left := InactiveColumnStyle.Width(leftW).Height(contentHeight).MaxHeight(contentHeight + 2).Render(leftCol)
 
@@ -46,7 +46,7 @@ func RenderExplainView(fields []model.ExplainField, cursor, scroll int, resource
 	nameWidth = min(nameWidth, middleInner/2)
 	middleHeader := DimStyle.Bold(true).Render(fmt.Sprintf("  %-*s  %-4s  %s", nameWidth, "NAME", "REQ", "TYPE"))
 	middleContent := middleHeader + "\n" + strings.Join(fieldLines, "\n")
-	middleContent = padExplainToHeight(middleContent, contentHeight)
+	middleContent = PadToHeight(middleContent, contentHeight)
 	middleContent = FillLinesBg(middleContent, middleInner, BaseBg)
 	middle := ActiveColumnStyle.Width(middleW).Height(contentHeight).MaxHeight(contentHeight + 2).Render(middleContent)
 
@@ -54,7 +54,7 @@ func RenderExplainView(fields []model.ExplainField, cursor, scroll int, resource
 	descLines := renderFieldDescription(fields, cursor, resourceDesc, rightInner, contentHeight-1) // -1 for header
 	rightHeader := DimStyle.Bold(true).Render("DESCRIPTION")
 	rightContent := rightHeader + "\n" + strings.Join(descLines, "\n")
-	rightContent = padExplainToHeight(rightContent, contentHeight)
+	rightContent = PadToHeight(rightContent, contentHeight)
 	rightContent = FillLinesBg(rightContent, rightInner, BaseBg)
 	right := InactiveColumnStyle.Width(rightW).Height(contentHeight).MaxHeight(contentHeight + 2).Render(rightContent)
 
@@ -105,15 +105,6 @@ func renderExplainPath(path, resourceName string, width, _ int) string {
 	}
 
 	return b.String()
-}
-
-// padExplainToHeight pads a rendered string to exactly the given height in lines.
-func padExplainToHeight(s string, height int) string {
-	lines := strings.Split(s, "\n")
-	for len(lines) < height {
-		lines = append(lines, "")
-	}
-	return strings.Join(lines[:height], "\n")
 }
 
 // renderFieldList renders the scrollable field list for the middle column.

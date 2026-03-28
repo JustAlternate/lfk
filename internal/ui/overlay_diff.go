@@ -208,17 +208,17 @@ func RenderDiffView(left, right, leftName, rightName string, scroll, width, heig
 	body := borderStyle.Render(bodyContent)
 
 	// Hint bar.
-	hintParts := []string{
-		HelpKeyStyle.Render("j/k") + BarDimStyle.Render(": scroll"),
-		HelpKeyStyle.Render("g/G") + BarDimStyle.Render(": top/bottom"),
-		HelpKeyStyle.Render("ctrl+d/u") + BarDimStyle.Render(": half page"),
-		HelpKeyStyle.Render("ctrl+f/b") + BarDimStyle.Render(": page"),
-		HelpKeyStyle.Render("l") + BarDimStyle.Render(": lines"),
-		HelpKeyStyle.Render("u") + BarDimStyle.Render(": unified"),
-		HelpKeyStyle.Render("q/esc") + BarDimStyle.Render(": back"),
-	}
+	hintContent := FormatHintParts([]HintEntry{
+		{Key: "j/k", Desc: "scroll"},
+		{Key: "g/G", Desc: "top/bottom"},
+		{Key: "ctrl+d/u", Desc: "half page"},
+		{Key: "ctrl+f/b", Desc: "page"},
+		{Key: "l", Desc: "lines"},
+		{Key: "u", Desc: "unified"},
+		{Key: "q/esc", Desc: "back"},
+	})
 	scrollInfo := BarDimStyle.Render(fmt.Sprintf(" [%d/%d]", scroll+1, max(1, maxScroll+1)))
-	hint := StatusBarBgStyle.Width(width).MaxWidth(width).MaxHeight(1).Render(strings.Join(hintParts, BarDimStyle.Render(" | ")) + scrollInfo)
+	hint := StatusBarBgStyle.Width(width).MaxWidth(width).MaxHeight(1).Render(hintContent + scrollInfo)
 
 	return lipgloss.JoinVertical(lipgloss.Left, title, body, hint)
 }
@@ -294,27 +294,21 @@ func RenderUnifiedDiffView(left, right, leftName, rightName string, scroll, widt
 	}
 
 	bodyContent := strings.Join(visible, "\n")
-	borderStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color(ColorPrimary)).
-		Padding(0, 1).
-		Width(width - 2).
-		Height(maxLines).
-		MaxHeight(maxLines + 2)
+	borderStyle := FullscreenBorderStyle(width, maxLines)
 	body := borderStyle.Render(bodyContent)
 
 	// Hint bar.
-	hintParts := []string{
-		HelpKeyStyle.Render("j/k") + BarDimStyle.Render(": scroll"),
-		HelpKeyStyle.Render("g/G") + BarDimStyle.Render(": top/bottom"),
-		HelpKeyStyle.Render("ctrl+d/u") + BarDimStyle.Render(": half page"),
-		HelpKeyStyle.Render("ctrl+f/b") + BarDimStyle.Render(": page"),
-		HelpKeyStyle.Render("l") + BarDimStyle.Render(": lines"),
-		HelpKeyStyle.Render("u") + BarDimStyle.Render(": side-by-side"),
-		HelpKeyStyle.Render("q/esc") + BarDimStyle.Render(": back"),
-	}
+	hintContent := FormatHintParts([]HintEntry{
+		{Key: "j/k", Desc: "scroll"},
+		{Key: "g/G", Desc: "top/bottom"},
+		{Key: "ctrl+d/u", Desc: "half page"},
+		{Key: "ctrl+f/b", Desc: "page"},
+		{Key: "l", Desc: "lines"},
+		{Key: "u", Desc: "side-by-side"},
+		{Key: "q/esc", Desc: "back"},
+	})
 	scrollInfo := BarDimStyle.Render(fmt.Sprintf(" [%d/%d]", scroll+1, max(1, maxScroll+1)))
-	hint := StatusBarBgStyle.Width(width).MaxWidth(width).MaxHeight(1).Render(strings.Join(hintParts, BarDimStyle.Render(" | ")) + scrollInfo)
+	hint := StatusBarBgStyle.Width(width).MaxWidth(width).MaxHeight(1).Render(hintContent + scrollInfo)
 
 	return lipgloss.JoinVertical(lipgloss.Left, title, body, hint)
 }

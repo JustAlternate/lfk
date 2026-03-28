@@ -9,17 +9,17 @@ import (
 	"github.com/janosmiko/lfk/internal/model"
 )
 
-// --- padExplainToHeight ---
+// --- PadToHeight (was padExplainToHeight) ---
 
 func TestPadExplainToHeight(t *testing.T) {
 	t.Run("already at height", func(t *testing.T) {
 		input := "a\nb\nc"
-		result := padExplainToHeight(input, 3)
+		result := PadToHeight(input, 3)
 		assert.Equal(t, 3, len(strings.Split(result, "\n")))
 	})
 
 	t.Run("shorter than height padded", func(t *testing.T) {
-		result := padExplainToHeight("line1", 4)
+		result := PadToHeight("line1", 4)
 		lines := strings.Split(result, "\n")
 		assert.Equal(t, 4, len(lines))
 		assert.Equal(t, "line1", lines[0])
@@ -27,7 +27,7 @@ func TestPadExplainToHeight(t *testing.T) {
 
 	t.Run("taller than height truncated", func(t *testing.T) {
 		input := "a\nb\nc\nd\ne"
-		result := padExplainToHeight(input, 3)
+		result := PadToHeight(input, 3)
 		lines := strings.Split(result, "\n")
 		assert.Equal(t, 3, len(lines))
 	})

@@ -80,38 +80,37 @@ func RenderLogViewer(lines []string, scroll, width, height int, follow, wrap, li
 		prompt := HelpKeyStyle.Render("/") + BarDimStyle.Render(": ") + searchInput + BarDimStyle.Render("\u2588") + BarDimStyle.Render("  (enter:apply  esc:cancel)")
 		footer = StatusBarBgStyle.Width(width).MaxWidth(width).MaxHeight(1).Render(prompt)
 	} else if visualMode {
-		hintParts := []string{
-			HelpKeyStyle.Render("j/k") + BarDimStyle.Render(":extend"),
-			HelpKeyStyle.Render("h/l") + BarDimStyle.Render(":column"),
-			HelpKeyStyle.Render("y") + BarDimStyle.Render(":copy"),
-			HelpKeyStyle.Render("v/V/ctrl+v") + BarDimStyle.Render(":switch mode"),
-			HelpKeyStyle.Render("esc") + BarDimStyle.Render(":cancel"),
-		}
-		footer = StatusBarBgStyle.Width(width).MaxWidth(width).MaxHeight(1).Render(strings.Join(hintParts, BarDimStyle.Render(" | ")))
+		footer = RenderHintBar([]HintEntry{
+			{Key: "j/k", Desc: "extend"},
+			{Key: "h/l", Desc: "column"},
+			{Key: "y", Desc: "copy"},
+			{Key: "v/V/ctrl+v", Desc: "switch mode"},
+			{Key: "esc", Desc: "cancel"},
+		}, width)
 	} else {
-		hintParts := []string{
-			HelpKeyStyle.Render("q") + BarDimStyle.Render(":close"),
-			HelpKeyStyle.Render("j/k") + BarDimStyle.Render(":move"),
-			HelpKeyStyle.Render("ctrl+d/u") + BarDimStyle.Render(":half page"),
-			HelpKeyStyle.Render("ctrl+f/b") + BarDimStyle.Render(":page"),
-			HelpKeyStyle.Render("f") + BarDimStyle.Render(":follow"),
-			HelpKeyStyle.Render("tab/z") + BarDimStyle.Render(":wrap"),
-			HelpKeyStyle.Render("#") + BarDimStyle.Render(":line#"),
-			HelpKeyStyle.Render("s") + BarDimStyle.Render(":timestamps"),
-			HelpKeyStyle.Render("c") + BarDimStyle.Render(":previous"),
-			HelpKeyStyle.Render("v/V/ctrl+v") + BarDimStyle.Render(":select"),
-			HelpKeyStyle.Render("/") + BarDimStyle.Render(":search"),
-			HelpKeyStyle.Render("n/N") + BarDimStyle.Render(":next/prev"),
-			HelpKeyStyle.Render("123G") + BarDimStyle.Render(":goto"),
-			HelpKeyStyle.Render("S") + BarDimStyle.Render(":save"),
-			HelpKeyStyle.Render("ctrl+s") + BarDimStyle.Render(":save all"),
+		hints := []HintEntry{
+			{Key: "q", Desc: "close"},
+			{Key: "j/k", Desc: "move"},
+			{Key: "ctrl+d/u", Desc: "half page"},
+			{Key: "ctrl+f/b", Desc: "page"},
+			{Key: "f", Desc: "follow"},
+			{Key: "tab/z", Desc: "wrap"},
+			{Key: "#", Desc: "line#"},
+			{Key: "s", Desc: "timestamps"},
+			{Key: "c", Desc: "previous"},
+			{Key: "v/V/ctrl+v", Desc: "select"},
+			{Key: "/", Desc: "search"},
+			{Key: "n/N", Desc: "next/prev"},
+			{Key: "123G", Desc: "goto"},
+			{Key: "S", Desc: "save"},
+			{Key: "ctrl+s", Desc: "save all"},
 		}
 		if canSwitchPod {
-			hintParts = append(hintParts, HelpKeyStyle.Render("\\")+BarDimStyle.Render(":switch pod"))
+			hints = append(hints, HintEntry{"\\", "switch pod"})
 		} else if canFilterContainers {
-			hintParts = append(hintParts, HelpKeyStyle.Render("\\")+BarDimStyle.Render(":containers"))
+			hints = append(hints, HintEntry{"\\", "containers"})
 		}
-		footer = StatusBarBgStyle.Width(width).MaxWidth(width).MaxHeight(1).Render(strings.Join(hintParts, BarDimStyle.Render(" | ")))
+		footer = RenderHintBar(hints, width)
 	}
 
 	// Content area: subtract border top + bottom (2 lines).
@@ -193,15 +192,7 @@ func RenderLogViewer(lines []string, scroll, width, height int, follow, wrap, li
 	// Fill each line's background so ANSI resets from styled segments
 	// (line numbers, search highlights) don't leave gaps in the theme bg.
 	bodyContent = FillLinesBg(bodyContent, contentWidth, BaseBg)
-	borderStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color(ColorPrimary)).
-		BorderBackground(BaseBg).
-		Background(BaseBg).
-		Padding(0, 1).
-		Width(width - 2).
-		Height(contentHeight).
-		MaxHeight(contentHeight + 2)
+	borderStyle := FullscreenBorderStyle(width, contentHeight)
 	body := borderStyle.Render(bodyContent)
 
 	return lipgloss.JoinVertical(lipgloss.Left, titleBar, body, footer)

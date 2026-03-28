@@ -171,7 +171,7 @@ func (m Model) viewExplorer() string {
 	default:
 		middleCol = ui.RenderColumn(middleHeader, m.visibleMiddleItems(), m.cursor(), middleInner, contentHeight, true, m.loading, m.spinner.View(), middleErrMsg)
 	}
-	middleCol = padToHeight(middleCol, contentHeight)
+	middleCol = ui.PadToHeight(middleCol, contentHeight)
 	middleCol = ui.FillLinesBg(middleCol, middleInner, ui.BaseBg)
 	middle := ui.ActiveColumnStyle.Width(middleW).Height(contentHeight).MaxHeight(contentHeight + 2).Render(middleCol)
 
@@ -203,7 +203,7 @@ func (m Model) viewExplorer() string {
 			}
 			dashContent = strings.Join(lines, "\n")
 		}
-		dashCol := padToHeight(dashContent, contentHeight)
+		dashCol := ui.PadToHeight(dashContent, contentHeight)
 		dashCol = ui.FillLinesBg(dashCol, m.width-4, ui.BaseBg)
 		columns = ui.ActiveColumnStyle.Width(m.width - 2).Height(contentHeight).MaxHeight(contentHeight + 2).Render(dashCol)
 	case m.fullscreenMiddle:
@@ -222,8 +222,8 @@ func (m Model) viewExplorer() string {
 		ui.ActiveMiddleScroll = savedMiddleScroll
 		ui.ActiveLeftScroll = savedLeftScroll
 		ui.ActiveHighlightQuery = savedHighlight
-		leftCol = padToHeight(leftCol, contentHeight)
-		rightCol = padToHeight(rightCol, contentHeight)
+		leftCol = ui.PadToHeight(leftCol, contentHeight)
+		rightCol = ui.PadToHeight(rightCol, contentHeight)
 		leftCol = ui.FillLinesBg(leftCol, leftInner, ui.BaseBg)
 		rightCol = ui.FillLinesBg(rightCol, rightInner, ui.BaseBg)
 		left := ui.InactiveColumnStyle.Width(leftW).Height(contentHeight).MaxHeight(contentHeight + 2).Render(leftCol)
