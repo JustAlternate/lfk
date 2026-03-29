@@ -19,7 +19,12 @@ func (m Model) View() string {
 
 	// Render fullscreen modes (YAML, Logs, Describe, Diff, Exec, Explain) with title bar and tab bar.
 	// Each view renders its own hint bar, so the main status bar is not shown.
-	if m.mode == modeYAML || m.mode == modeLogs || m.mode == modeDescribe || m.mode == modeDiff || m.mode == modeExec || m.mode == modeExplain {
+	// Also render the fullscreen view as background when help is open from a fullscreen mode.
+	renderMode := m.mode
+	if m.mode == modeHelp {
+		renderMode = m.helpPreviousMode
+	}
+	if renderMode == modeYAML || renderMode == modeLogs || renderMode == modeDescribe || renderMode == modeDiff || renderMode == modeExec || renderMode == modeExplain {
 		title := ui.FillLinesBg(m.renderTitleBar(), m.width, ui.BarBg)
 		m.height -= 1 // title bar
 
@@ -30,7 +35,7 @@ func (m Model) View() string {
 		}
 
 		var content string
-		switch m.mode {
+		switch renderMode {
 		case modeYAML:
 			content = m.viewYAML()
 		case modeLogs:
@@ -56,6 +61,12 @@ func (m Model) View() string {
 		// Render overlay on top if active (e.g. Can-I subject selector).
 		if m.overlay != overlayNone {
 			view = m.renderOverlay(view)
+		}
+
+		// Render help screen as overlay on top of the fullscreen view.
+		if m.mode == modeHelp {
+			overlay := ui.RenderHelpScreen(m.width, m.height, m.helpScroll, m.helpFilter.Value)
+			view = ui.PlaceOverlay(m.width, m.height, overlay, view)
 		}
 
 		return view
