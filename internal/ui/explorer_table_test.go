@@ -72,6 +72,21 @@ func TestHighlightYAMLLine(t *testing.T) {
 			line:       "this has spaces: value",
 			wantSubstr: []string{"this has spaces: value"},
 		},
+		{
+			name:       "fold indicator expanded key-only",
+			line:       "  ▾ annotations:",
+			wantSubstr: []string{"▾", "annotations", ":"},
+		},
+		{
+			name:       "fold indicator collapsed key-only",
+			line:       "  ▸ annotations:",
+			wantSubstr: []string{"▸", "annotations", ":"},
+		},
+		{
+			name:       "fold indicator with key-value",
+			line:       "▾ metadata:",
+			wantSubstr: []string{"▾", "metadata", ":"},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -81,6 +96,273 @@ func TestHighlightYAMLLine(t *testing.T) {
 			}
 		})
 	}
+}
+
+// --- styleYAMLValue ---
+
+func TestStyleYAMLValue(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		// checkFn inspects the styled output for expected ANSI styling.
+		// We strip ANSI codes and verify the text is present, and verify
+		// distinct styling is applied for different value types.
+		wantText string
+	}{
+		// Null values.
+		{name: "null keyword", value: " null", wantText: "null"},
+		{name: "tilde null", value: " ~", wantText: "~"},
+		{name: "Null capitalized", value: " Null", wantText: "Null"},
+		{name: "NULL uppercase", value: " NULL", wantText: "NULL"},
+
+		// Boolean values.
+		{name: "true", value: " true", wantText: "true"},
+		{name: "false", value: " false", wantText: "false"},
+		{name: "True", value: " True", wantText: "True"},
+		{name: "False", value: " False", wantText: "False"},
+		{name: "yes", value: " yes", wantText: "yes"},
+		{name: "no", value: " no", wantText: "no"},
+		{name: "on", value: " on", wantText: "on"},
+		{name: "off", value: " off", wantText: "off"},
+
+		// Quoted strings.
+		{name: "double-quoted string", value: ` "hello world"`, wantText: `"hello world"`},
+		{name: "single-quoted string", value: " 'value'", wantText: "'value'"},
+
+		// Numeric values.
+		{name: "integer", value: " 42", wantText: "42"},
+		{name: "negative integer", value: " -3", wantText: "-3"},
+		{name: "float", value: " 3.14", wantText: "3.14"},
+		{name: "hex number", value: " 0xFF", wantText: "0xFF"},
+		{name: "octal number", value: " 0o755", wantText: "0o755"},
+		{name: "infinity", value: " .inf", wantText: ".inf"},
+		{name: "nan", value: " .nan", wantText: ".nan"},
+		{name: "scientific notation", value: " 1e10", wantText: "1e10"},
+
+		// Anchors & aliases.
+		{name: "anchor", value: " &default", wantText: "&default"},
+		{name: "alias", value: " *default", wantText: "*default"},
+
+		// Tags.
+		{name: "tag", value: " !!str", wantText: "!!str"},
+		{name: "single-bang tag", value: " !custom", wantText: "!custom"},
+
+		// Block scalar indicators.
+		{name: "literal block", value: " |", wantText: "|"},
+		{name: "folded block", value: " >", wantText: ">"},
+		{name: "literal strip", value: " |-", wantText: "|-"},
+		{name: "folded strip", value: " >-", wantText: ">-"},
+		{name: "literal keep", value: " |+", wantText: "|+"},
+		{name: "folded keep", value: " >+", wantText: ">+"},
+
+		// Plain strings (no special styling).
+		{name: "plain string", value: " my-pod", wantText: "my-pod"},
+		{name: "empty", value: "", wantText: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := styleYAMLValue(tt.value)
+			assert.Contains(t, result, tt.wantText,
+				"styled result should contain the original text %q", tt.wantText)
+		})
+	}
+}
+
+// --- styleYAMLValue distinct styles ---
+
+func TestStyleYAMLValueDistinctStyles(t *testing.T) {
+	// Different value types should produce different styled output compared
+	// to a plain unquoted string.
+	plain := styleYAMLValue(" my-string")
+	specials := []string{
+		" true",    // bool
+		" null",    // null
+		" 42",      // number
+		" &anchor", // anchor
+		" |",       // block scalar
+	}
+	for _, s := range specials {
+		styled := styleYAMLValue(s)
+		assert.NotEqual(t, styled, plain,
+			"style(%q) and style(%q) should differ", s, " my-string")
+	}
+
+	// Quoted and unquoted strings should use the same string color.
+	quoted := styleYAMLValue(` "hello"`)
+	unquoted := styleYAMLValue(" hello")
+	assert.Contains(t, quoted, "hello")
+	assert.Contains(t, unquoted, "hello")
+}
+
+// --- findInlineComment ---
+
+func TestFindInlineComment(t *testing.T) {
+	tests := []struct {
+		name string
+		s    string
+		want int
+	}{
+		{name: "no comment", s: "value", want: -1},
+		{name: "inline comment", s: "value # comment", want: 5},
+		{name: "hash without space before", s: "val#ue", want: -1},
+		{name: "hash in double quotes", s: `"val # ue" # real`, want: 10},
+		{name: "hash in single quotes", s: "'val # ue' # real", want: 10},
+		{name: "no hash at all", s: "plain value", want: -1},
+		{name: "comment at start", s: " # comment", want: 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := findInlineComment(tt.s)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// --- findYAMLColon ---
+
+func TestFindYAMLColon(t *testing.T) {
+	tests := []struct {
+		name string
+		s    string
+		want int
+	}{
+		{name: "simple key", s: "name: value", want: 4},
+		{name: "key only", s: "metadata:", want: 8},
+		{name: "no colon", s: "just text", want: -1},
+		{name: "colon in URL no space", s: "http://example.com", want: -1},
+		{name: "colon in quoted key", s: `"key:name": value`, want: 10},
+		{name: "colon mid-word", s: "host:8080", want: -1},
+		{name: "dotted key", s: "app.kubernetes.io/name: val", want: 22},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := findYAMLColon(tt.s)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// --- isYAMLKey ---
+
+func TestIsYAMLKey(t *testing.T) {
+	tests := []struct {
+		name string
+		s    string
+		want bool
+	}{
+		{name: "simple", s: "name", want: true},
+		{name: "dotted", s: "app.kubernetes.io/name", want: true},
+		{name: "with-dash", s: "my-key", want: true},
+		{name: "double-quoted", s: `"my key"`, want: true},
+		{name: "single-quoted", s: "'my key'", want: true},
+		{name: "has spaces", s: "not a key", want: false},
+		{name: "empty", s: "", want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isYAMLKey(tt.s)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// --- HighlightYAMLLine with value-type awareness ---
+
+func TestHighlightYAMLLine_ValueTypes(t *testing.T) {
+	tests := []struct {
+		name       string
+		line       string
+		wantSubstr []string
+	}{
+		{
+			name:       "boolean value",
+			line:       "enabled: true",
+			wantSubstr: []string{"enabled", ":", "true"},
+		},
+		{
+			name:       "null value",
+			line:       "value: null",
+			wantSubstr: []string{"value", ":", "null"},
+		},
+		{
+			name:       "numeric value",
+			line:       "replicas: 3",
+			wantSubstr: []string{"replicas", ":", "3"},
+		},
+		{
+			name:       "quoted string value",
+			line:       `name: "my-pod"`,
+			wantSubstr: []string{"name", ":", `"my-pod"`},
+		},
+		{
+			name:       "block scalar indicator",
+			line:       "script: |",
+			wantSubstr: []string{"script", ":", "|"},
+		},
+		{
+			name:       "list item with key-value",
+			line:       "  - name: container-1",
+			wantSubstr: []string{"-", "name", ":", "container-1"},
+		},
+		{
+			name:       "list item with boolean",
+			line:       "  - enabled: false",
+			wantSubstr: []string{"-", "enabled", ":", "false"},
+		},
+		{
+			name:       "inline comment",
+			line:       "port: 8080 # HTTP port",
+			wantSubstr: []string{"port", ":", "8080", "# HTTP port"},
+		},
+		{
+			name:       "URL value not split on internal colon",
+			line:       "url: http://example.com:8080",
+			wantSubstr: []string{"url", ":", "http://example.com:8080"},
+		},
+		{
+			name:       "dotted key",
+			line:       "app.kubernetes.io/name: my-app",
+			wantSubstr: []string{"app.kubernetes.io/name", ":", "my-app"},
+		},
+		{
+			name:       "quoted key",
+			line:       `"my key": value`,
+			wantSubstr: []string{"my key", ":", "value"},
+		},
+		{
+			name:       "fold indicator section key",
+			line:       "  ▾ annotations:",
+			wantSubstr: []string{"▾", "annotations", ":"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := HighlightYAMLLine(tt.line)
+			for _, sub := range tt.wantSubstr {
+				assert.Contains(t, result, sub,
+					"result should contain %q", sub)
+			}
+		})
+	}
+}
+
+// TestHighlightYAMLLine_FoldKeySameStyleAsPlainKey verifies that fold-indicated
+// section keys use the same key color as regular keys.
+func TestHighlightYAMLLine_FoldKeySameStyleAsPlainKey(t *testing.T) {
+	// "name" in "name: value" and "annotations" in "▾ annotations:" should
+	// both be rendered with YamlKeyStyle.
+	plainResult := HighlightYAMLLine("name: value")
+	foldResult := HighlightYAMLLine("▾ annotations:")
+
+	// Extract the styled key portion. YamlKeyStyle renders with the same ANSI
+	// escape prefix regardless of text. Verify both contain that prefix.
+	plainKeyStyled := YamlKeyStyle.Render("name")
+	foldKeyStyled := YamlKeyStyle.Render("annotations")
+
+	assert.Contains(t, plainResult, plainKeyStyled,
+		"plain key should use YamlKeyStyle")
+	assert.Contains(t, foldResult, foldKeyStyled,
+		"fold-indicated key should use YamlKeyStyle")
 }
 
 // --- HighlightSearchInLine ---

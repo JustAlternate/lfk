@@ -541,6 +541,38 @@ func ApplyTheme(t Theme) {
 		Italic(true).
 		Background(baseBg)
 
+	YamlStringStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color(t.Secondary)).
+		Background(baseBg)
+
+	YamlNumberStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color(ColorOrange)).
+		Background(baseBg)
+
+	YamlBoolStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color(ColorOrange)).
+		Bold(true).
+		Background(baseBg)
+
+	YamlNullStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color(t.Purple)).
+		Italic(true).
+		Background(baseBg)
+
+	YamlAnchorStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color(ColorCyan)).
+		Bold(true).
+		Background(baseBg)
+
+	YamlTagStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color(t.Purple)).
+		Background(baseBg)
+
+	YamlBlockScalarStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color(t.Purple)).
+		Bold(true).
+		Background(baseBg)
+
 	StatusBarBgStyle = lipgloss.NewStyle().
 		Foreground(lipgloss.Color(t.Dimmed)).
 		Background(barBg).

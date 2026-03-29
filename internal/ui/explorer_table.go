@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -92,8 +93,139 @@ func RenderContainerDetail(item *model.Item, width, height int) string {
 	return strings.Join(lines, "\n")
 }
 
+// yamlNumberRe matches YAML numeric values: integers, floats, hex, octal,
+// infinity, and NaN.
+var yamlNumberRe = regexp.MustCompile(
+	`^[+-]?(\d[\d_]*(\.\d[\d_]*)?(e[+-]?\d+)?` + // decimal / float / sci
+		`|0x[\da-fA-F_]+` + // hex
+		`|0o[0-7_]+` + // octal
+		`|\.inf|\.Inf|\.INF` + // infinity
+		`|\.nan|\.NaN|\.NAN)$`, // NaN
+)
+
+// styleYAMLValue applies type-aware styling to a YAML value string.
+func styleYAMLValue(val string) string {
+	v := strings.TrimSpace(val)
+	if v == "" {
+		return YamlValueStyle.Render(val)
+	}
+
+	// Preserve leading whitespace from the original val.
+	lead := val[:len(val)-len(strings.TrimLeft(val, " "))]
+
+	switch {
+	// Null.
+	case v == "null" || v == "~" || v == "Null" || v == "NULL":
+		return lead + YamlNullStyle.Render(v)
+
+	// Boolean (YAML 1.1 + 1.2).
+	case v == "true" || v == "false" ||
+		v == "True" || v == "False" ||
+		v == "TRUE" || v == "FALSE" ||
+		v == "yes" || v == "no" ||
+		v == "Yes" || v == "No" ||
+		v == "YES" || v == "NO" ||
+		v == "on" || v == "off" ||
+		v == "On" || v == "Off" ||
+		v == "ON" || v == "OFF":
+		return lead + YamlBoolStyle.Render(v)
+
+	// Quoted strings.
+	case (strings.HasPrefix(v, `"`) && strings.HasSuffix(v, `"`)) ||
+		(strings.HasPrefix(v, "'") && strings.HasSuffix(v, "'")):
+		return lead + YamlStringStyle.Render(v)
+
+	// Anchors & aliases.
+	case strings.HasPrefix(v, "&") || strings.HasPrefix(v, "*"):
+		return lead + YamlAnchorStyle.Render(v)
+
+	// Tags.
+	case strings.HasPrefix(v, "!!") || strings.HasPrefix(v, "!"):
+		return lead + YamlTagStyle.Render(v)
+
+	// Block scalar indicators.
+	case v == "|" || v == ">" || v == "|-" || v == ">-" ||
+		v == "|+" || v == ">+":
+		return lead + YamlBlockScalarStyle.Render(v)
+
+	// Numeric values.
+	case yamlNumberRe.MatchString(v):
+		return lead + YamlNumberStyle.Render(v)
+	}
+
+	// Unquoted strings — same color as quoted strings for consistency.
+	return lead + YamlStringStyle.Render(v)
+}
+
+// isYAMLKey reports whether s looks like a valid YAML mapping key.
+// It accepts unquoted identifiers (may contain alphanumerics, dashes, dots,
+// slashes, underscores) and quoted keys ("key" or 'key').
+func isYAMLKey(s string) bool {
+	if s == "" {
+		return false
+	}
+	// Quoted keys are always valid.
+	if (s[0] == '"' && s[len(s)-1] == '"') ||
+		(s[0] == '\'' && s[len(s)-1] == '\'') {
+		return true
+	}
+	// Unquoted key: must not contain spaces.
+	return !strings.Contains(s, " ")
+}
+
+// renderKeyValue renders a YAML key: value pair with syntax highlighting.
+func renderKeyValue(indent, key, rest string) string {
+	styledKey := YamlKeyStyle.Render(key)
+	if len(rest) <= 1 {
+		// Key with colon only (no value), e.g. "metadata:"
+		return indent + styledKey + YamlPunctuationStyle.Render(":")
+	}
+
+	colon := YamlPunctuationStyle.Render(":")
+	valPart := rest[1:] // skip the ":"
+
+	// Handle inline comment after value.
+	if ci := findInlineComment(valPart); ci >= 0 {
+		return indent + styledKey + colon +
+			styleYAMLValue(valPart[:ci]) +
+			YamlCommentStyle.Render(valPart[ci:])
+	}
+
+	return indent + styledKey + colon + styleYAMLValue(valPart)
+}
+
 // HighlightYAMLLine applies syntax highlighting to a single YAML line.
 func HighlightYAMLLine(line string) string {
+	// Strip fold indicator characters (▾/▸) injected by the YAML fold system.
+	// They appear inside the content when sections are at indent >= 2.
+	// We strip them, highlight the YAML content, then prepend them back.
+	var foldPrefix string
+	cleaned := line
+	for _, r := range line {
+		if r == '▾' || r == '▸' {
+			runes := []rune(line)
+			for i, cr := range runes {
+				if cr == '▾' || cr == '▸' {
+					foldPrefix = string(runes[:i+1])
+					cleaned = string(runes[i+1:])
+					break
+				}
+			}
+			break
+		}
+		if r != ' ' {
+			break
+		}
+	}
+	if foldPrefix != "" {
+		return foldPrefix + highlightYAMLContent(cleaned)
+	}
+	return highlightYAMLContent(line)
+}
+
+// highlightYAMLContent applies syntax highlighting to YAML content (without
+// fold indicators).
+func highlightYAMLContent(line string) string {
 	trimmed := strings.TrimLeft(line, " ")
 	indent := line[:len(line)-len(trimmed)]
 
@@ -102,32 +234,90 @@ func HighlightYAMLLine(line string) string {
 		return YamlCommentStyle.Render(line)
 	}
 
+	// List items: "- ..." — handle dash prefix first so the dash is always
+	// rendered as punctuation, then detect key: value inside the item.
+	if strings.HasPrefix(trimmed, "- ") {
+		marker := YamlPunctuationStyle.Render("- ")
+		content := trimmed[2:]
+
+		// List item with key: value, e.g. "- name: my-pod".
+		if colonIdx := findYAMLColon(content); colonIdx > 0 {
+			key := content[:colonIdx]
+			rest := content[colonIdx:]
+			if isYAMLKey(key) {
+				return indent + marker + renderKeyValue("", key, rest)
+			}
+		}
+
+		return indent + marker + styleYAMLValue(content)
+	}
+
 	// Lines with key: value.
-	if colonIdx := strings.Index(trimmed, ":"); colonIdx > 0 {
+	if colonIdx := findYAMLColon(trimmed); colonIdx > 0 {
 		key := trimmed[:colonIdx]
 		rest := trimmed[colonIdx:]
-
-		// Check this looks like a YAML key (no spaces in key part before colon,
-		// or it's a simple key with dash prefix).
-		keyPart := strings.TrimPrefix(key, "- ")
-		if !strings.Contains(keyPart, " ") || strings.HasPrefix(key, "- ") {
-			styledKey := YamlKeyStyle.Render(key)
-			if len(rest) > 1 {
-				colon := YamlPunctuationStyle.Render(":")
-				value := YamlValueStyle.Render(rest[1:])
-				return indent + styledKey + colon + value
-			}
-			return indent + styledKey + YamlPunctuationStyle.Render(":")
+		if isYAMLKey(key) {
+			return renderKeyValue(indent, key, rest)
 		}
 	}
 
-	// List item marker.
-	if strings.HasPrefix(trimmed, "- ") {
-		marker := YamlPunctuationStyle.Render("- ")
-		return indent + marker + YamlValueStyle.Render(trimmed[2:])
-	}
-
+	// Continuation / plain value lines (e.g. block scalar content, truncated
+	// keys). Use neutral text color — actual string values are already handled
+	// via styleYAMLValue in the key: value path above.
 	return YamlValueStyle.Render(line)
+}
+
+// findYAMLColon finds the index of the first colon that looks like a YAML
+// key-value separator. It must be followed by a space, end-of-string, or
+// nothing (bare key). Colons inside quoted segments are skipped.
+func findYAMLColon(s string) int {
+	inSingle := false
+	inDouble := false
+	for i := range len(s) {
+		switch s[i] {
+		case '\'':
+			if !inDouble {
+				inSingle = !inSingle
+			}
+		case '"':
+			if !inSingle {
+				inDouble = !inDouble
+			}
+		case ':':
+			if !inSingle && !inDouble {
+				// Colon must be at end or followed by space to be a key separator.
+				if i == len(s)-1 || s[i+1] == ' ' {
+					return i
+				}
+			}
+		}
+	}
+	return -1
+}
+
+// findInlineComment returns the index of an inline comment (# preceded by
+// whitespace) in a YAML value, or -1 if none is found. It skips # inside
+// quoted strings.
+func findInlineComment(s string) int {
+	inSingle := false
+	inDouble := false
+	for i := range len(s) {
+		switch s[i] {
+		case '\'':
+			if !inDouble {
+				inSingle = !inSingle
+			}
+		case '"':
+			if !inSingle {
+				inDouble = !inDouble
+			}
+		case '#':
+			if !inSingle && !inDouble && i > 0 && s[i-1] == ' ' {
+				return i - 1
+			}
+		}
+	}
+	return -1
 }
 
 // HighlightSearchInLine highlights search matches in a line.

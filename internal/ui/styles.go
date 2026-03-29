@@ -131,6 +131,32 @@ var (
 				Foreground(lipgloss.Color(ColorDimmed)).
 				Italic(true)
 
+	// YAML syntax highlighting: value types.
+	YamlStringStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color(ColorSecondary))
+
+	YamlNumberStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color(ColorOrange))
+
+	YamlBoolStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color(ColorOrange)).
+			Bold(true)
+
+	YamlNullStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color(ColorPurple)).
+			Italic(true)
+
+	YamlAnchorStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color(ColorCyan)).
+			Bold(true)
+
+	YamlTagStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color(ColorPurple))
+
+	YamlBlockScalarStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color(ColorPurple)).
+				Bold(true)
+
 	// Status bar (full-width background).
 	StatusBarBgStyle = lipgloss.NewStyle().
 				Background(lipgloss.Color(ColorBarBg)).

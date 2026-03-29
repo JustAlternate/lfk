@@ -7,13 +7,27 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+// yamlViewportLines returns the number of content lines available for the
+// YAML viewer, accounting for the title bar, tab bar, borders, and hint bar.
+func (m Model) yamlViewportLines() int {
+	// Overhead: YAML title (1) + border top/bottom (2) + hint bar (1) = 4,
+	// plus the global title bar (1) and tab bar (1 when multi-tab) which are
+	// subtracted from m.height by View() at render time but NOT in Update().
+	overhead := 5 // title bar + yaml title + border*2 + hint
+	if len(m.tabs) > 1 {
+		overhead = 6
+	}
+	lines := m.height - overhead
+	if lines < 3 {
+		lines = 3
+	}
+	return lines
+}
+
 func (m Model) handleYAMLKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Compute visible line count (accounting for collapsed sections).
 	totalVisible := visibleLineCount(m.yamlContent, m.yamlSections, m.yamlCollapsed)
-	viewportLines := m.height - 4
-	if viewportLines < 3 {
-		viewportLines = 3
-	}
+	viewportLines := m.yamlViewportLines()
 	maxScroll := totalVisible - viewportLines
 	if maxScroll < 0 {
 		maxScroll = 0
@@ -739,10 +753,7 @@ func (m Model) handleYAMLKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // ensureYAMLCursorVisible adjusts yamlScroll so the cursor is within the viewport.
 func (m *Model) ensureYAMLCursorVisible() {
-	maxLines := m.height - 4
-	if maxLines < 3 {
-		maxLines = 3
-	}
+	maxLines := m.yamlViewportLines()
 	if m.yamlCursor < m.yamlScroll {
 		m.yamlScroll = m.yamlCursor
 	}
@@ -754,10 +765,7 @@ func (m *Model) ensureYAMLCursorVisible() {
 // clampYAMLScroll ensures yamlScroll stays within bounds after fold changes.
 func (m *Model) clampYAMLScroll() {
 	totalVisible := visibleLineCount(m.yamlContent, m.yamlSections, m.yamlCollapsed)
-	viewportLines := m.height - 4
-	if viewportLines < 3 {
-		viewportLines = 3
-	}
+	viewportLines := m.yamlViewportLines()
 	maxScroll := totalVisible - viewportLines
 	if maxScroll < 0 {
 		maxScroll = 0

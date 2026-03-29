@@ -26,7 +26,7 @@ func TestEnsureYAMLCursorVisible(t *testing.T) {
 			yamlCursor: 50,
 		}
 		m.ensureYAMLCursorVisible()
-		maxLines := m.height - 4
+		maxLines := m.yamlViewportLines()
 		assert.Equal(t, 50-maxLines+1, m.yamlScroll)
 	})
 
