@@ -368,7 +368,7 @@ func (m Model) handleAutoSyncKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.autoSyncCursor--
 		}
 		return m, nil
-	case " ", "enter":
+	case " ":
 		switch m.autoSyncCursor {
 		case 0:
 			m.autoSyncEnabled = !m.autoSyncEnabled
@@ -382,7 +382,7 @@ func (m Model) handleAutoSyncKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 		return m, nil
-	case "ctrl+s":
+	case "enter", "ctrl+s":
 		return m, m.saveAutoSyncConfig()
 	case "ctrl+c":
 		return m.closeTabOrQuit()

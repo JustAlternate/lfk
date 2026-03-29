@@ -58,7 +58,7 @@ func RenderAutoSyncOverlay(enabled, selfHeal, prune bool, cursor, screenWidth, s
 	}
 
 	content := strings.Join(lines, "\n")
-	hints := OverlayDimStyle.Render("space: toggle | ctrl+s: save | esc: cancel")
+	hints := OverlayDimStyle.Render("space: toggle | enter: save | esc: cancel")
 	body := title + "\n" + content + "\n\n" + hints
 
 	return OverlayStyle.

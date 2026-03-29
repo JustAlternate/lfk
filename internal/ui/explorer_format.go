@@ -419,6 +419,15 @@ func resourceColumnStyle(key, val string) lipgloss.Style {
 		return lipgloss.NewStyle().Foreground(lipgloss.Color(ColorSecondary)).Background(BaseBg)
 	case "Last Sync", "Health", "Sync":
 		return StatusStyle(val)
+	case "AutoSync":
+		switch {
+		case val == "On/SH/P":
+			return StatusRunning // green: fully enabled
+		case strings.HasPrefix(val, "On"):
+			return StatusProgressing // blue: partially enabled
+		default:
+			return StatusFailed // red: disabled
+		}
 	default:
 		return DimStyle
 	}

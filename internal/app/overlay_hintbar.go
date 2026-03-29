@@ -266,7 +266,7 @@ func (m Model) overlayHintBar() string {
 		return m.renderHints([]ui.HintEntry{
 			{Key: "jk", Desc: "nav"},
 			{Key: "space", Desc: "toggle"},
-			{Key: "ctrl+s", Desc: "save"},
+			{Key: "enter", Desc: "save"},
 			{Key: "esc", Desc: "cancel"},
 		})
 
