@@ -68,14 +68,19 @@ func (m Model) View() string {
 		}
 
 		// Render help screen as overlay on top of the fullscreen view.
-		// Use the full terminal height so the overlay is correctly sized
-		// and the bottom hint bar of the underlying view is not clipped.
+		// Use fullHeight-1 for the overlay so the bottom status bar line
+		// remains visible below the overlay with the help search prompt.
 		if m.mode == modeHelp {
-			searchInput := ""
-			if m.helpSearchActive {
-				searchInput = m.helpSearchInput.Value()
+			// Replace the last line of the view with the help status bar
+			// so it's always visible below the overlay.
+			helpStatus := m.statusBar()
+			viewLines := strings.Split(view, "\n")
+			if len(viewLines) > 0 {
+				viewLines[len(viewLines)-1] = helpStatus
 			}
-			overlay := ui.RenderHelpScreen(m.width, fullHeight, m.helpScroll, m.helpFilter.Value, searchInput)
+			view = strings.Join(viewLines, "\n")
+
+			overlay := ui.RenderHelpScreen(m.width, fullHeight-1, m.helpScroll, m.helpFilter.Value)
 			view = ui.PlaceOverlay(m.width, fullHeight, overlay, view)
 		}
 
@@ -95,12 +100,10 @@ func (m Model) View() string {
 	}
 
 	// Render help screen as an overlay on top of the explorer view.
+	// The status bar (bottom line) already renders the help search prompt,
+	// so size the overlay to leave the bottom line uncovered.
 	if m.mode == modeHelp {
-		searchInput := ""
-		if m.helpSearchActive {
-			searchInput = m.helpSearchInput.Value()
-		}
-		overlay := ui.RenderHelpScreen(m.width, m.height, m.helpScroll, m.helpFilter.Value, searchInput)
+		overlay := ui.RenderHelpScreen(m.width, m.height-1, m.helpScroll, m.helpFilter.Value)
 		view = ui.PlaceOverlay(m.width, m.height, overlay, view)
 	}
 
