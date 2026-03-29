@@ -25,6 +25,10 @@ func (m Model) View() string {
 		renderMode = m.helpPreviousMode
 	}
 	if renderMode == modeYAML || renderMode == modeLogs || renderMode == modeDescribe || renderMode == modeDiff || renderMode == modeExec || renderMode == modeExplain {
+		// Save original height before reducing for title/tab bar — overlays
+		// need the full terminal dimensions for correct sizing and placement.
+		fullHeight := m.height
+
 		title := ui.FillLinesBg(m.renderTitleBar(), m.width, ui.BarBg)
 		m.height -= 1 // title bar
 
@@ -64,9 +68,11 @@ func (m Model) View() string {
 		}
 
 		// Render help screen as overlay on top of the fullscreen view.
+		// Use the full terminal height so the overlay is correctly sized
+		// and the bottom hint bar of the underlying view is not clipped.
 		if m.mode == modeHelp {
-			overlay := ui.RenderHelpScreen(m.width, m.height, m.helpScroll, m.helpFilter.Value)
-			view = ui.PlaceOverlay(m.width, m.height, overlay, view)
+			overlay := ui.RenderHelpScreen(m.width, fullHeight, m.helpScroll, m.helpFilter.Value)
+			view = ui.PlaceOverlay(m.width, fullHeight, overlay, view)
 		}
 
 		return view
