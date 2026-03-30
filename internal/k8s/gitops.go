@@ -782,21 +782,57 @@ func (c *Client) GetWorkflowStatus(contextName, namespace, name string) (string,
 	}
 	b.WriteString("\n")
 
-	// Format nodes table.
+	// Format nodes table, ordered by DAG/steps execution order.
 	nodes, _ := status["nodes"].(map[string]interface{})
 	if len(nodes) > 0 {
 		fmt.Fprintf(&b, "%-45s %-15s %-12s %s\n", "NODE", "TYPE", "PHASE", "DURATION")
 		b.WriteString(strings.Repeat("-", 90))
 		b.WriteString("\n")
 
-		// Sort node keys for stable output.
-		nodeKeys := make([]string, 0, len(nodes))
-		for k := range nodes {
-			nodeKeys = append(nodeKeys, k)
+		// Walk the DAG via children arrays to preserve execution order.
+		// Find the root node (whose name matches the workflow name).
+		var rootID string
+		childrenOf := make(map[string][]string, len(nodes))
+		for id, n := range nodes {
+			node, ok := n.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			nodeName, _ := node["name"].(string)
+			if nodeName == name {
+				rootID = id
+			}
+			if kids, ok := node["children"].([]interface{}); ok {
+				for _, k := range kids {
+					if s, ok := k.(string); ok {
+						childrenOf[id] = append(childrenOf[id], s)
+					}
+				}
+			}
 		}
-		sort.Strings(nodeKeys)
 
-		for _, key := range nodeKeys {
+		// BFS from root to get execution order.
+		var orderedKeys []string
+		seen := make(map[string]bool)
+		queue := []string{rootID}
+		for len(queue) > 0 {
+			cur := queue[0]
+			queue = queue[1:]
+			if seen[cur] || cur == "" {
+				continue
+			}
+			seen[cur] = true
+			orderedKeys = append(orderedKeys, cur)
+			queue = append(queue, childrenOf[cur]...)
+		}
+		// Append any unseen nodes (shouldn't happen but safety net).
+		for id := range nodes {
+			if !seen[id] {
+				orderedKeys = append(orderedKeys, id)
+			}
+		}
+
+		for _, key := range orderedKeys {
 			node, ok := nodes[key].(map[string]interface{})
 			if !ok {
 				continue
