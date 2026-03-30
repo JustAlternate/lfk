@@ -421,55 +421,71 @@ func populateArgoWorkflow(ti *model.Item, status map[string]interface{}) {
 		}
 	}
 
-	// Workflow steps from status.nodes — extract displayName, phase, message
-	// for each node and store as detail-only columns with "step:" prefix.
+	// Workflow steps from status.nodes — walk the DAG via children arrays
+	// to preserve execution order (not sorted by timestamp which jumps).
 	if nodes, ok := status["nodes"].(map[string]interface{}); ok {
-		type stepInfo struct {
-			name      string
-			phase     string
-			message   string
-			startedAt time.Time
+		// Index nodes by ID.
+		type nodeInfo struct {
+			id, displayName, phase, message string
+			children                        []string
 		}
-		var steps []stepInfo
-		for _, n := range nodes {
+		nodeMap := make(map[string]nodeInfo, len(nodes))
+		var rootID string
+		for id, n := range nodes {
 			node, ok := n.(map[string]interface{})
 			if !ok {
 				continue
 			}
-			displayName, _ := node["displayName"].(string)
-			if displayName == "" {
-				displayName, _ = node["name"].(string)
+			info := nodeInfo{id: id}
+			info.displayName, _ = node["displayName"].(string)
+			if info.displayName == "" {
+				info.displayName, _ = node["name"].(string)
 			}
-			phase, _ := node["phase"].(string)
-			msg, _ := node["message"].(string)
-			var started time.Time
-			if s, ok := node["startedAt"].(string); ok && s != "" {
-				started, _ = time.Parse(time.RFC3339, s)
+			info.phase, _ = node["phase"].(string)
+			info.message, _ = node["message"].(string)
+			if kids, ok := node["children"].([]interface{}); ok {
+				for _, k := range kids {
+					if s, ok := k.(string); ok {
+						info.children = append(info.children, s)
+					}
+				}
 			}
-			if displayName != "" {
-				steps = append(steps, stepInfo{name: displayName, phase: phase, message: msg, startedAt: started})
+			nodeMap[id] = info
+			// The root node's name matches the workflow name (same as ti.Name).
+			nodeName, _ := node["name"].(string)
+			if nodeName == ti.Name {
+				rootID = id
 			}
 		}
-		// Sort steps by execution order (startedAt), unstarted steps last.
-		sort.Slice(steps, func(i, j int) bool {
-			si, sj := steps[i].startedAt, steps[j].startedAt
-			if si.IsZero() && sj.IsZero() {
-				return steps[i].name < steps[j].name
+
+		// Walk children in order starting from root (BFS preserves DAG order).
+		var ordered []nodeInfo
+		seen := make(map[string]bool)
+		queue := []string{rootID}
+		for len(queue) > 0 {
+			cur := queue[0]
+			queue = queue[1:]
+			if seen[cur] || cur == "" {
+				continue
 			}
-			if si.IsZero() {
-				return false
+			seen[cur] = true
+			info, ok := nodeMap[cur]
+			if !ok {
+				continue
 			}
-			if sj.IsZero() {
-				return true
+			// Skip the root node itself (it represents the workflow, not a step).
+			if cur != rootID {
+				ordered = append(ordered, info)
 			}
-			return si.Before(sj)
-		})
-		for _, s := range steps {
+			queue = append(queue, info.children...)
+		}
+
+		for _, s := range ordered {
 			val := s.phase
 			if s.message != "" {
 				val += ": " + s.message
 			}
-			ti.Columns = append(ti.Columns, model.KeyValue{Key: "step:" + s.name, Value: val})
+			ti.Columns = append(ti.Columns, model.KeyValue{Key: "step:" + s.displayName, Value: val})
 		}
 	}
 }

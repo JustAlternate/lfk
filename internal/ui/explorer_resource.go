@@ -616,12 +616,6 @@ func RenderResourceTree(root *model.ResourceNode, width, height int) string {
 	b.WriteString(Truncate(rootLabel, width))
 	b.WriteString("\n")
 
-	// Empty line between root and children for better visual separation.
-	if len(root.Children) > 0 {
-		b.WriteString(DimStyle.Render("│"))
-		b.WriteString("\n")
-	}
-
 	// Render children recursively.
 	lines := renderTreeChildren(root.Children, "", root.Namespace, width)
 	for _, line := range lines {

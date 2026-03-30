@@ -262,6 +262,36 @@ func (c *Client) buildGenericOwnerTree(ctx context.Context, dynClient dynamic.In
 	// Attach intermediate nodes to root.
 	root.Children = append(root.Children, intermediateNodes...)
 
+	// Also find non-pod resources directly owned by the target (e.g.,
+	// ExternalSecret → Secret, Operator → ConfigMap/Service).
+	directChildGVRs := []struct {
+		gvr  schema.GroupVersionResource
+		kind string
+	}{
+		{schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"}, "Secret"},
+		{schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"}, "ConfigMap"},
+		{schema.GroupVersionResource{Group: "", Version: "v1", Resource: "services"}, "Service"},
+	}
+	for _, dg := range directChildGVRs {
+		list, err := dynClient.Resource(dg.gvr).Namespace(namespace).List(ctx, metav1.ListOptions{})
+		if err != nil {
+			continue
+		}
+		for _, item := range list.Items {
+			for _, ref := range item.GetOwnerReferences() {
+				if ref.Kind == ownerKind && ref.Name == ownerName {
+					root.Children = append(root.Children, &model.ResourceNode{
+						Name:      item.GetName(),
+						Kind:      dg.kind,
+						Namespace: item.GetNamespace(),
+						Status:    extractStatus(item.Object),
+					})
+					break
+				}
+			}
+		}
+	}
+
 	return nil
 }
 

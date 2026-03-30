@@ -467,8 +467,6 @@ func TestRenderResourceTree(t *testing.T) {
 		assert.Contains(t, result, "Pending")
 		// Check child count annotation on the ReplicaSet node.
 		assert.Contains(t, result, "2 Pod")
-		// Check separator line between root and children.
-		assert.Contains(t, result, "│")
 	})
 
 	t.Run("multiple children use correct connectors", func(t *testing.T) {
