@@ -195,6 +195,9 @@ func populateResourceDetailsExt(ti *model.Item, obj map[string]interface{}, kind
 			ti.Status = "default"
 		}
 
+	case "Workflow":
+		populateArgoWorkflow(ti, status)
+
 	default:
 		// For unknown/CRD resources, extract top-level status fields.
 		// Skip fields that duplicate ti.Status (already shown in the STATUS column).
@@ -363,6 +366,93 @@ func populateArgoCDApplication(ti *model.Item, _ map[string]interface{}, status,
 			if path, ok := source["path"].(string); ok && path != "" {
 				ti.Columns = append(ti.Columns, model.KeyValue{Key: "Path", Value: path})
 			}
+		}
+	}
+}
+
+func populateArgoWorkflow(ti *model.Item, status map[string]interface{}) {
+	if status == nil {
+		return
+	}
+
+	// Progress (e.g., "2/5").
+	if progress, ok := status["progress"].(string); ok && progress != "" {
+		ti.Columns = append(ti.Columns, model.KeyValue{Key: "Progress", Value: progress})
+	}
+
+	// Duration from startedAt/finishedAt.
+	startedStr, _ := status["startedAt"].(string)
+	finishedStr, _ := status["finishedAt"].(string)
+	if startedStr != "" {
+		if started, err := time.Parse(time.RFC3339, startedStr); err == nil {
+			end := time.Now()
+			if finishedStr != "" {
+				if finished, err := time.Parse(time.RFC3339, finishedStr); err == nil {
+					end = finished
+				}
+			}
+			dur := end.Sub(started).Truncate(time.Second)
+			ti.Columns = append(ti.Columns, model.KeyValue{Key: "Duration", Value: dur.String()})
+		}
+	}
+
+	// Message (error or status message).
+	if msg, ok := status["message"].(string); ok && msg != "" {
+		ti.Columns = append(ti.Columns, model.KeyValue{Key: "Message", Value: msg})
+	}
+
+	// Conditions.
+	if conditions, ok := status["conditions"].([]interface{}); ok {
+		for _, c := range conditions {
+			cond, ok := c.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			condType, _ := cond["type"].(string)
+			condStatus, _ := cond["status"].(string)
+			condMessage, _ := cond["message"].(string)
+			if condType != "" {
+				ti.Conditions = append(ti.Conditions, model.ConditionEntry{
+					Type:    condType,
+					Status:  condStatus,
+					Message: condMessage,
+				})
+			}
+		}
+	}
+
+	// Workflow steps from status.nodes — extract displayName, phase, message
+	// for each node and store as detail-only columns with "step:" prefix.
+	if nodes, ok := status["nodes"].(map[string]interface{}); ok {
+		type stepInfo struct {
+			name    string
+			phase   string
+			message string
+		}
+		var steps []stepInfo
+		for _, n := range nodes {
+			node, ok := n.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			displayName, _ := node["displayName"].(string)
+			if displayName == "" {
+				displayName, _ = node["name"].(string)
+			}
+			phase, _ := node["phase"].(string)
+			msg, _ := node["message"].(string)
+			if displayName != "" {
+				steps = append(steps, stepInfo{name: displayName, phase: phase, message: msg})
+			}
+		}
+		// Sort steps by name for stable output.
+		sort.Slice(steps, func(i, j int) bool { return steps[i].name < steps[j].name })
+		for _, s := range steps {
+			val := s.phase
+			if s.message != "" {
+				val += ": " + s.message
+			}
+			ti.Columns = append(ti.Columns, model.KeyValue{Key: "step:" + s.name, Value: val})
 		}
 	}
 }

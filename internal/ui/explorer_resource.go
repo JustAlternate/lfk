@@ -85,6 +85,10 @@ func RenderResourceSummary(item *model.Item, yaml string, width, height int) str
 			statusRows = append(statusRows, detailRow{strings.ToUpper(label), kv.Value})
 			continue
 		}
+		if strings.HasPrefix(kv.Key, "step:") {
+			// Workflow steps: collected separately for STEPS section.
+			continue
+		}
 		if kv.Key == "Labels" || kv.Key == "Finalizers" || kv.Key == "Annotations" || kv.Key == "Used By" || kv.Key == "Selector" || kv.Key == "Taints" {
 			multiLineFields = append(multiLineFields, kv)
 			continue
@@ -295,6 +299,38 @@ func RenderResourceSummary(item *model.Item, yaml string, width, height int) str
 				}
 				lines = append(lines, "    "+DimStyle.Render(msg))
 			}
+		}
+	}
+
+	// Render STEPS section for Argo Workflow nodes.
+	var stepEntries []model.KeyValue
+	for _, kv := range item.Columns {
+		if strings.HasPrefix(kv.Key, "step:") {
+			stepEntries = append(stepEntries, kv)
+		}
+	}
+	if len(stepEntries) > 0 && len(lines) < height-2 {
+		lines = append(lines, "")
+		lines = append(lines, detailKeyStyle.Render("STEPS"))
+		for _, kv := range stepEntries {
+			if len(lines) >= height-2 {
+				break
+			}
+			stepName := kv.Key[len("step:"):]
+			phase := kv.Value
+			// Color based on phase.
+			phaseStyle := DimStyle
+			switch {
+			case strings.HasPrefix(phase, "Succeeded"):
+				phaseStyle = StatusRunning
+			case strings.HasPrefix(phase, "Running"):
+				phaseStyle = StatusProgressing
+			case strings.HasPrefix(phase, "Failed"), strings.HasPrefix(phase, "Error"):
+				phaseStyle = ErrorStyle
+			case strings.HasPrefix(phase, "Pending"), strings.HasPrefix(phase, "Omitted"):
+				phaseStyle = DimStyle
+			}
+			lines = append(lines, "  "+NormalStyle.Render(stepName)+" "+phaseStyle.Render(phase))
 		}
 	}
 
