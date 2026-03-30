@@ -63,8 +63,20 @@ func (m Model) View() string {
 		view := lipgloss.JoinVertical(lipgloss.Left, parts...)
 
 		// Render overlay on top if active (e.g. Can-I subject selector).
+		// Use fullHeight so PlaceOverlay doesn't trim the view (which
+		// includes title bar + tab bar above the content).
 		if m.overlay != overlayNone {
+			m.height = fullHeight
 			view = m.renderOverlay(view)
+			// Replace the last line with the overlay hint bar.
+			hintBar := m.overlayHintBar()
+			if hintBar != "" {
+				viewLines := strings.Split(view, "\n")
+				if len(viewLines) > 0 {
+					viewLines[len(viewLines)-1] = ui.StatusBarBgStyle.Width(m.width).MaxWidth(m.width).MaxHeight(1).Render(hintBar)
+				}
+				view = strings.Join(viewLines, "\n")
+			}
 		}
 
 		// Render help screen as overlay on top of the fullscreen view.
