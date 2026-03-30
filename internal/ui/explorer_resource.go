@@ -194,8 +194,36 @@ func RenderResourceSummary(item *model.Item, yaml string, width, height int) str
 		lines = append(lines, keyStr+DimStyle.Render(val))
 	}
 
-	// Render multi-line fields in order: Labels, Annotations, Finalizers,
-	// then Selector, Used By.
+	// Render spec and message rows. Long values wrap to continuation lines
+	// instead of being truncated, so error messages are fully visible.
+	orderedRows := make([]detailRow, 0, len(specRows)+len(messageRows))
+	orderedRows = append(orderedRows, specRows...)
+	orderedRows = append(orderedRows, messageRows...)
+	for _, r := range orderedRows {
+		if len(lines) >= height-2 {
+			break
+		}
+		valW := max(width-keyW-2, 4)
+		keyStr := detailKeyStyle.Render(fmt.Sprintf("%-*s", keyW, r.key))
+		valRunes := []rune(r.value)
+		if len(valRunes) <= valW {
+			lines = append(lines, keyStr+DimStyle.Render(r.value))
+		} else {
+			// First line with key.
+			lines = append(lines, keyStr+DimStyle.Render(string(valRunes[:valW])))
+			// Continuation lines indented to align with the value column.
+			indent := strings.Repeat(" ", keyW)
+			for start := valW; start < len(valRunes); start += valW {
+				if len(lines) >= height-2 {
+					break
+				}
+				end := min(start+valW, len(valRunes))
+				lines = append(lines, indent+DimStyle.Render(string(valRunes[start:end])))
+			}
+		}
+	}
+
+	// Render multi-line fields: Labels, Annotations, Finalizers, etc.
 	multiOrder := []string{"Labels", "Annotations", "Finalizers", "Taints", "Selector", "Used By"}
 	multiMap := make(map[string]model.KeyValue, len(multiLineFields))
 	for _, kv := range multiLineFields {
@@ -228,40 +256,6 @@ func RenderResourceSummary(item *model.Item, yaml string, width, height int) str
 					end := min(start+maxW, len(entryRunes))
 					lines = append(lines, "    "+DimStyle.Render(string(entryRunes[start:end])))
 				}
-			}
-		}
-	}
-
-	// Add separator after multi-line fields before spec rows.
-	if len(multiLineFields) > 0 && len(lines) < height-2 {
-		lines = append(lines, "")
-	}
-
-	// Render spec and message rows. Long values wrap to continuation lines
-	// instead of being truncated, so error messages are fully visible.
-	orderedRows := make([]detailRow, 0, len(specRows)+len(messageRows))
-	orderedRows = append(orderedRows, specRows...)
-	orderedRows = append(orderedRows, messageRows...)
-	for _, r := range orderedRows {
-		if len(lines) >= height-2 {
-			break
-		}
-		valW := max(width-keyW-2, 4)
-		keyStr := detailKeyStyle.Render(fmt.Sprintf("%-*s", keyW, r.key))
-		valRunes := []rune(r.value)
-		if len(valRunes) <= valW {
-			lines = append(lines, keyStr+DimStyle.Render(r.value))
-		} else {
-			// First line with key.
-			lines = append(lines, keyStr+DimStyle.Render(string(valRunes[:valW])))
-			// Continuation lines indented to align with the value column.
-			indent := strings.Repeat(" ", keyW)
-			for start := valW; start < len(valRunes); start += valW {
-				if len(lines) >= height-2 {
-					break
-				}
-				end := min(start+valW, len(valRunes))
-				lines = append(lines, indent+DimStyle.Render(string(valRunes[start:end])))
 			}
 		}
 	}
