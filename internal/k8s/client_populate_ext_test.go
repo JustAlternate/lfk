@@ -330,7 +330,7 @@ func TestPopulateArgoCDApplication(t *testing.T) {
 				},
 			},
 			wantCols: map[string]string{
-				"Condition":                 "ComparisonErro~",
+				"Condition":                 "ComparisonError",
 				"condition:ComparisonError": "rpc error: code = NotFound desc = repo not found",
 			},
 		},

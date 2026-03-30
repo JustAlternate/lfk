@@ -311,6 +311,11 @@ func populateArgoCDApplication(ti *model.Item, _ map[string]interface{}, status,
 			if condType == "" {
 				continue
 			}
+			// Skip SyncError condition — the "Sync Errors" column already
+			// shows the full per-resource error details.
+			if condType == "SyncError" {
+				continue
+			}
 			condTypes = append(condTypes, condType)
 			// Full message stored with "condition:" prefix so it's excluded
 			// from the table (prefix-blocked) but shown in the DETAILS pane.

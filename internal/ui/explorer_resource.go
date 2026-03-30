@@ -89,7 +89,7 @@ func RenderResourceSummary(item *model.Item, yaml string, width, height int) str
 			// Workflow steps: collected separately for STEPS section.
 			continue
 		}
-		if kv.Key == "Labels" || kv.Key == "Finalizers" || kv.Key == "Annotations" || kv.Key == "Used By" || kv.Key == "Selector" || kv.Key == "Taints" {
+		if kv.Key == "Labels" || kv.Key == "Finalizers" || kv.Key == "Annotations" || kv.Key == "Used By" || kv.Key == "Selector" || kv.Key == "Taints" || kv.Key == "Sync Errors" {
 			multiLineFields = append(multiLineFields, kv)
 			continue
 		}
@@ -196,7 +196,7 @@ func RenderResourceSummary(item *model.Item, yaml string, width, height int) str
 
 	// Render multi-line fields in order: Labels, Annotations, Finalizers,
 	// then Selector, Used By.
-	multiOrder := []string{"Labels", "Annotations", "Finalizers", "Taints", "Selector", "Used By"}
+	multiOrder := []string{"Labels", "Annotations", "Finalizers", "Taints", "Selector", "Used By", "Sync Errors"}
 	multiMap := make(map[string]model.KeyValue, len(multiLineFields))
 	for _, kv := range multiLineFields {
 		multiMap[kv.Key] = kv
