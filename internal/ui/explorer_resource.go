@@ -168,59 +168,41 @@ func RenderResourceSummary(item *model.Item, yaml string, width, height int) str
 		}
 	}
 
-	// Render status and sync rows first.
-	for _, r := range statusRows {
+	// renderRow appends a detail row with word-wrapping for long values.
+	valW := max(width-keyW-2, 4)
+	indent := strings.Repeat(" ", keyW)
+	renderRow := func(r detailRow) {
 		if len(lines) >= height-2 {
-			break
+			return
 		}
-		valW := max(width-keyW-2, 4)
-		val := r.value
-		if len(val) > valW {
-			val = val[:valW-3] + "..."
-		}
-		keyStr := detailKeyStyle.Render(fmt.Sprintf("%-*s", keyW, r.key))
-		lines = append(lines, keyStr+DimStyle.Render(val))
-	}
-	for _, r := range syncRows {
-		if len(lines) >= height-2 {
-			break
-		}
-		valW := max(width-keyW-2, 4)
-		val := r.value
-		if len(val) > valW {
-			val = val[:valW-3] + "..."
-		}
-		keyStr := detailKeyStyle.Render(fmt.Sprintf("%-*s", keyW, r.key))
-		lines = append(lines, keyStr+DimStyle.Render(val))
-	}
-
-	// Render spec and message rows. Long values wrap to continuation lines
-	// instead of being truncated, so error messages are fully visible.
-	orderedRows := make([]detailRow, 0, len(specRows)+len(messageRows))
-	orderedRows = append(orderedRows, specRows...)
-	orderedRows = append(orderedRows, messageRows...)
-	for _, r := range orderedRows {
-		if len(lines) >= height-2 {
-			break
-		}
-		valW := max(width-keyW-2, 4)
 		keyStr := detailKeyStyle.Render(fmt.Sprintf("%-*s", keyW, r.key))
 		valRunes := []rune(r.value)
 		if len(valRunes) <= valW {
 			lines = append(lines, keyStr+DimStyle.Render(r.value))
-		} else {
-			// First line with key.
-			lines = append(lines, keyStr+DimStyle.Render(string(valRunes[:valW])))
-			// Continuation lines indented to align with the value column.
-			indent := strings.Repeat(" ", keyW)
-			for start := valW; start < len(valRunes); start += valW {
-				if len(lines) >= height-2 {
-					break
-				}
-				end := min(start+valW, len(valRunes))
-				lines = append(lines, indent+DimStyle.Render(string(valRunes[start:end])))
-			}
+			return
 		}
+		lines = append(lines, keyStr+DimStyle.Render(string(valRunes[:valW])))
+		for start := valW; start < len(valRunes); start += valW {
+			if len(lines) >= height-2 {
+				break
+			}
+			end := min(start+valW, len(valRunes))
+			lines = append(lines, indent+DimStyle.Render(string(valRunes[start:end])))
+		}
+	}
+
+	// Render status, sync, spec, and message rows.
+	for _, r := range statusRows {
+		renderRow(r)
+	}
+	for _, r := range syncRows {
+		renderRow(r)
+	}
+	for _, r := range specRows {
+		renderRow(r)
+	}
+	for _, r := range messageRows {
+		renderRow(r)
 	}
 
 	// Render multi-line fields: Labels, Annotations, Finalizers, etc.
