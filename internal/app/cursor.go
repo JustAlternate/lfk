@@ -273,8 +273,17 @@ func (m *Model) visibleMiddleItems() []model.Item {
 			if item.Kind != "" {
 				searchText += " " + item.Kind
 			}
+			if item.Status != "" {
+				searchText += " " + item.Status
+			}
 			if item.Extra != "" && m.nav.Level != model.LevelOwned {
 				searchText += " " + item.Extra
+			}
+			for _, kv := range item.Columns {
+				if !strings.HasPrefix(kv.Key, "secret:") && !strings.HasPrefix(kv.Key, "data:") &&
+					!strings.HasPrefix(kv.Key, "owner:") && !strings.HasPrefix(kv.Key, "__") {
+					searchText += " " + kv.Value
+				}
 			}
 			if strings.Contains(strings.ToLower(searchText), filter) {
 				filtered = append(filtered, item)
