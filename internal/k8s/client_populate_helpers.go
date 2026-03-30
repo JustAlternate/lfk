@@ -86,17 +86,14 @@ func extractGenericConditions(ti *model.Item, conditions []interface{}) {
 		if condStatus == "True" {
 			trueCond = cond
 		}
-		// Store every condition with "cond:" prefix for the details pane.
-		// Format: key="cond:<Type>", value="<Status>|<Reason>|<Message>".
-		detail := condStatus
-		if condReason != "" {
-			detail += "|" + condReason
-		}
-		if condMessage != "" {
-			detail += "|" + condMessage
-		}
+		// Store every condition for the details pane.
 		if condType != "" {
-			ti.Columns = append(ti.Columns, model.KeyValue{Key: "cond:" + condType, Value: detail})
+			ti.Conditions = append(ti.Conditions, model.ConditionEntry{
+				Type:    condType,
+				Status:  condStatus,
+				Reason:  condReason,
+				Message: condMessage,
+			})
 		}
 	}
 

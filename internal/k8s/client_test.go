@@ -724,9 +724,10 @@ func TestExtractGenericConditions(t *testing.T) {
 		assert.Equal(t, "True", colMap["Ready"])
 		assert.Equal(t, "AllGood", colMap["Reason"])
 		assert.NotEmpty(t, colMap["Last Transition"])
-		// Detail cond: entries should also be present.
-		assert.NotEmpty(t, colMap["cond:Initialized"])
-		assert.NotEmpty(t, colMap["cond:Ready"])
+		// Conditions should be stored on the Conditions field, not as columns.
+		assert.Len(t, ti.Conditions, 2)
+		assert.Equal(t, "Initialized", ti.Conditions[0].Type)
+		assert.Equal(t, "Ready", ti.Conditions[1].Type)
 	})
 
 	t.Run("falls back to last condition", func(t *testing.T) {

@@ -85,9 +85,6 @@ func RenderResourceSummary(item *model.Item, yaml string, width, height int) str
 			statusRows = append(statusRows, detailRow{strings.ToUpper(label), kv.Value})
 			continue
 		}
-		if strings.HasPrefix(kv.Key, "cond:") {
-			continue
-		}
 		if kv.Key == "Labels" || kv.Key == "Finalizers" || kv.Key == "Annotations" || kv.Key == "Used By" || kv.Key == "Selector" || kv.Key == "Taints" {
 			multiLineFields = append(multiLineFields, kv)
 			continue
@@ -265,52 +262,34 @@ func RenderResourceSummary(item *model.Item, yaml string, width, height int) str
 		}
 	}
 
-	// Render CONDITIONS section: all status.conditions with color coding.
-	var condEntries []model.KeyValue
-	for _, kv := range item.Columns {
-		if strings.HasPrefix(kv.Key, "cond:") {
-			condEntries = append(condEntries, kv)
-		}
-	}
-	if len(condEntries) > 0 && len(lines) < height-2 {
+	// Render CONDITIONS section from item.Conditions with color coding.
+	if len(item.Conditions) > 0 && len(lines) < height-2 {
 		lines = append(lines, "")
 		lines = append(lines, detailKeyStyle.Render("CONDITIONS"))
-		for _, kv := range condEntries {
+		for _, cond := range item.Conditions {
 			if len(lines) >= height-2 {
 				break
-			}
-			condType := kv.Key[len("cond:"):]
-			// Parse "Status|Reason|Message" value.
-			parts := strings.SplitN(kv.Value, "|", 3)
-			condStatus := parts[0]
-			condReason := ""
-			condMessage := ""
-			if len(parts) > 1 {
-				condReason = parts[1]
-			}
-			if len(parts) > 2 {
-				condMessage = parts[2]
 			}
 
 			// Color the condition type based on status and type name.
 			typeStyle := DimStyle // False = greyed out
-			if condStatus == "True" {
-				if isNegativeCondType(condType) {
+			if cond.Status == "True" {
+				if isNegativeCondType(cond.Type) {
 					typeStyle = ErrorStyle // True + negative type = red
 				} else {
 					typeStyle = StatusRunning // True + positive type = green
 				}
 			}
 
-			line := "  " + typeStyle.Render(condType)
-			if condReason != "" {
-				line += DimStyle.Render(": " + condReason)
+			line := "  " + typeStyle.Render(cond.Type)
+			if cond.Reason != "" {
+				line += DimStyle.Render(": " + cond.Reason)
 			}
 			lines = append(lines, line)
 
-			if condMessage != "" && condStatus != "True" {
+			if cond.Message != "" && cond.Status != "True" {
 				maxW := max(width-6, 10)
-				msg := condMessage
+				msg := cond.Message
 				if len(msg) > maxW {
 					msg = msg[:maxW-3] + "..."
 				}

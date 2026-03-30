@@ -74,6 +74,14 @@ type KeyValue struct {
 	Value string
 }
 
+// ConditionEntry represents a single status condition for display in the details pane.
+type ConditionEntry struct {
+	Type    string
+	Status  string // "True" or "False"
+	Reason  string
+	Message string
+}
+
 // PinnedGroups lists CRD API groups that should appear right after built-in categories.
 // Set from config at startup.
 var PinnedGroups []string
@@ -100,21 +108,22 @@ func IsCoreCategory(name string) bool {
 // Item represents a single navigable entry in any column.
 type Item struct {
 	Name          string
-	Namespace     string     // Namespace of the resource (populated in all-namespaces mode)
-	Status        string     // Used for pod/resource status coloring
-	Kind          string     // The Kubernetes resource kind
-	Extra         string     // Extra metadata (e.g., resource ref "group/version/resource")
-	Category      string     // Display category grouping (e.g., "Workloads", "Networking")
-	Icon          string     // Unicode icon for display
-	Age           string     // Human-readable age (e.g., "5m", "2h", "3d")
-	Ready         string     // Ready count (e.g., "2/3" for pods or deployments)
-	Restarts      string     // Restart count (for pods)
-	LastRestartAt time.Time  // Most recent container restart time
-	CreatedAt     time.Time  // Creation timestamp for sorting
-	Columns       []KeyValue // Additional resource fields for summary preview
-	Selected      bool       // Whether this item is part of a multi-selection
-	Deprecated    bool       // Whether this resource uses a deprecated API version
-	Deleting      bool       // Whether this resource has a deletionTimestamp set
+	Namespace     string           // Namespace of the resource (populated in all-namespaces mode)
+	Status        string           // Used for pod/resource status coloring
+	Kind          string           // The Kubernetes resource kind
+	Extra         string           // Extra metadata (e.g., resource ref "group/version/resource")
+	Category      string           // Display category grouping (e.g., "Workloads", "Networking")
+	Icon          string           // Unicode icon for display
+	Age           string           // Human-readable age (e.g., "5m", "2h", "3d")
+	Ready         string           // Ready count (e.g., "2/3" for pods or deployments)
+	Restarts      string           // Restart count (for pods)
+	LastRestartAt time.Time        // Most recent container restart time
+	CreatedAt     time.Time        // Creation timestamp for sorting
+	Columns       []KeyValue       // Additional resource fields for summary preview
+	Conditions    []ConditionEntry // Status conditions for the details pane
+	Selected      bool             // Whether this item is part of a multi-selection
+	Deprecated    bool             // Whether this resource uses a deprecated API version
+	Deleting      bool             // Whether this resource has a deletionTimestamp set
 }
 
 // ResourceNode represents a node in a resource relationship tree.
