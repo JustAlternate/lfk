@@ -142,12 +142,14 @@ func (c *Client) buildDeploymentTree(ctx context.Context, dynClient dynamic.Inte
 		for _, ref := range pod.GetOwnerReferences() {
 			if ref.Kind == "ReplicaSet" {
 				if rsNode, ok := rsSet[ref.Name]; ok {
-					rsNode.Children = append(rsNode.Children, &model.ResourceNode{
+					podNode := &model.ResourceNode{
 						Name:      pod.GetName(),
 						Kind:      "Pod",
 						Namespace: pod.GetNamespace(),
 						Status:    extractStatus(pod.Object),
-					})
+					}
+					appendContainerNodes(podNode, pod.Object)
+					rsNode.Children = append(rsNode.Children, podNode)
 				}
 			}
 		}
@@ -166,12 +168,14 @@ func (c *Client) buildPodOwnerTree(ctx context.Context, dynClient dynamic.Interf
 	for _, pod := range podList.Items {
 		for _, ref := range pod.GetOwnerReferences() {
 			if ref.Kind == ownerKind && ref.Name == ownerName {
-				root.Children = append(root.Children, &model.ResourceNode{
+				podNode := &model.ResourceNode{
 					Name:      pod.GetName(),
 					Kind:      "Pod",
 					Namespace: pod.GetNamespace(),
 					Status:    extractStatus(pod.Object),
-				})
+				}
+				appendContainerNodes(podNode, pod.Object)
+				root.Children = append(root.Children, podNode)
 				break
 			}
 		}
@@ -241,6 +245,7 @@ func (c *Client) buildGenericOwnerTree(ctx context.Context, dynClient dynamic.In
 				Namespace: pod.GetNamespace(),
 				Status:    extractStatus(pod.Object),
 			}
+			appendContainerNodes(podNode, pod.Object)
 			// Pod owned by an intermediate controller.
 			if parent, ok := intermediateMap[ref.Name]; ok {
 				parent.Children = append(parent.Children, podNode)
@@ -334,28 +339,156 @@ func (c *Client) buildPodTree(ctx context.Context, contextName, namespace, podNa
 	}
 
 	// Add init containers.
-	for _, c := range pod.Spec.InitContainers {
-		node := &model.ResourceNode{
-			Name:      c.Name,
+	for _, ct := range pod.Spec.InitContainers {
+		root.Children = append(root.Children, &model.ResourceNode{
+			Name:      ct.Name,
 			Kind:      "Container",
 			Namespace: namespace,
-			Status:    containerStatusFromPod(c.Name, pod.Status.InitContainerStatuses),
-		}
-		root.Children = append(root.Children, node)
+			Status:    containerStatusFromPod(ct.Name, pod.Status.InitContainerStatuses),
+		})
 	}
 
 	// Add regular containers.
-	for _, c := range pod.Spec.Containers {
-		node := &model.ResourceNode{
-			Name:      c.Name,
+	for _, ct := range pod.Spec.Containers {
+		root.Children = append(root.Children, &model.ResourceNode{
+			Name:      ct.Name,
 			Kind:      "Container",
 			Namespace: namespace,
-			Status:    containerStatusFromPod(c.Name, pod.Status.ContainerStatuses),
+			Status:    containerStatusFromPod(ct.Name, pod.Status.ContainerStatuses),
+		})
+	}
+
+	// Walk owner references upward to show the ownership chain.
+	// Build: topOwner → ... → controller → Pod (root) → Containers.
+	if len(pod.OwnerReferences) > 0 {
+		dynClient, dynErr := c.dynamicForContext(contextName)
+		if dynErr == nil {
+			c.wrapWithOwners(ctx, dynClient, namespace, pod.OwnerReferences[0].Kind, pod.OwnerReferences[0].Name, root)
 		}
-		root.Children = append(root.Children, node)
 	}
 
 	return nil
+}
+
+// wrapWithOwners walks owner references upward from a controller and
+// restructures the tree so the topmost owner becomes the root. The original
+// root node becomes a child of its controller, which becomes a child of the
+// controller's owner, etc. This mutates the root pointer's fields in place.
+func (c *Client) wrapWithOwners(ctx context.Context, dynClient dynamic.Interface, namespace, ownerKind, ownerName string, root *model.ResourceNode) {
+	// Resolve common owner kinds to their GVR.
+	gvrForKind := map[string]schema.GroupVersionResource{
+		"ReplicaSet":  {Group: "apps", Version: "v1", Resource: "replicasets"},
+		"Deployment":  {Group: "apps", Version: "v1", Resource: "deployments"},
+		"StatefulSet": {Group: "apps", Version: "v1", Resource: "statefulsets"},
+		"DaemonSet":   {Group: "apps", Version: "v1", Resource: "daemonsets"},
+		"Job":         {Group: "batch", Version: "v1", Resource: "jobs"},
+		"CronJob":     {Group: "batch", Version: "v1", Resource: "cronjobs"},
+	}
+
+	// Build the chain bottom-up: [immediateOwner, grandparent, ...]
+	type ownerInfo struct {
+		kind, name, status   string
+		ownerKind, ownerName string
+	}
+	var chain []ownerInfo
+
+	curKind, curName := ownerKind, ownerName
+	for range 5 { // limit depth to prevent loops
+		gvr, ok := gvrForKind[curKind]
+		if !ok {
+			// Unknown kind — add it but stop walking.
+			chain = append(chain, ownerInfo{kind: curKind, name: curName})
+			break
+		}
+		obj, err := dynClient.Resource(gvr).Namespace(namespace).Get(ctx, curName, metav1.GetOptions{})
+		if err != nil {
+			chain = append(chain, ownerInfo{kind: curKind, name: curName})
+			break
+		}
+		info := ownerInfo{
+			kind:   curKind,
+			name:   curName,
+			status: extractStatus(obj.Object),
+		}
+		refs := obj.GetOwnerReferences()
+		if len(refs) > 0 {
+			info.ownerKind = refs[0].Kind
+			info.ownerName = refs[0].Name
+		}
+		chain = append(chain, info)
+		if info.ownerKind == "" {
+			break
+		}
+		curKind, curName = info.ownerKind, info.ownerName
+	}
+
+	if len(chain) == 0 {
+		return
+	}
+
+	// Restructure: the original root (Pod) becomes a leaf, wrapped by the chain.
+	// Save original root data and children.
+	origName := root.Name
+	origKind := root.Kind
+	origNs := root.Namespace
+	origStatus := root.Status
+	origChildren := root.Children
+
+	podNode := &model.ResourceNode{
+		Name:      origName,
+		Kind:      origKind,
+		Namespace: origNs,
+		Status:    origStatus,
+		Children:  origChildren,
+	}
+
+	// Build tree top-down: chain is [immediate, grandparent, ...], reverse it.
+	// Top of chain = topmost owner.
+	top := chain[len(chain)-1]
+	root.Name = top.name
+	root.Kind = top.kind
+	root.Namespace = namespace
+	root.Status = top.status
+	root.Children = nil
+
+	current := root
+	for i := len(chain) - 2; i >= 0; i-- {
+		node := &model.ResourceNode{
+			Name:      chain[i].name,
+			Kind:      chain[i].kind,
+			Namespace: namespace,
+			Status:    chain[i].status,
+		}
+		current.Children = append(current.Children, node)
+		current = node
+	}
+	current.Children = append(current.Children, podNode)
+}
+
+// appendContainerNodes extracts init containers and containers from an
+// unstructured pod object and appends them as children of the given node.
+func appendContainerNodes(podNode *model.ResourceNode, obj map[string]interface{}) {
+	spec, _ := obj["spec"].(map[string]interface{})
+	if spec == nil {
+		return
+	}
+	for _, key := range []string{"initContainers", "containers"} {
+		containers, _ := spec[key].([]interface{})
+		for _, c := range containers {
+			cMap, ok := c.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			name, _ := cMap["name"].(string)
+			if name != "" {
+				podNode.Children = append(podNode.Children, &model.ResourceNode{
+					Name:      name,
+					Kind:      "Container",
+					Namespace: podNode.Namespace,
+				})
+			}
+		}
+	}
 }
 
 // containerStatusFromPod extracts a human-readable status for a container by name.
