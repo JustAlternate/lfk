@@ -195,6 +195,11 @@ func RenderResourceSummary(item *model.Item, yaml string, width, height int) str
 		}
 	}
 
+	// Add separator after multi-line fields before status rows.
+	if len(multiLineFields) > 0 && len(lines) < height-2 {
+		lines = append(lines, "")
+	}
+
 	// Render remaining rows (status, sync, spec, messages).
 	orderedRows := make([]detailRow, 0, len(statusRows)+len(syncRows)+len(specRows)+len(messageRows))
 	orderedRows = append(orderedRows, statusRows...)

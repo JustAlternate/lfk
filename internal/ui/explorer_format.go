@@ -218,6 +218,8 @@ func collectExtraColumns(items []model.Item, totalWidth, usedWidth int, kind str
 				// ArgoCD: hide in normal view, show Dest Server/NS only in fullscreen.
 				"Health": true, "Sync": true, "Dest NS": true,
 				"Sync Message": true, "Sync Errors": true,
+				// Nodes: OS and Runtime are verbose, show in fullscreen/details only.
+				"OS": true, "Runtime": true,
 				// Events: Source is too verbose for table view; Message is kept.
 				"Source": true,
 				// Metadata fields: too verbose for table, shown in detail pane.
