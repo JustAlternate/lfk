@@ -282,19 +282,6 @@ func populateArgoCDApplication(ti *model.Item, _ map[string]interface{}, status,
 				}
 			}
 		}
-		if summary, ok := status["summary"].(map[string]interface{}); ok {
-			if imgs, ok := summary["images"].([]interface{}); ok && len(imgs) > 0 {
-				var imageStrs []string
-				for _, img := range imgs {
-					if s, ok := img.(string); ok {
-						imageStrs = append(imageStrs, s)
-					}
-				}
-				if len(imageStrs) > 0 {
-					ti.Columns = append(ti.Columns, model.KeyValue{Key: "Images", Value: strings.Join(imageStrs, ", ")})
-				}
-			}
-		}
 	}
 	// Extract conditions (e.g., ComparisonError, InvalidSpecError, SyncError).
 	// A short "Condition" column shows the type names in the table view.

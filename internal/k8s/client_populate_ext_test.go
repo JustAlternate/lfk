@@ -225,7 +225,6 @@ func TestPopulateArgoCDApplication(t *testing.T) {
 			},
 			wantCols: map[string]string{
 				"Revision":    "abc123de", // truncated to 8
-				"Images":      "myapp:v1.0",
 				"AutoSync":    "Off",
 				"Dest NS":     "production",
 				"Dest Server": "https://kubernetes.default.svc",
