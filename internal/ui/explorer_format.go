@@ -417,7 +417,7 @@ func resourceColumnStyle(key, val string) lipgloss.Style {
 		return pctStyle(val)
 	case "CPU Req", "CPU Lim", "Mem Req", "Mem Lim", "CPU Alloc", "Mem Alloc":
 		return lipgloss.NewStyle().Foreground(lipgloss.Color(ColorSecondary)).Background(BaseBg)
-	case "Last Sync", "Health", "Sync":
+	case "Last Sync", "Health", "Sync", "Reason":
 		return StatusStyle(val)
 	case "AutoSync":
 		switch {

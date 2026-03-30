@@ -353,7 +353,8 @@ func StatusStyle(status string) lipgloss.Style {
 		return lipgloss.NewStyle().Foreground(lipgloss.Color(ColorPrimary)).Background(BaseBg)
 	case "Running", "Active", "Bound", "Available", "Ready",
 		"Healthy", "Healthy/Synced", "Synced",
-		"Deployed":
+		"Deployed",
+		"SecretSynced", "SecretSyncedSuccessfully":
 		return StatusRunning
 	case "Succeeded", "Completed",
 		"Superseded":
@@ -373,7 +374,8 @@ func StatusStyle(status string) lipgloss.Style {
 	case "Failed", "CrashLoopBackOff", "Error", "ImagePullBackOff", "Terminated",
 		"Degraded", "Degraded/Synced", "Degraded/OutOfSync",
 		"Missing/Synced",
-		"OOMKilled", "ErrImagePull", "CreateContainerConfigError":
+		"OOMKilled", "ErrImagePull", "CreateContainerConfigError",
+		"SecretSyncError", "UpdateFailed", "FailedScheduling":
 		return StatusFailed
 	default:
 		if status == "" {
