@@ -720,11 +720,13 @@ func TestExtractGenericConditions(t *testing.T) {
 			},
 		}
 		extractGenericConditions(ti, conditions)
-		assert.Len(t, ti.Columns, 3) // Ready, Reason, Last Transition (no Message since status=True)
-		assert.Equal(t, "Ready", ti.Columns[0].Key)
-		assert.Equal(t, "True", ti.Columns[0].Value)
-		assert.Equal(t, "Reason", ti.Columns[1].Key)
-		assert.Equal(t, "AllGood", ti.Columns[1].Value)
+		colMap := columnsToMap(ti.Columns)
+		assert.Equal(t, "True", colMap["Ready"])
+		assert.Equal(t, "AllGood", colMap["Reason"])
+		assert.NotEmpty(t, colMap["Last Transition"])
+		// Detail cond: entries should also be present.
+		assert.NotEmpty(t, colMap["cond:Initialized"])
+		assert.NotEmpty(t, colMap["cond:Ready"])
 	})
 
 	t.Run("falls back to last condition", func(t *testing.T) {
@@ -742,11 +744,10 @@ func TestExtractGenericConditions(t *testing.T) {
 			},
 		}
 		extractGenericConditions(ti, conditions)
-		assert.Equal(t, "Available", ti.Columns[0].Key)
-		assert.Equal(t, "False", ti.Columns[0].Value)
-		assert.Equal(t, "Reason", ti.Columns[1].Key)
-		assert.Equal(t, "MinimumReplicasUnavailable", ti.Columns[1].Value)
-		assert.Equal(t, "Message", ti.Columns[2].Key)
+		colMap := columnsToMap(ti.Columns)
+		assert.Equal(t, "False", colMap["Available"])
+		assert.Equal(t, "MinimumReplicasUnavailable", colMap["Reason"])
+		assert.NotEmpty(t, colMap["Message"])
 	})
 
 	t.Run("truncates long messages", func(t *testing.T) {

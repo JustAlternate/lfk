@@ -78,14 +78,25 @@ func extractGenericConditions(ti *model.Item, conditions []interface{}) {
 		lastCond = cond
 		condType, _ := cond["type"].(string)
 		condStatus, _ := cond["status"].(string)
+		condReason, _ := cond["reason"].(string)
+		condMessage, _ := cond["message"].(string)
 		if condType == "Ready" {
 			readyCond = cond
 		}
-		// Track the last condition with status "True" — this represents
-		// the most recent active/positive state (e.g., "JobCreated" for
-		// HelmCharts) and should take priority over stale "False" conditions.
 		if condStatus == "True" {
 			trueCond = cond
+		}
+		// Store every condition with "cond:" prefix for the details pane.
+		// Format: key="cond:<Type>", value="<Status>|<Reason>|<Message>".
+		detail := condStatus
+		if condReason != "" {
+			detail += "|" + condReason
+		}
+		if condMessage != "" {
+			detail += "|" + condMessage
+		}
+		if condType != "" {
+			ti.Columns = append(ti.Columns, model.KeyValue{Key: "cond:" + condType, Value: detail})
 		}
 	}
 
