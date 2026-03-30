@@ -69,20 +69,41 @@ func populateMetadataFields(ti *model.Item, obj map[string]interface{}) {
 // array for generic CRD resources. It prefers the "Ready" condition; if not found,
 // it falls back to the last condition in the array.
 func extractGenericConditions(ti *model.Item, conditions []interface{}) {
-	var readyCond, lastCond map[string]interface{}
+	var readyCond, trueCond, lastCond map[string]interface{}
 	for _, c := range conditions {
 		cond, ok := c.(map[string]interface{})
 		if !ok {
 			continue
 		}
 		lastCond = cond
-		if condType, _ := cond["type"].(string); condType == "Ready" {
+		condType, _ := cond["type"].(string)
+		condStatus, _ := cond["status"].(string)
+		if condType == "Ready" {
 			readyCond = cond
+		}
+		// Track the last condition with status "True" — this represents
+		// the most recent active/positive state (e.g., "JobCreated" for
+		// HelmCharts) and should take priority over stale "False" conditions.
+		if condStatus == "True" {
+			trueCond = cond
 		}
 	}
 
-	// Prefer Ready condition, fall back to last condition.
+	// Priority: Ready condition > True condition (when last is a negated
+	// negative type like "Failed: False") > last condition.
 	chosen := readyCond
+	if chosen == nil {
+		// If the last condition is a negative type with status "False"
+		// (e.g., "Failed: False"), prefer a True condition instead — the
+		// negative state is inactive and showing it is misleading.
+		if lastCond != nil && trueCond != nil {
+			lastStatus, _ := lastCond["status"].(string)
+			lastType, _ := lastCond["type"].(string)
+			if lastStatus == "False" && isNegativeConditionType(lastType) {
+				chosen = trueCond
+			}
+		}
+	}
 	if chosen == nil {
 		chosen = lastCond
 	}
@@ -113,6 +134,20 @@ func extractGenericConditions(ti *model.Item, conditions []interface{}) {
 			ti.Columns = append(ti.Columns, model.KeyValue{Key: "Last Transition", Value: formatRelativeTime(t)})
 		}
 	}
+}
+
+// isNegativeConditionType returns true if the condition type name represents a
+// negative/failure state (e.g., "Failed", "Error"). When such a condition has
+// status "False" it means the failure is NOT active and should not be shown as
+// the primary status.
+func isNegativeConditionType(condType string) bool {
+	lower := strings.ToLower(condType)
+	for _, neg := range []string{"fail", "error", "degrad"} {
+		if strings.Contains(lower, neg) {
+			return true
+		}
+	}
+	return false
 }
 
 // populateContainerImages extracts container images from a pod template spec.
