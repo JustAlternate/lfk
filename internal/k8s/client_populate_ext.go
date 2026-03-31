@@ -254,6 +254,10 @@ func populateArgoCDApplication(ti *model.Item, _ map[string]interface{}, status,
 				if t, err := time.Parse(time.RFC3339, finishedAt); err == nil {
 					ti.Columns = append(ti.Columns, model.KeyValue{Key: "Synced At", Value: formatRelativeTime(t)})
 				}
+			} else if startedAt, ok := opState["startedAt"].(string); ok && startedAt != "" {
+				if t, err := time.Parse(time.RFC3339, startedAt); err == nil {
+					ti.Columns = append(ti.Columns, model.KeyValue{Key: "Synced At", Value: "syncing " + formatRelativeTime(t)})
+				}
 			}
 			if msg, ok := opState["message"].(string); ok && msg != "" {
 				ti.Columns = append(ti.Columns, model.KeyValue{Key: "Sync Message", Value: msg})

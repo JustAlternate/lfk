@@ -422,6 +422,11 @@ func resourceColumnStyle(key, val string) lipgloss.Style {
 		return lipgloss.NewStyle().Foreground(lipgloss.Color(ColorSecondary)).Background(BaseBg)
 	case "Last Sync", "Health", "Sync", "Reason":
 		return StatusStyle(val)
+	case "Synced At":
+		if strings.HasPrefix(val, "syncing") {
+			return StatusProgressing // blue: sync in progress
+		}
+		return DimStyle
 	case "AutoSync":
 		switch {
 		case val == "On/SH/P":
