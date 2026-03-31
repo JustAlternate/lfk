@@ -69,6 +69,7 @@ const (
 	overlayQuitConfirm
 	overlayPVCResize
 	overlayAutoSync
+	overlayFinalizerSearch
 )
 
 // bookmarkOverlayMode tracks the interaction mode for the bookmark overlay.
@@ -676,6 +677,15 @@ type Model struct {
 	canISubjectFilterMode bool      // true when typing in subject filter bar
 	canIAllowedOnly       bool      // true = show only allowed permissions
 	canINamespaces        []string  // namespaces used for SelfSubjectRulesReview
+
+	// Finalizer search overlay state.
+	finalizerSearchPattern      string
+	finalizerSearchResults      []k8s.FinalizerMatch
+	finalizerSearchCursor       int
+	finalizerSearchSelected     map[string]bool // "ns/kind/name" keys
+	finalizerSearchLoading      bool
+	finalizerSearchFilter       string
+	finalizerSearchFilterActive bool
 }
 
 // ownedParentState captures the navigation state that must be restored

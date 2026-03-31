@@ -270,6 +270,22 @@ func (m Model) overlayHintBar() string {
 			{Key: "esc", Desc: "cancel"},
 		})
 
+	case overlayFinalizerSearch:
+		if m.finalizerSearchFilterActive {
+			return m.renderHints([]ui.HintEntry{
+				{Key: "type", Desc: "filter"},
+				{Key: "enter", Desc: "apply"},
+				{Key: "esc", Desc: "clear"},
+			})
+		}
+		return m.renderHints([]ui.HintEntry{
+			{Key: "space", Desc: "select"},
+			{Key: "ctrl+a", Desc: "all"},
+			{Key: "enter", Desc: "remove"},
+			{Key: "/", Desc: "filter"},
+			{Key: "esc", Desc: "close"},
+		})
+
 	case overlayCanI:
 		if m.canISearchActive {
 			return m.renderHints([]ui.HintEntry{

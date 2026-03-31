@@ -560,6 +560,32 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, tea.Batch(m.refreshCurrentLevel(), scheduleStatusClear())
 
+	case finalizerSearchResultMsg:
+		m.finalizerSearchLoading = false
+		if msg.err != nil {
+			m.setErrorFromErr("Finalizer search: ", msg.err)
+			m.overlay = overlayNone
+			return m, scheduleStatusClear()
+		}
+		m.finalizerSearchResults = msg.results
+		if len(msg.results) == 0 {
+			m.setStatusMessage("No resources found with matching finalizer", false)
+			m.overlay = overlayNone
+			return m, scheduleStatusClear()
+		}
+		return m, nil
+
+	case finalizerRemoveResultMsg:
+		m.overlay = overlayNone
+		if msg.failed > 0 {
+			m.setStatusMessage(fmt.Sprintf("Removed finalizer from %d resources, %d failed", msg.succeeded, msg.failed), true)
+		} else {
+			m.setStatusMessage(fmt.Sprintf("Removed finalizer from %d resources", msg.succeeded), false)
+		}
+		m.finalizerSearchResults = nil
+		m.finalizerSearchSelected = nil
+		return m, tea.Batch(m.refreshCurrentLevel(), scheduleStatusClear())
+
 	case stderrCapturedMsg:
 		// Show captured stderr output (e.g., AWS SSO errors) in the status bar
 		// and error log. Continue listening for more messages.

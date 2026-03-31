@@ -40,6 +40,10 @@ Complete list of all keybindings in `lfk`. Keybindings marked with **(configurab
 | `,` | Cycle sort mode (name / age / status) |
 | `W` | Save resource to file / toggle warnings-only filter (Events view) |
 | `T` | Switch color scheme (live preview, not persisted) |
+| `Ctrl+G` | Finalizer search and remove |
+| `@` | Monitoring overview (active Prometheus alerts) |
+| `Q` | Namespace resource quota dashboard |
+| `:` | Open command bar (kubectl/shell commands) |
 
 ## Search and Filter
 
@@ -67,10 +71,9 @@ Search supports abbreviated resource type names (e.g., `pvc`, `hpa`, `deploy`).
 | `v` | Describe selected resource (default: `v`) | Yes (`describe`) |
 | `D` | Delete resource (Force Finalize if already deleting) | Yes (`delete`) |
 | `X` | Force delete with grace-period=0 (Pod/Job only) | Yes (`force_delete`) |
-| `o` | Jump to owner/controller of selected resource | No |
+| `S` | Export resource YAML to file | No |
+| `Ctrl+O` | Open ingress host in browser | No |
 | `i` | Edit labels/annotations | No |
-| `@` | Monitoring overview (active Prometheus alerts) | No |
-| `Q` | Namespace resource quota dashboard | No |
 | `a` | Create new resource from template (/ to search) | No |
 
 Port forwarding is available via the action menu (`x`) on Pod, Service, Deployment, StatefulSet, and DaemonSet resources. After creating a port forward, the view automatically navigates to the Port Forwards list and displays the resolved local port in the status bar. Active port forwards can be managed via the "Port Forwards" virtual resource in the Networking group.

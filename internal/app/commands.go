@@ -52,6 +52,7 @@ var startupTips = []string{
 	"In log viewer: s for timestamps, c for previous, C to filter containers",
 	"Press Ctrl+Y to copy full resource YAML, Ctrl+P to paste and create",
 	"Configure custom actions per resource type in ~/.config/lfk/config.yaml",
+	"Press Ctrl+G to search and remove finalizers across resources",
 	"Disable tips with 'tips: false' in ~/.config/lfk/config.yaml",
 }
 

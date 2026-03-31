@@ -386,3 +386,16 @@ type logContainersLoadedMsg struct {
 	containers []string
 	err        error
 }
+
+// finalizerSearchResultMsg carries the results of a finalizer search across resources.
+type finalizerSearchResultMsg struct {
+	results []k8s.FinalizerMatch
+	err     error
+}
+
+// finalizerRemoveResultMsg carries the result of bulk finalizer removal.
+type finalizerRemoveResultMsg struct {
+	succeeded int
+	failed    int
+	errors    []string
+}

@@ -477,6 +477,33 @@ func (m Model) renderOverlay(background string) string {
 		)
 		bg := ui.PadToHeight(background, m.height)
 		return ui.PlaceOverlay(m.width, m.height, overlay, bg)
+	case overlayFinalizerSearch:
+		filtered := m.filteredFinalizerResults()
+		entries := make([]ui.FinalizerMatchEntry, len(filtered))
+		for i, r := range filtered {
+			entries[i] = ui.FinalizerMatchEntry{
+				Name:      r.Name,
+				Namespace: r.Namespace,
+				Kind:      r.Kind,
+				Matched:   r.Matched,
+				Age:       r.Age,
+			}
+		}
+		overlayW = min(m.width-6, m.width*80/100)
+		if overlayW < 60 {
+			overlayW = min(60, m.width-4)
+		}
+		overlayH = min(m.height-4, m.height*70/100)
+		content = ui.RenderFinalizerSearchOverlay(
+			entries,
+			m.finalizerSearchCursor,
+			m.finalizerSearchSelected,
+			m.finalizerSearchPattern,
+			m.finalizerSearchFilter,
+			m.finalizerSearchFilterActive,
+			m.finalizerSearchLoading,
+			overlayW, overlayH,
+		)
 	default:
 		return background
 	}

@@ -538,6 +538,11 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.commandHistory.reset()
 		return m, nil
 
+	case "ctrl+g":
+		// Open finalizer search overlay.
+		m.openFinalizerSearch()
+		return m, nil
+
 	case "M":
 		// Toggle resource relationship map in the right column.
 		if m.nav.Level >= model.LevelResources {

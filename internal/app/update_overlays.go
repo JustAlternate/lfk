@@ -80,6 +80,8 @@ func (m Model) handleOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleLogPodSelectOverlayKey(msg)
 	case overlayLogContainerSelect:
 		return m.handleLogContainerSelectOverlayKey(msg)
+	case overlayFinalizerSearch:
+		return m.handleFinalizerSearchKey(msg)
 	}
 	return m, nil
 }
@@ -501,6 +503,12 @@ func (m Model) handleConfirmTypeOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) 
 			case "Force Delete":
 				m.addLogEntry("DBG", fmt.Sprintf("$ kubectl delete %s %s --grace-period=0 --force%s --context %s", rt.Resource, name, nsArg, ctx))
 				return m, m.forceDeleteResource()
+			case "Finalizer Remove":
+				m.loading = false
+				m.overlay = overlayFinalizerSearch
+				selectedCount := len(m.finalizerSearchSelected)
+				m.addLogEntry("DBG", fmt.Sprintf("Removing finalizer %q from %d resources", m.finalizerSearchPattern, selectedCount))
+				return m, m.bulkRemoveFinalizer()
 			}
 		}
 		return m, nil

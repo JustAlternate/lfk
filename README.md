@@ -200,6 +200,8 @@ Namespaces are **not** a navigation level. The current namespace is shown in the
 | `k` / `Up` | Move cursor up |
 | `gg` | Jump to top of list |
 | `G` | Jump to bottom of list |
+| `Ctrl+D` / `Ctrl+U` | Half-page scroll down/up |
+| `Ctrl+F` / `Ctrl+B` | Full-page scroll down/up |
 | `Enter` | Open full-screen YAML view / navigate into |
 | `z` | Toggle expand/collapse all resource groups |
 | `p` | Pin/unpin CRD group (at resource types level) |
@@ -221,8 +223,11 @@ Namespaces are **not** a navigation level. The current namespace is shown in the
 | `.` | Quick filter presets |
 | `!` | Error log |
 | `Ctrl+S` | Toggle secret value visibility |
+| `Ctrl+G` | Finalizer search and remove |
 | `I` | API Explorer (browse resource structure interactively) |
 | `U` | RBAC permissions browser (can-i) |
+| `T` | Open theme selector |
+| `:` | Open command bar (kubectl/shell commands) |
 | `w` | Toggle watch mode (auto-refresh) |
 | `,` | Cycle sort mode (name / age / status) |
 | `W` | Save resource to file / toggle warnings-only (Events) |
@@ -238,11 +243,14 @@ Namespaces are **not** a navigation level. The current namespace is shown in the
 | `x` | Action menu (logs, exec, debug, describe, edit, delete, scale, port-forward, events, etc.) |
 | `L` | View logs for selected resource |
 | `i` | Edit labels/annotations for selected resource |
+| `e` | Edit secret/configmap data |
+| `a` | Create resource from template |
 | `R` | Refresh current view |
 | `v` | Describe selected resource |
 | `D` | Delete selected resource (with confirmation) |
 | `X` | Force destroy (remove finalizers + force delete) |
-| `o` | Jump to owner/controller of selected resource |
+| `S` | Export resource YAML to file |
+| `Ctrl+O` | Open ingress host in browser |
 | `y` | Copy resource name to clipboard |
 | `Ctrl+Y` | Copy resource YAML to clipboard |
 | `Ctrl+P` | Apply resource from clipboard (`kubectl apply`) |

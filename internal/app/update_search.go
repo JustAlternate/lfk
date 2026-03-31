@@ -570,7 +570,7 @@ func (m Model) commandBarGenerateSuggestions() []string {
 	var candidates []string
 	switch pos {
 	case 0:
-		// First word: kubectl subcommands.
+		// First word: kubectl subcommands + built-in commands.
 		candidates = kubectlSubcommands()
 	case 1:
 		// Second word: depends on the subcommand.
