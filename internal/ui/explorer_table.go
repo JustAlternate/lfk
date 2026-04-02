@@ -322,31 +322,19 @@ func findInlineComment(s string) int {
 
 // HighlightSearchInLine highlights search matches in a line.
 // If isCurrent is true, uses a more prominent style for the current match.
+// Supports substring, regex, and fuzzy search modes.
 func HighlightSearchInLine(line, query string, isCurrent bool) string {
 	if query == "" {
 		return HighlightYAMLLine(line)
 	}
-	lower := strings.ToLower(line)
-	queryLower := strings.ToLower(query)
-	idx := strings.Index(lower, queryLower)
-	if idx < 0 {
+	if !MatchLine(line, query) {
 		return HighlightYAMLLine(line)
 	}
 	style := SearchHighlightStyle
 	if isCurrent {
 		style = SelectedSearchHighlightStyle
 	}
-	var result strings.Builder
-	for idx >= 0 {
-		// Render the non-matching part with YAML highlighting.
-		result.WriteString(YamlValueStyle.Render(line[:idx]))
-		result.WriteString(style.Render(line[idx : idx+len(query)]))
-		line = line[idx+len(query):]
-		lower = lower[idx+len(queryLower):]
-		idx = strings.Index(lower, queryLower)
-	}
-	result.WriteString(YamlValueStyle.Render(line))
-	return result.String()
+	return HighlightMatchStyled(line, query, style)
 }
 
 // FormatItemNameOnly formats an item showing only its name and icon (no status, age, etc.).

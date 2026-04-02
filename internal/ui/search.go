@@ -4,6 +4,8 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
+
+	"github.com/charmbracelet/lipgloss"
 )
 
 // SearchMode represents the type of search being performed.
@@ -132,6 +134,12 @@ func fuzzyMatch(line, query string) bool {
 // HighlightMatch returns the line with the matched portion highlighted using
 // LogSearchHighlightStyle. The rawQuery is the original user input.
 func HighlightMatch(line, rawQuery string) string {
+	return HighlightMatchStyled(line, rawQuery, LogSearchHighlightStyle)
+}
+
+// HighlightMatchStyled returns the line with the matched portion highlighted
+// using the given style. The rawQuery is the original user input.
+func HighlightMatchStyled(line, rawQuery string, style lipgloss.Style) string {
 	if rawQuery == "" {
 		return line
 	}
@@ -141,16 +149,16 @@ func HighlightMatch(line, rawQuery string) string {
 	}
 	switch mode {
 	case SearchRegex:
-		return highlightRegex(line, query)
+		return highlightRegex(line, query, style)
 	case SearchFuzzy:
-		return highlightFuzzy(line, query)
+		return highlightFuzzy(line, query, style)
 	default:
-		return highlightSubstring(line, query)
+		return highlightSubstring(line, query, style)
 	}
 }
 
 // highlightSubstring highlights all occurrences of query in line (case-insensitive).
-func highlightSubstring(line, query string) string {
+func highlightSubstring(line, query string, style lipgloss.Style) string {
 	queryLower := strings.ToLower(query)
 	lineLower := strings.ToLower(line)
 	if !strings.Contains(lineLower, queryLower) {
@@ -165,17 +173,17 @@ func highlightSubstring(line, query string) string {
 			break
 		}
 		b.WriteString(line[pos : pos+idx])
-		b.WriteString(LogSearchHighlightStyle.Render(line[pos+idx : pos+idx+len(query)]))
+		b.WriteString(style.Render(line[pos+idx : pos+idx+len(query)]))
 		pos = pos + idx + len(query)
 	}
 	return b.String()
 }
 
 // highlightRegex highlights all regex matches in the line.
-func highlightRegex(line, query string) string {
+func highlightRegex(line, query string, style lipgloss.Style) string {
 	re, err := regexp.Compile("(?i)" + query)
 	if err != nil {
-		return highlightSubstring(line, query) // fallback
+		return highlightSubstring(line, query, style) // fallback
 	}
 	matches := re.FindAllStringIndex(line, -1)
 	if len(matches) == 0 {
@@ -187,7 +195,7 @@ func highlightRegex(line, query string) string {
 		if m[0] > pos {
 			b.WriteString(line[pos:m[0]])
 		}
-		b.WriteString(LogSearchHighlightStyle.Render(line[m[0]:m[1]]))
+		b.WriteString(style.Render(line[m[0]:m[1]]))
 		pos = m[1]
 	}
 	if pos < len(line) {
@@ -197,7 +205,7 @@ func highlightRegex(line, query string) string {
 }
 
 // highlightFuzzy highlights the matched characters in a fuzzy match.
-func highlightFuzzy(line, query string) string {
+func highlightFuzzy(line, query string, style lipgloss.Style) string {
 	lineLower := strings.ToLower(line)
 	queryLower := strings.ToLower(query)
 	lineRunes := []rune(line)
@@ -233,14 +241,14 @@ func highlightFuzzy(line, query string) string {
 			}
 		} else {
 			if inHighlight {
-				b.WriteString(LogSearchHighlightStyle.Render(string(lineRunes[highlightStart:i])))
+				b.WriteString(style.Render(string(lineRunes[highlightStart:i])))
 				inHighlight = false
 			}
 			b.WriteRune(r)
 		}
 	}
 	if inHighlight {
-		b.WriteString(LogSearchHighlightStyle.Render(string(lineRunes[highlightStart:])))
+		b.WriteString(style.Render(string(lineRunes[highlightStart:])))
 	}
 	return b.String()
 }

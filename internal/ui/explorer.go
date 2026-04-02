@@ -300,52 +300,16 @@ func isItemSelected(item model.Item) bool {
 	return ActiveSelectedItems[key]
 }
 
-// highlightName highlights all case-insensitive occurrences of query in name
-// using SearchHighlightStyle. Returns the original name if query is empty or not found.
+// highlightName highlights matched portions of query in name using SearchHighlightStyle.
+// Supports substring, regex, and fuzzy search modes.
 func highlightName(name, query string) string {
-	if query == "" {
-		return name
-	}
-	lower := strings.ToLower(name)
-	queryLower := strings.ToLower(query)
-	idx := strings.Index(lower, queryLower)
-	if idx < 0 {
-		return name
-	}
-	var result strings.Builder
-	for idx >= 0 {
-		result.WriteString(name[:idx])
-		result.WriteString(SearchHighlightStyle.Render(name[idx : idx+len(query)]))
-		name = name[idx+len(query):]
-		lower = lower[idx+len(queryLower):]
-		idx = strings.Index(lower, queryLower)
-	}
-	result.WriteString(name)
-	return result.String()
+	return HighlightMatchStyled(name, query, SearchHighlightStyle)
 }
 
-// highlightNameSelected highlights all case-insensitive occurrences of query in name
+// highlightNameSelected highlights matched portions of query in name
 // using SelectedSearchHighlightStyle (for items under the cursor).
 func highlightNameSelected(name, query string) string {
-	if query == "" {
-		return name
-	}
-	lower := strings.ToLower(name)
-	queryLower := strings.ToLower(query)
-	idx := strings.Index(lower, queryLower)
-	if idx < 0 {
-		return name
-	}
-	var result strings.Builder
-	for idx >= 0 {
-		result.WriteString(name[:idx])
-		result.WriteString(SelectedSearchHighlightStyle.Render(name[idx : idx+len(query)]))
-		name = name[idx+len(query):]
-		lower = lower[idx+len(queryLower):]
-		idx = strings.Index(lower, queryLower)
-	}
-	result.WriteString(name)
-	return result.String()
+	return HighlightMatchStyled(name, query, SelectedSearchHighlightStyle)
 }
 
 // RenderColumn renders a single column with optional header, item list, and cursor highlight.
