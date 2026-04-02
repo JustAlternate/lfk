@@ -92,12 +92,20 @@ func (m Model) handleDiffKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	m.ensureDiffFoldState(foldRegions)
 
 	totalLines := ui.DiffViewTotalLines(m.diffLeft, m.diffRight, foldRegions, m.diffFoldState)
-	// Side-by-side: height - 6 (title + hint + border top/bottom + header + separator).
-	// Unified: height - 4 (title + hint + border top/bottom; headers are inside content).
-	visibleLines := m.height - 6
+
+	// m.height here is the full terminal height (Update context).
+	// The renderer gets height reduced by 1 (title bar) and optionally 1 (tab bar).
+	// Account for that overhead plus the renderer's own overhead.
+	overhead := 1 // title bar (always present in fullscreen modes)
+	if len(m.tabs) > 1 {
+		overhead++ // tab bar
+	}
+	// Side-by-side: renderer subtracts 6 (hint + border top/bottom + header + separator).
+	// Unified: renderer subtracts 4 (hint + border top/bottom; headers inside content).
+	visibleLines := m.height - overhead - 6
 	if m.diffUnified {
 		totalLines = ui.UnifiedDiffViewTotalLines(m.diffLeft, m.diffRight, foldRegions, m.diffFoldState)
-		visibleLines = m.height - 4
+		visibleLines = m.height - overhead - 4
 	}
 	if visibleLines < 3 {
 		visibleLines = 3

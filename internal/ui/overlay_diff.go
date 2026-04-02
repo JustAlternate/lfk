@@ -81,13 +81,13 @@ func ComputeDiffLines(left, right string) []diffLine {
 	return computeDiff(left, right)
 }
 
-// DiffViewTotalLines returns the total number of visible lines for a diff view
-// after applying fold state, used to calculate scroll bounds.
+// DiffViewTotalLines returns the total number of scrollable lines for a
+// side-by-side diff view after applying fold state. The header and separator
+// are rendered outside the scrollable area, so they are not counted here.
 func DiffViewTotalLines(left, right string, foldRegions []DiffFoldRegion, foldState []bool) int {
 	diffLines := computeDiff(left, right)
 	visLines := BuildVisibleDiffLines(diffLines, foldRegions, foldState)
-	// +1 for the header line.
-	return len(visLines) + 1
+	return len(visLines)
 }
 
 // DiffVisualParams holds visual selection state passed to diff renderers.

@@ -1005,22 +1005,22 @@ func TestDiffViewTotalLines(t *testing.T) {
 	t.Run("identical content", func(t *testing.T) {
 		yaml := "a: 1\nb: 2\nc: 3"
 		total := DiffViewTotalLines(yaml, yaml, nil, nil)
-		// 3 content lines + 1 header line = 4.
-		assert.Equal(t, 4, total)
+		// 3 content lines (header rendered outside scrollable area).
+		assert.Equal(t, 3, total)
 	})
 
 	t.Run("completely different content", func(t *testing.T) {
 		left := "a: 1\nb: 2"
 		right := "c: 3\nd: 4"
 		total := DiffViewTotalLines(left, right, nil, nil)
-		// No common lines: 2 left-only + 2 right-only = 4 diff lines + 1 header = 5.
-		assert.Equal(t, 5, total)
+		// No common lines: 2 left-only + 2 right-only = 4 diff lines.
+		assert.Equal(t, 4, total)
 	})
 
 	t.Run("empty content", func(t *testing.T) {
 		total := DiffViewTotalLines("", "", nil, nil)
-		// 0 diff lines + 1 header = 1.
-		assert.Equal(t, 1, total)
+		// 0 diff lines (header is rendered outside scrollable area).
+		assert.Equal(t, 0, total)
 	})
 }
 
