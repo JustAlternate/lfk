@@ -92,7 +92,7 @@ func (m Model) View() string {
 			}
 			view = strings.Join(viewLines, "\n")
 
-			overlay := ui.RenderHelpScreen(m.width, fullHeight-1, m.helpScroll, m.helpFilter.Value)
+			overlay := ui.RenderHelpScreen(m.width, fullHeight-1, m.helpScroll, m.helpFilter.Value, m.helpContextMode)
 			view = ui.PlaceOverlay(m.width, fullHeight, overlay, view)
 		}
 
@@ -115,7 +115,7 @@ func (m Model) View() string {
 	// The status bar (bottom line) already renders the help search prompt,
 	// so size the overlay to leave the bottom line uncovered.
 	if m.mode == modeHelp {
-		overlay := ui.RenderHelpScreen(m.width, m.height-1, m.helpScroll, m.helpFilter.Value)
+		overlay := ui.RenderHelpScreen(m.width, m.height-1, m.helpScroll, m.helpFilter.Value, m.helpContextMode)
 		view = ui.PlaceOverlay(m.width, m.height, overlay, view)
 	}
 

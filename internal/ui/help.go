@@ -20,8 +20,11 @@ type helpEntry struct {
 }
 
 // helpSection groups keybindings under a section header.
+// context identifies which view this section belongs to.
+// Empty context means the explorer (main) view.
 type helpSection struct {
 	title    string
+	context  string // e.g. "YAML View", "Log Viewer", "" for explorer
 	bindings []helpEntry
 }
 
@@ -133,7 +136,7 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title: "Error Log (" + kb.ErrorLog + ")",
+			title: "Error Log (" + kb.ErrorLog + ")", context: "Error Log",
 			bindings: []helpEntry{
 				{"j/k", "Scroll up/down"},
 				{"g/G", "Top/bottom"},
@@ -149,7 +152,7 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title: "YAML View",
+			title: "YAML View", context: "YAML View",
 			bindings: []helpEntry{
 				{"j/k", "Scroll up/down"},
 				{"h/l", "Move cursor column left/right"},
@@ -177,7 +180,7 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title: "Diff View",
+			title: "Diff View", context: "Diff View",
 			bindings: []helpEntry{
 				{"j/k", "Scroll up/down"},
 				{"g/G", "Top/bottom"},
@@ -190,7 +193,7 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title: "API Explorer",
+			title: "API Explorer", context: "API Explorer",
 			bindings: []helpEntry{
 				{"j/k", "Navigate fields"},
 				{"l/Enter", "Drill into field (Object/array types)"},
@@ -207,7 +210,7 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title: "Can-I Browser",
+			title: "Can-I Browser", context: "Can-I Browser",
 			bindings: []helpEntry{
 				{"j/k", "Navigate groups"},
 				{"J/K", "Scroll resource list down/up"},
@@ -222,7 +225,7 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title: "Can-I Subject Selector",
+			title: "Can-I Subject Selector", context: "Can-I Browser",
 			bindings: []helpEntry{
 				{"j/k", "Navigate subjects"},
 				{"/", "Filter subjects by name"},
@@ -233,7 +236,7 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title: "Network Policy Visualizer",
+			title: "Network Policy Visualizer", context: "Network Policy",
 			bindings: []helpEntry{
 				{"j/k", "Scroll up/down"},
 				{"g/G", "Top/bottom"},
@@ -243,7 +246,7 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title: "Log Viewer",
+			title: "Log Viewer", context: "Log Viewer",
 			bindings: []helpEntry{
 				{"j/k", "Move cursor up/down"},
 				{"h/l/left/right", "Move cursor column left/right"},
@@ -279,7 +282,7 @@ func helpSections() []helpSection {
 			},
 		},
 		{
-			title: "Exec Mode (embedded terminal)",
+			title: "Exec Mode (embedded terminal)", context: "Exec Mode",
 			bindings: []helpEntry{
 				{"Ctrl+]", "Prefix key (like tmux Ctrl+b)"},
 				{"Ctrl+] -> Ctrl+]", "Exit terminal and return to explorer"},
@@ -326,13 +329,27 @@ func helpSections() []helpSection {
 }
 
 // buildHelpLines builds the formatted help lines, optionally filtering by a query string.
-func buildHelpLines(filter string) []string {
+// contextMode limits sections to those matching the current view (empty = explorer).
+func buildHelpLines(filter, contextMode string) []string {
 	sections := helpSections()
 	lowerFilter := strings.ToLower(filter)
 
 	lines := make([]string, 0, 64)
 	keyW := 14
 	for si, section := range sections {
+		// Context filtering: when a context is active, show only sections
+		// that match that context. When no context (explorer), show only
+		// sections with empty context (explorer sections).
+		if contextMode == "" || contextMode == "Navigation" || contextMode == "Bookmarks" {
+			if section.context != "" {
+				continue
+			}
+		} else {
+			if section.context != contextMode {
+				continue
+			}
+		}
+
 		var sectionLines []string
 		for _, b := range section.bindings {
 			if filter != "" {
@@ -372,7 +389,8 @@ func buildHelpLines(filter string) []string {
 
 // RenderHelpScreen renders a full help overlay with all keybindings.
 // It supports scrolling via the scroll parameter and filtering via the filter parameter.
-func RenderHelpScreen(screenWidth, screenHeight, scroll int, filter string) string {
+// contextMode limits sections to the current view (empty = explorer).
+func RenderHelpScreen(screenWidth, screenHeight, scroll int, filter, contextMode string) string {
 	boxW := screenWidth * 70 / 100
 	boxH := screenHeight * 80 / 100
 	if boxW < 50 {
@@ -386,7 +404,7 @@ func RenderHelpScreen(screenWidth, screenHeight, scroll int, filter string) stri
 
 	title := OverlayTitleStyle.Render("Keybindings")
 
-	lines := buildHelpLines(filter)
+	lines := buildHelpLines(filter, contextMode)
 	totalLines := len(lines)
 
 	// Calculate visible area: title, borders, padding, help line.
