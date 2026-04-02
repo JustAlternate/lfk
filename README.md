@@ -77,7 +77,7 @@
 - **Custom user-defined actions**: Define custom shell commands per resource type in config
 - **Multi-select with bulk actions**: Select multiple resources with Space, range-select with Ctrl+Space, perform bulk delete, scale, restart, and ArgoCD bulk sync/refresh
 - **Resource sorting** by name, age, or status
-- **Filter and search**: Filter with `f`, search with `/`
+- **Filter and search**: Filter with `f`, search with `/` -- supports substring, regex (auto-detected), and fuzzy (`~` prefix) modes
 - **Abbreviated search**: Type `pvc`, `hpa`, `deploy` etc. to jump to resource types
 - **Watch mode**: Auto-refresh resources every 2 seconds (enabled by default)
 - **Owner/controller navigation**: Jump to the owner of any resource with `o`
@@ -570,7 +570,22 @@ abbreviations:
   eps: endpointslice
   netpol: networkpolicy
   rc: replicationcontroller
+```
 
+### Search Modes
+
+All search and filter inputs (explorer filter `f`, search `/`, YAML search, log search, diff search, and all overlay filters) support three modes, auto-detected from the query string:
+
+| Mode | Syntax | Example | Description |
+|---|---|---|---|
+| Substring | plain text | `nginx` | Case-insensitive substring match (default) |
+| Regex | auto-detected | `err[0-9]+` | When query contains regex metacharacters (`.` `*` `+` `?` `^` `$` `{` `}` `(` `)` `\|` `[` `]`), compiled as case-insensitive regex. Falls back to substring if regex is invalid |
+| Fuzzy | `~` prefix | `~deplymnt` | Each character must appear in order; results sorted by match quality in explorer filter |
+| Literal | `\` prefix | `\err.*` | Forces substring mode, treating metacharacters as literal text |
+
+The search bar shows `[RE]` for regex mode and `[~]` for fuzzy mode.
+
+```yaml
 # Custom actions per resource type (appear in action menu after built-in actions)
 # Template variables: {name}, {namespace}, {context}, {kind}, {<ColumnKey>}
 custom_actions:

@@ -383,7 +383,7 @@ func (m *Model) explainJumpToMatch(searchQuery string, startIdx int, forward boo
 		} else {
 			idx = (startIdx - i + fieldCount) % fieldCount
 		}
-		if strings.Contains(strings.ToLower(m.explainFields[idx].Name), query) {
+		if ui.MatchLine(m.explainFields[idx].Name, query) {
 			m.explainCursor = idx
 			// Adjust scroll to keep cursor visible.
 			if m.explainCursor < m.explainScroll {

@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 )
@@ -172,27 +171,10 @@ func ExpandDiffFoldForLine(regions []DiffFoldRegion, foldState []bool, origIdx i
 }
 
 // highlightDiffSearchInLine applies search highlighting to a plain text line.
-// It uses case-insensitive matching and the LogSearchHighlightStyle.
+// Supports substring, regex, and fuzzy search modes via HighlightMatch.
 func highlightDiffSearchInLine(line, query string) string {
 	if query == "" {
 		return line
 	}
-	queryLower := strings.ToLower(query)
-	lineLower := strings.ToLower(line)
-	if !strings.Contains(lineLower, queryLower) {
-		return line
-	}
-	var b strings.Builder
-	pos := 0
-	for pos < len(line) {
-		idx := strings.Index(strings.ToLower(line[pos:]), queryLower)
-		if idx < 0 {
-			b.WriteString(line[pos:])
-			break
-		}
-		b.WriteString(line[pos : pos+idx])
-		b.WriteString(LogSearchHighlightStyle.Render(line[pos+idx : pos+idx+len(query)]))
-		pos = pos + idx + len(query)
-	}
-	return b.String()
+	return HighlightMatch(line, query)
 }

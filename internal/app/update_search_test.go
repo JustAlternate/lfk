@@ -17,9 +17,9 @@ func TestExpandSearchQuery(t *testing.T) {
 		assert.Len(t, queries, 1)
 	})
 
-	t.Run("lowercases query", func(t *testing.T) {
+	t.Run("preserves original case", func(t *testing.T) {
 		queries := expandSearchQuery("NGINX")
-		assert.Contains(t, queries, "nginx")
+		assert.Contains(t, queries, "NGINX")
 	})
 }
 

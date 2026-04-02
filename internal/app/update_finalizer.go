@@ -7,6 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/janosmiko/lfk/internal/k8s"
+	"github.com/janosmiko/lfk/internal/ui"
 )
 
 // handleFinalizerSearchKey handles keyboard input for the finalizer search overlay.
@@ -198,13 +199,13 @@ func (m Model) filteredFinalizerResults() []k8s.FinalizerMatch {
 	if m.finalizerSearchFilter == "" {
 		return m.finalizerSearchResults
 	}
-	lower := strings.ToLower(m.finalizerSearchFilter)
+	rawQuery := m.finalizerSearchFilter
 	var filtered []k8s.FinalizerMatch
 	for _, r := range m.finalizerSearchResults {
-		if strings.Contains(strings.ToLower(r.Name), lower) ||
-			strings.Contains(strings.ToLower(r.Namespace), lower) ||
-			strings.Contains(strings.ToLower(r.Kind), lower) ||
-			strings.Contains(strings.ToLower(r.Matched), lower) {
+		if ui.MatchLine(r.Name, rawQuery) ||
+			ui.MatchLine(r.Namespace, rawQuery) ||
+			ui.MatchLine(r.Kind, rawQuery) ||
+			ui.MatchLine(r.Matched, rawQuery) {
 			filtered = append(filtered, r)
 		}
 	}

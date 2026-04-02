@@ -53,7 +53,8 @@ func (m Model) viewYAML() string {
 
 	// If search is active, show search bar instead of hints.
 	if m.yamlSearchMode {
-		searchBar := ui.HelpKeyStyle.Render("/") + ui.BarNormalStyle.Render(m.yamlSearchText.CursorLeft()) + ui.BarDimStyle.Render("\u2588") + ui.BarNormalStyle.Render(m.yamlSearchText.CursorRight())
+		yamlModeInd := ui.SearchModeIndicator(m.yamlSearchText.Value)
+		searchBar := ui.HelpKeyStyle.Render("/") + ui.BarDimStyle.Render(yamlModeInd) + ui.BarNormalStyle.Render(m.yamlSearchText.CursorLeft()) + ui.BarDimStyle.Render("\u2588") + ui.BarNormalStyle.Render(m.yamlSearchText.CursorRight())
 		hint = ui.StatusBarBgStyle.Width(m.width).MaxWidth(m.width).MaxHeight(1).Render(searchBar)
 	} else if m.yamlSearchText.Value != "" {
 		matchInfo := fmt.Sprintf(" [%d/%d]", m.yamlMatchIdx+1, len(m.yamlMatchLines))

@@ -239,17 +239,17 @@ func (m Model) handleTemplateFilterMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 // filteredTemplates returns templates matching the current template filter.
-// Matches against Name, Description, and Category (case-insensitive).
+// Matches against Name, Description, and Category using the shared search utility.
 func (m *Model) filteredTemplates() []model.ResourceTemplate {
 	if m.templateFilter.Value == "" {
 		return m.templateItems
 	}
-	filter := strings.ToLower(m.templateFilter.Value)
+	rawQuery := m.templateFilter.Value
 	var filtered []model.ResourceTemplate
 	for _, tmpl := range m.templateItems {
-		if strings.Contains(strings.ToLower(tmpl.Name), filter) ||
-			strings.Contains(strings.ToLower(tmpl.Description), filter) ||
-			strings.Contains(strings.ToLower(tmpl.Category), filter) {
+		if ui.MatchLine(tmpl.Name, rawQuery) ||
+			ui.MatchLine(tmpl.Description, rawQuery) ||
+			ui.MatchLine(tmpl.Category, rawQuery) {
 			filtered = append(filtered, tmpl)
 		}
 	}

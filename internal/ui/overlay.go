@@ -576,9 +576,8 @@ func RenderBookmarkOverlay(allBookmarks []model.Bookmark, filter string, cursor,
 	if filter == "" {
 		bookmarks = allBookmarks
 	} else {
-		lowerFilter := strings.ToLower(filter)
 		for _, bm := range allBookmarks {
-			if strings.Contains(strings.ToLower(bm.Name), lowerFilter) {
+			if MatchLine(bm.Name, filter) {
 				bookmarks = append(bookmarks, bm)
 			}
 		}

@@ -87,11 +87,13 @@ func (m Model) statusBar() string {
 
 	// Show filter/search input in status bar when active.
 	if m.filterActive {
-		prompt := ui.HelpKeyStyle.Render("filter") + ui.BarDimStyle.Render(": ") + m.filterInput.CursorLeft() + ui.BarDimStyle.Render("\u2588") + m.filterInput.CursorRight()
+		filterModeInd := ui.SearchModeIndicator(m.filterInput.Value)
+		prompt := ui.HelpKeyStyle.Render("filter") + ui.BarDimStyle.Render(": ") + ui.BarDimStyle.Render(filterModeInd) + m.filterInput.CursorLeft() + ui.BarDimStyle.Render("\u2588") + m.filterInput.CursorRight()
 		return ui.StatusBarBgStyle.Width(m.width).MaxWidth(m.width).Render(prompt)
 	}
 	if m.searchActive {
-		prompt := ui.HelpKeyStyle.Render("search") + ui.BarDimStyle.Render(": ") + m.searchInput.CursorLeft() + ui.BarDimStyle.Render("\u2588") + m.searchInput.CursorRight()
+		searchModeInd := ui.SearchModeIndicator(m.searchInput.Value)
+		prompt := ui.HelpKeyStyle.Render("search") + ui.BarDimStyle.Render(": ") + ui.BarDimStyle.Render(searchModeInd) + m.searchInput.CursorLeft() + ui.BarDimStyle.Render("\u2588") + m.searchInput.CursorRight()
 		return ui.StatusBarBgStyle.Width(m.width).MaxWidth(m.width).Render(prompt)
 	}
 	// When a status message is active, show it exclusively (hide key hints).

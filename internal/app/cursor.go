@@ -1,9 +1,11 @@
 package app
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/janosmiko/lfk/internal/model"
+	"github.com/janosmiko/lfk/internal/ui"
 )
 
 // parentIndex returns the index of the parent item in leftItems, or -1 if none.
@@ -249,12 +251,12 @@ func (m *Model) visibleMiddleItems() []model.Item {
 
 	// Apply text filter first.
 	if m.filterText != "" {
-		filter := strings.ToLower(m.filterText)
+		rawQuery := m.filterText
 
 		// First pass: determine which categories match the filter.
 		matchedCategories := make(map[string]bool)
 		for _, item := range items {
-			if item.Category != "" && strings.Contains(strings.ToLower(item.Category), filter) {
+			if item.Category != "" && ui.MatchLine(item.Category, rawQuery) {
 				matchedCategories[item.Category] = true
 			}
 		}
@@ -285,11 +287,33 @@ func (m *Model) visibleMiddleItems() []model.Item {
 					searchText += " " + kv.Value
 				}
 			}
-			if strings.Contains(strings.ToLower(searchText), filter) {
+			if ui.MatchLine(searchText, rawQuery) {
 				filtered = append(filtered, item)
 			}
 		}
 		items = filtered
+
+		// When in fuzzy mode, sort results by fuzzy score (best matches first).
+		mode, query := ui.DetectSearchMode(rawQuery)
+		if mode == ui.SearchFuzzy && query != "" {
+			type scoredItem struct {
+				item  model.Item
+				score int
+			}
+			scored := make([]scoredItem, 0, len(items))
+			for _, item := range items {
+				s := ui.FuzzyScore(item.Name, query)
+				scored = append(scored, scoredItem{item: item, score: s})
+			}
+			sort.SliceStable(scored, func(i, j int) bool {
+				return scored[i].score > scored[j].score
+			})
+			sortedItems := make([]model.Item, len(scored))
+			for i, si := range scored {
+				sortedItems[i] = si.item
+			}
+			items = sortedItems
+		}
 	}
 
 	// Apply collapsible group logic at LevelResourceTypes.
@@ -370,10 +394,10 @@ func (m *Model) filteredExplainRecursiveResults() []model.ExplainField {
 	if m.explainRecursiveFilter.Value == "" {
 		return m.explainRecursiveResults
 	}
-	filter := strings.ToLower(m.explainRecursiveFilter.Value)
+	rawQuery := m.explainRecursiveFilter.Value
 	var filtered []model.ExplainField
 	for _, f := range m.explainRecursiveResults {
-		if strings.Contains(strings.ToLower(f.Name), filter) || strings.Contains(strings.ToLower(f.Path), filter) {
+		if ui.MatchLine(f.Name, rawQuery) || ui.MatchLine(f.Path, rawQuery) {
 			filtered = append(filtered, f)
 		}
 	}
@@ -385,10 +409,10 @@ func (m *Model) filteredOverlayItems() []model.Item {
 	if m.overlayFilter.Value == "" {
 		return m.overlayItems
 	}
+	rawQuery := m.overlayFilter.Value
 	var filtered []model.Item
-	filter := strings.ToLower(m.overlayFilter.Value)
 	for _, item := range m.overlayItems {
-		if strings.Contains(strings.ToLower(item.Name), filter) {
+		if ui.MatchLine(item.Name, rawQuery) {
 			filtered = append(filtered, item)
 		}
 	}
@@ -400,10 +424,10 @@ func (m *Model) filteredLogPodItems() []model.Item {
 	if m.logPodFilterText == "" {
 		return m.overlayItems
 	}
+	rawQuery := m.logPodFilterText
 	var filtered []model.Item
-	filter := strings.ToLower(m.logPodFilterText)
 	for _, item := range m.overlayItems {
-		if strings.Contains(strings.ToLower(item.Name), filter) {
+		if ui.MatchLine(item.Name, rawQuery) {
 			filtered = append(filtered, item)
 		}
 	}
@@ -415,11 +439,11 @@ func (m *Model) filteredLogContainerItems() []model.Item {
 	if m.logContainerFilterText == "" {
 		return m.overlayItems
 	}
+	rawQuery := m.logContainerFilterText
 	var filtered []model.Item
-	filter := strings.ToLower(m.logContainerFilterText)
 	for _, item := range m.overlayItems {
 		// Always include the "All Containers" virtual item.
-		if item.Status == "all" || strings.Contains(strings.ToLower(item.Name), filter) {
+		if item.Status == "all" || ui.MatchLine(item.Name, rawQuery) {
 			filtered = append(filtered, item)
 		}
 	}

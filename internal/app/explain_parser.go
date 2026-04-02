@@ -5,6 +5,7 @@ import (
 	"unicode"
 
 	"github.com/janosmiko/lfk/internal/model"
+	"github.com/janosmiko/lfk/internal/ui"
 )
 
 // parseExplainOutput parses the output of `kubectl explain <resource>` and
@@ -297,7 +298,7 @@ func parseRecursiveExplainForSearch(output, query string) []model.ExplainField {
 		stack = append(stack, level{indent: indent, name: fieldName})
 
 		// When query is empty, return all fields (for namespace-selector-style browsing).
-		if lowerQuery == "" || strings.Contains(strings.ToLower(fieldName), lowerQuery) {
+		if lowerQuery == "" || ui.MatchLine(fieldName, query) {
 			results = append(results, model.ExplainField{
 				Name:        fieldName,
 				Type:        fieldType,

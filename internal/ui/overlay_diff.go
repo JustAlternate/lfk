@@ -326,10 +326,11 @@ func RenderDiffView(left, right, leftName, rightName string, scroll, width, heig
 	// Hint bar.
 	var hint string
 	if searchMode {
+		diffModeInd := SearchModeIndicator(searchInput)
 		searchBar := HelpKeyStyle.Render("type: search") + BarDimStyle.Render(" | ") +
 			HelpKeyStyle.Render("enter") + BarDimStyle.Render(": apply | ") +
 			HelpKeyStyle.Render("esc") + BarDimStyle.Render(": cancel") +
-			BarDimStyle.Render("  /") + BarNormalStyle.Render(searchInput) + BarDimStyle.Render("\u2588")
+			BarDimStyle.Render("  /") + BarDimStyle.Render(diffModeInd) + BarNormalStyle.Render(searchInput) + BarDimStyle.Render("\u2588")
 		hint = StatusBarBgStyle.Width(width).MaxWidth(width).MaxHeight(1).Render(searchBar)
 	} else if vp.VisualMode {
 		hintContent := FormatHintParts([]HintEntry{
@@ -549,10 +550,11 @@ func RenderUnifiedDiffView(left, right, leftName, rightName string, scroll, widt
 	// Hint bar.
 	var hint string
 	if searchMode {
+		diffModeInd := SearchModeIndicator(searchInput)
 		searchBar := HelpKeyStyle.Render("type: search") + BarDimStyle.Render(" | ") +
 			HelpKeyStyle.Render("enter") + BarDimStyle.Render(": apply | ") +
 			HelpKeyStyle.Render("esc") + BarDimStyle.Render(": cancel") +
-			BarDimStyle.Render("  /") + BarNormalStyle.Render(searchInput) + BarDimStyle.Render("\u2588")
+			BarDimStyle.Render("  /") + BarDimStyle.Render(diffModeInd) + BarNormalStyle.Render(searchInput) + BarDimStyle.Render("\u2588")
 		hint = StatusBarBgStyle.Width(width).MaxWidth(width).MaxHeight(1).Render(searchBar)
 	} else if vp.VisualMode {
 		hintContent := FormatHintParts([]HintEntry{
@@ -593,14 +595,13 @@ func UnifiedDiffViewTotalLines(left, right string, foldRegions []DiffFoldRegion,
 }
 
 // UpdateDiffSearchMatches finds all diff line indices where the content on the
-// specified side matches the query (case-insensitive).
+// specified side matches the query. Supports substring, regex, and fuzzy modes.
 // side: 0=left, 1=right. unified=true searches both sides.
 func UpdateDiffSearchMatches(left, right, query string, side int, unified bool) []int {
 	if query == "" {
 		return nil
 	}
 	diffLines := computeDiff(left, right)
-	queryLower := strings.ToLower(query)
 	var matches []int
 	for i, dl := range diffLines {
 		var text string
@@ -615,7 +616,7 @@ func UpdateDiffSearchMatches(left, right, query string, side int, unified bool) 
 		} else {
 			text = dl.right
 		}
-		if strings.Contains(strings.ToLower(text), queryLower) {
+		if MatchLine(text, query) {
 			matches = append(matches, i)
 		}
 	}
@@ -624,15 +625,9 @@ func UpdateDiffSearchMatches(left, right, query string, side int, unified bool) 
 
 // DiffSearchColumnInLine returns the rune column of the first match of query
 // in the given diff line text, or -1 if not found.
+// Supports substring, regex, and fuzzy search modes.
 func DiffSearchColumnInLine(lineText, query string) int {
-	if query == "" || lineText == "" {
-		return -1
-	}
-	col := strings.Index(strings.ToLower(lineText), strings.ToLower(query))
-	if col < 0 {
-		return -1
-	}
-	return len([]rune(lineText[:col]))
+	return FindColumnInLine(lineText, query)
 }
 
 // DiffVisibleIndexForOriginal finds the visible line index corresponding to

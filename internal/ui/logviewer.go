@@ -80,7 +80,8 @@ func RenderLogViewer(lines []string, scroll, width, height int, follow, wrap, li
 		}
 		footer = StatusBarBgStyle.Width(width).MaxWidth(width).MaxHeight(1).Render(style.Render(statusMsg))
 	} else if searchActive {
-		prompt := HelpKeyStyle.Render("/") + BarDimStyle.Render(": ") + searchInput + BarDimStyle.Render("\u2588") + BarDimStyle.Render("  (enter:apply  esc:cancel)")
+		modeInd := SearchModeIndicator(searchInput)
+		prompt := HelpKeyStyle.Render("/") + BarDimStyle.Render(": ") + BarDimStyle.Render(modeInd) + searchInput + BarDimStyle.Render("\u2588") + BarDimStyle.Render("  (enter:apply  esc:cancel)")
 		footer = StatusBarBgStyle.Width(width).MaxWidth(width).MaxHeight(1).Render(prompt)
 	} else if visualMode {
 		footer = RenderHintBar([]HintEntry{
@@ -217,29 +218,11 @@ func RenderLogViewer(lines []string, scroll, width, height int, follow, wrap, li
 }
 
 // highlightSearchMatches highlights occurrences of query in each line.
+// Supports substring, regex, and fuzzy search modes via HighlightMatch.
 func highlightSearchMatches(lines []string, query string) []string {
-	queryLower := strings.ToLower(query)
 	result := make([]string, len(lines))
 	for i, line := range lines {
-		lineLower := strings.ToLower(line)
-		if !strings.Contains(lineLower, queryLower) {
-			result[i] = line
-			continue
-		}
-		// Highlight all occurrences (case-insensitive).
-		var b strings.Builder
-		pos := 0
-		for pos < len(line) {
-			idx := strings.Index(strings.ToLower(line[pos:]), queryLower)
-			if idx < 0 {
-				b.WriteString(line[pos:])
-				break
-			}
-			b.WriteString(line[pos : pos+idx])
-			b.WriteString(LogSearchHighlightStyle.Render(line[pos+idx : pos+idx+len(query)]))
-			pos = pos + idx + len(query)
-		}
-		result[i] = b.String()
+		result[i] = HighlightMatch(line, query)
 	}
 	return result
 }

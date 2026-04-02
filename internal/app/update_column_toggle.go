@@ -249,10 +249,10 @@ func (m *Model) filteredColumnToggleItems() []columnToggleEntry {
 	if m.columnToggleFilter == "" {
 		return m.columnToggleItems
 	}
-	lower := strings.ToLower(m.columnToggleFilter)
+	rawQuery := m.columnToggleFilter
 	var filtered []columnToggleEntry
 	for _, e := range m.columnToggleItems {
-		if strings.Contains(strings.ToLower(e.key), lower) {
+		if ui.MatchLine(e.key, rawQuery) {
 			filtered = append(filtered, e)
 		}
 	}

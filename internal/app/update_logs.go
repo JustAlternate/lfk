@@ -785,7 +785,7 @@ func (m *Model) findNextLogMatch(forward bool) {
 	if m.logSearchQuery == "" {
 		return
 	}
-	query := strings.ToLower(m.logSearchQuery)
+	rawQuery := m.logSearchQuery
 	start := m.logCursor
 	if start < 0 {
 		start = m.logScroll
@@ -814,22 +814,43 @@ func (m *Model) findNextLogMatch(forward bool) {
 	// findFirstMatch finds the first match in a line and jumps to it.
 	findFirstMatch := func(lineIdx int) bool {
 		dl := displayLine(lineIdx)
-		col := strings.Index(strings.ToLower(dl), query)
+		col := ui.FindColumnInLine(dl, rawQuery)
 		if col < 0 {
 			return false
 		}
-		jumpToCol(lineIdx, len([]rune(dl[:col])))
+		jumpToCol(lineIdx, col)
 		return true
 	}
 
 	// findLastMatch finds the last match in a line and jumps to it.
+	// Iterates to find the rightmost match.
 	findLastMatch := func(lineIdx int) bool {
 		dl := displayLine(lineIdx)
-		col := strings.LastIndex(strings.ToLower(dl), query)
-		if col < 0 {
+		if !ui.MatchLine(dl, rawQuery) {
 			return false
 		}
-		jumpToCol(lineIdx, len([]rune(dl[:col])))
+		// Find the last match by iterating forward.
+		lastCol := -1
+		remaining := dl
+		offset := 0
+		for {
+			col := ui.FindColumnInLine(remaining, rawQuery)
+			if col < 0 {
+				break
+			}
+			lastCol = offset + col
+			advanceRunes := col + 1
+			runes := []rune(remaining)
+			if advanceRunes >= len(runes) {
+				break
+			}
+			remaining = string(runes[advanceRunes:])
+			offset += advanceRunes
+		}
+		if lastCol < 0 {
+			return false
+		}
+		jumpToCol(lineIdx, lastCol)
 		return true
 	}
 
@@ -837,13 +858,13 @@ func (m *Model) findNextLogMatch(forward bool) {
 		// First: check for another match on the current line after the cursor.
 		if start >= 0 && start < len(m.logLines) {
 			dl := displayLine(start)
-			// Search after current cursor column position (in bytes).
+			// Search after current cursor column position.
 			curBytePos := len(string([]rune(dl)[:m.logVisualCurCol+1]))
 			if curBytePos < len(dl) {
 				remainder := dl[curBytePos:]
-				idx := strings.Index(strings.ToLower(remainder), query)
-				if idx >= 0 {
-					runeCol := len([]rune(dl[:curBytePos+idx]))
+				col := ui.FindColumnInLine(remainder, rawQuery)
+				if col >= 0 {
+					runeCol := m.logVisualCurCol + 1 + col
 					jumpToCol(start, runeCol)
 					return
 				}
@@ -858,7 +879,6 @@ func (m *Model) findNextLogMatch(forward bool) {
 		// Wrap around.
 		for i := 0; i <= start; i++ {
 			if i == start {
-				// On wrap-around to the same line, find the first match.
 				if findFirstMatch(i) {
 					return
 				}
@@ -873,9 +893,26 @@ func (m *Model) findNextLogMatch(forward bool) {
 			curBytePos := len(string([]rune(dl)[:m.logVisualCurCol]))
 			if curBytePos > 0 {
 				prefix := dl[:curBytePos]
-				idx := strings.LastIndex(strings.ToLower(prefix), query)
-				if idx >= 0 {
-					jumpToCol(start, len([]rune(prefix[:idx])))
+				// Find last match in prefix.
+				lastCol := -1
+				remaining := prefix
+				offset := 0
+				for {
+					col := ui.FindColumnInLine(remaining, rawQuery)
+					if col < 0 {
+						break
+					}
+					lastCol = offset + col
+					advanceRunes := col + 1
+					runes := []rune(remaining)
+					if advanceRunes >= len(runes) {
+						break
+					}
+					remaining = string(runes[advanceRunes:])
+					offset += advanceRunes
+				}
+				if lastCol >= 0 {
+					jumpToCol(start, lastCol)
 					return
 				}
 			}

@@ -879,10 +879,9 @@ func (m *Model) yamlScrollToMatchFolded(viewportLines int) {
 	// (which includes fold prefixes).
 	visibleLines, _ := buildVisibleLines(m.yamlContent, m.yamlSections, m.yamlCollapsed)
 	if visIdx >= 0 && visIdx < len(visibleLines) {
-		query := strings.ToLower(m.yamlSearchText.Value)
-		col := strings.Index(strings.ToLower(visibleLines[visIdx]), query)
+		col := ui.FindColumnInLine(visibleLines[visIdx], m.yamlSearchText.Value)
 		if col >= 0 {
-			m.yamlVisualCurCol = len([]rune(visibleLines[visIdx][:col]))
+			m.yamlVisualCurCol = col
 		}
 	}
 	m.yamlScroll = visIdx - viewportLines/2
@@ -901,7 +900,7 @@ func (m *Model) yamlNextIntraLineMatch(forward bool) bool {
 	if m.yamlSearchText.Value == "" {
 		return false
 	}
-	query := strings.ToLower(m.yamlSearchText.Value)
+	rawQuery := m.yamlSearchText.Value
 
 	// Use visible lines (which include fold prefixes) for accurate column positions.
 	visibleLines, _ := buildVisibleLines(m.yamlContent, m.yamlSections, m.yamlCollapsed)
@@ -909,23 +908,45 @@ func (m *Model) yamlNextIntraLineMatch(forward bool) bool {
 		return false
 	}
 	line := visibleLines[m.yamlCursor]
-	lineLower := strings.ToLower(line)
 
 	if forward {
+		// Search for a match after the current cursor position.
 		curBytePos := len(string([]rune(line)[:m.yamlVisualCurCol+1]))
-		if curBytePos < len(lineLower) {
-			idx := strings.Index(lineLower[curBytePos:], query)
-			if idx >= 0 {
-				m.yamlVisualCurCol = len([]rune(line[:curBytePos+idx]))
+		if curBytePos < len(line) {
+			remainder := line[curBytePos:]
+			col := ui.FindColumnInLine(remainder, rawQuery)
+			if col >= 0 {
+				m.yamlVisualCurCol = m.yamlVisualCurCol + 1 + col
 				return true
 			}
 		}
 	} else {
+		// Search for a match before the current cursor position.
 		curBytePos := len(string([]rune(line)[:m.yamlVisualCurCol]))
 		if curBytePos > 0 {
-			idx := strings.LastIndex(lineLower[:curBytePos], query)
-			if idx >= 0 {
-				m.yamlVisualCurCol = len([]rune(line[:idx]))
+			prefix := line[:curBytePos]
+			// For backward search, find the last match in the prefix.
+			// FindColumnInLine returns the first match; iterate to find the last.
+			lastCol := -1
+			remaining := prefix
+			offset := 0
+			for {
+				col := ui.FindColumnInLine(remaining, rawQuery)
+				if col < 0 {
+					break
+				}
+				lastCol = offset + col
+				// Advance past this match to find the next one.
+				advanceRunes := col + 1
+				runes := []rune(remaining)
+				if advanceRunes >= len(runes) {
+					break
+				}
+				remaining = string(runes[advanceRunes:])
+				offset += advanceRunes
+			}
+			if lastCol >= 0 {
+				m.yamlVisualCurCol = lastCol
 				return true
 			}
 		}
@@ -934,14 +955,15 @@ func (m *Model) yamlNextIntraLineMatch(forward bool) bool {
 }
 
 // updateYAMLSearchMatches finds all lines matching the current search text.
+// Supports substring, regex, and fuzzy search modes.
 func (m *Model) updateYAMLSearchMatches() {
 	m.yamlMatchLines = nil
 	if m.yamlSearchText.Value == "" {
 		return
 	}
-	query := strings.ToLower(m.yamlSearchText.Value)
+	rawQuery := m.yamlSearchText.Value
 	for i, line := range strings.Split(m.yamlContent, "\n") {
-		if strings.Contains(strings.ToLower(line), query) {
+		if ui.MatchLine(line, rawQuery) {
 			m.yamlMatchLines = append(m.yamlMatchLines, i)
 		}
 	}

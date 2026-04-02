@@ -195,8 +195,9 @@ func (m Model) handleSearchKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // expandSearchQuery returns the query and its abbreviation expansion (if any).
 func expandSearchQuery(query string) []string {
+	queries := []string{query}
+	// Check abbreviation with lowercase (abbreviations are case-insensitive).
 	q := strings.ToLower(query)
-	queries := []string{q}
 	if expanded, ok := ui.SearchAbbreviations[q]; ok {
 		queries = append(queries, expanded)
 	}
@@ -204,9 +205,8 @@ func expandSearchQuery(query string) []string {
 }
 
 func (m *Model) searchMatches(name string, queries []string) bool {
-	lower := strings.ToLower(name)
 	for _, q := range queries {
-		if strings.Contains(lower, q) {
+		if ui.MatchLine(name, q) {
 			return true
 		}
 	}

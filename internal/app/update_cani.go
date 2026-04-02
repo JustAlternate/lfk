@@ -7,6 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/janosmiko/lfk/internal/k8s"
 	"github.com/janosmiko/lfk/internal/model"
+	"github.com/janosmiko/lfk/internal/ui"
 )
 
 // openCanIBrowser starts loading the can-i browser data.
@@ -288,7 +289,7 @@ func (m *Model) canIVisibleGroups() []int {
 		if name == "" {
 			name = "core"
 		}
-		if strings.Contains(strings.ToLower(name), strings.ToLower(query)) {
+		if ui.MatchLine(name, query) {
 			indices = append(indices, i)
 		}
 	}

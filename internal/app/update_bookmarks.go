@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/janosmiko/lfk/internal/model"
+	"github.com/janosmiko/lfk/internal/ui"
 )
 
 // --- Bookmark handlers ---
@@ -116,10 +117,10 @@ func (m *Model) filteredBookmarks() []model.Bookmark {
 	if m.bookmarkFilter.Value == "" {
 		return append([]model.Bookmark(nil), m.bookmarks...)
 	}
-	filter := strings.ToLower(m.bookmarkFilter.Value)
+	rawQuery := m.bookmarkFilter.Value
 	var filtered []model.Bookmark
 	for _, bm := range m.bookmarks {
-		if strings.Contains(strings.ToLower(bm.Name), filter) {
+		if ui.MatchLine(bm.Name, rawQuery) {
 			filtered = append(filtered, bm)
 		}
 	}

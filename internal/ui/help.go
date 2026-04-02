@@ -59,8 +59,8 @@ func helpSections() []helpSection {
 			title: "Views",
 			bindings: []helpEntry{
 				{kb.Help + " / F1", "Toggle help screen"},
-				{kb.Filter, "Filter items in current view"},
-				{kb.Search, "Search and jump to match"},
+				{kb.Filter, "Filter items (~prefix: fuzzy, regex auto-detected, \\prefix: literal)"},
+				{kb.Search, "Search and jump to match (~fuzzy, regex auto, \\literal)"},
 				{kb.NextMatch, "Next search match"},
 				{kb.PrevMatch, "Previous search match"},
 				{kb.TogglePreview, "Toggle between details and YAML preview"},
@@ -363,8 +363,6 @@ func helpSections() []helpSection {
 // contextMode limits sections to those matching the current view (empty = explorer).
 func buildHelpLines(filter, contextMode string) []string {
 	sections := helpSections()
-	lowerFilter := strings.ToLower(filter)
-
 	lines := make([]string, 0, 64)
 	keyW := 14
 	for si, section := range sections {
@@ -384,9 +382,7 @@ func buildHelpLines(filter, contextMode string) []string {
 		var sectionLines []string
 		for _, b := range section.bindings {
 			if filter != "" {
-				lowerKey := strings.ToLower(b.key)
-				lowerDesc := strings.ToLower(b.desc)
-				if !strings.Contains(lowerKey, lowerFilter) && !strings.Contains(lowerDesc, lowerFilter) {
+				if !MatchLine(b.key, filter) && !MatchLine(b.desc, filter) {
 					continue
 				}
 			}
