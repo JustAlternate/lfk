@@ -470,15 +470,21 @@ func (m Model) handleYAMLKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.yamlMatchIdx = 0
 		return m, nil
 	case "n":
-		// Next match.
+		// Next match: first check for another match on the current line after cursor.
 		if len(m.yamlMatchLines) > 0 {
+			if m.yamlNextIntraLineMatch(true) {
+				return m, nil
+			}
 			m.yamlMatchIdx = (m.yamlMatchIdx + 1) % len(m.yamlMatchLines)
 			m.yamlScrollToMatchFolded(viewportLines)
 		}
 		return m, nil
 	case "N":
-		// Previous match.
+		// Previous match: first check for a match on the current line before cursor.
 		if len(m.yamlMatchLines) > 0 {
+			if m.yamlNextIntraLineMatch(false) {
+				return m, nil
+			}
 			m.yamlMatchIdx--
 			if m.yamlMatchIdx < 0 {
 				m.yamlMatchIdx = len(m.yamlMatchLines) - 1
@@ -832,13 +838,14 @@ func (m *Model) yamlScrollToMatchFolded(viewportLines int) {
 
 	// Move cursor to the match and center it in the viewport.
 	m.yamlCursor = visIdx
-	// Move cursor column to the match position within the line.
-	yamlLines := strings.Split(m.yamlContent, "\n")
-	if targetOrig >= 0 && targetOrig < len(yamlLines) {
+	// Move cursor column to the match position within the visible line
+	// (which includes fold prefixes).
+	visibleLines, _ := buildVisibleLines(m.yamlContent, m.yamlSections, m.yamlCollapsed)
+	if visIdx >= 0 && visIdx < len(visibleLines) {
 		query := strings.ToLower(m.yamlSearchText.Value)
-		col := strings.Index(strings.ToLower(yamlLines[targetOrig]), query)
+		col := strings.Index(strings.ToLower(visibleLines[visIdx]), query)
 		if col >= 0 {
-			m.yamlVisualCurCol = len([]rune(yamlLines[targetOrig][:col]))
+			m.yamlVisualCurCol = len([]rune(visibleLines[visIdx][:col]))
 		}
 	}
 	m.yamlScroll = visIdx - viewportLines/2
@@ -848,6 +855,45 @@ func (m *Model) yamlScrollToMatchFolded(viewportLines int) {
 	if m.yamlScroll < 0 {
 		m.yamlScroll = 0
 	}
+}
+
+// yamlNextIntraLineMatch checks for another match on the current YAML line
+// after (forward=true) or before (forward=false) the cursor column.
+// Returns true if a match was found and cursor was moved.
+func (m *Model) yamlNextIntraLineMatch(forward bool) bool {
+	if m.yamlSearchText.Value == "" {
+		return false
+	}
+	query := strings.ToLower(m.yamlSearchText.Value)
+
+	// Use visible lines (which include fold prefixes) for accurate column positions.
+	visibleLines, _ := buildVisibleLines(m.yamlContent, m.yamlSections, m.yamlCollapsed)
+	if m.yamlCursor < 0 || m.yamlCursor >= len(visibleLines) {
+		return false
+	}
+	line := visibleLines[m.yamlCursor]
+	lineLower := strings.ToLower(line)
+
+	if forward {
+		curBytePos := len(string([]rune(line)[:m.yamlVisualCurCol+1]))
+		if curBytePos < len(lineLower) {
+			idx := strings.Index(lineLower[curBytePos:], query)
+			if idx >= 0 {
+				m.yamlVisualCurCol = len([]rune(line[:curBytePos+idx]))
+				return true
+			}
+		}
+	} else {
+		curBytePos := len(string([]rune(line)[:m.yamlVisualCurCol]))
+		if curBytePos > 0 {
+			idx := strings.LastIndex(lineLower[:curBytePos], query)
+			if idx >= 0 {
+				m.yamlVisualCurCol = len([]rune(line[:idx]))
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // updateYAMLSearchMatches finds all lines matching the current search text.

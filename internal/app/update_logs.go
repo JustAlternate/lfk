@@ -791,50 +791,108 @@ func (m *Model) findNextLogMatch(forward bool) {
 		start = m.logScroll
 	}
 
-	jumpToMatch := func(lineIdx int) {
-		m.logCursor = lineIdx
-		// Compute cursor column against the display line (after stripping
-		// timestamps and prefixes) so the cursor lands on the visible match.
-		displayLine := m.logLines[lineIdx]
+	// displayLine returns the line as shown on screen (timestamps/prefixes stripped).
+	displayLine := func(lineIdx int) string {
+		line := m.logLines[lineIdx]
 		if !m.logTimestamps {
-			displayLine = ui.StripTimestamp(displayLine)
+			line = ui.StripTimestamp(line)
 		}
 		if m.logHidePrefixes {
-			displayLine = ui.StripPodPrefix(displayLine)
+			line = ui.StripPodPrefix(line)
 		}
-		col := strings.Index(strings.ToLower(displayLine), query)
-		if col >= 0 {
-			m.logVisualCurCol = len([]rune(displayLine[:col]))
-		}
+		return line
+	}
+
+	// jumpToCol sets the cursor to the given line and rune column.
+	jumpToCol := func(lineIdx, runeCol int) {
+		m.logCursor = lineIdx
+		m.logVisualCurCol = runeCol
 		m.logFollow = false
 		m.ensureLogCursorVisible()
 	}
 
+	// findFirstMatch finds the first match in a line and jumps to it.
+	findFirstMatch := func(lineIdx int) bool {
+		dl := displayLine(lineIdx)
+		col := strings.Index(strings.ToLower(dl), query)
+		if col < 0 {
+			return false
+		}
+		jumpToCol(lineIdx, len([]rune(dl[:col])))
+		return true
+	}
+
+	// findLastMatch finds the last match in a line and jumps to it.
+	findLastMatch := func(lineIdx int) bool {
+		dl := displayLine(lineIdx)
+		col := strings.LastIndex(strings.ToLower(dl), query)
+		if col < 0 {
+			return false
+		}
+		jumpToCol(lineIdx, len([]rune(dl[:col])))
+		return true
+	}
+
 	if forward {
+		// First: check for another match on the current line after the cursor.
+		if start >= 0 && start < len(m.logLines) {
+			dl := displayLine(start)
+			// Search after current cursor column position (in bytes).
+			curBytePos := len(string([]rune(dl)[:m.logVisualCurCol+1]))
+			if curBytePos < len(dl) {
+				remainder := dl[curBytePos:]
+				idx := strings.Index(strings.ToLower(remainder), query)
+				if idx >= 0 {
+					runeCol := len([]rune(dl[:curBytePos+idx]))
+					jumpToCol(start, runeCol)
+					return
+				}
+			}
+		}
+		// Then: search subsequent lines.
 		for i := start + 1; i < len(m.logLines); i++ {
-			if strings.Contains(strings.ToLower(m.logLines[i]), query) {
-				jumpToMatch(i)
+			if findFirstMatch(i) {
 				return
 			}
 		}
 		// Wrap around.
 		for i := 0; i <= start; i++ {
-			if strings.Contains(strings.ToLower(m.logLines[i]), query) {
-				jumpToMatch(i)
+			if i == start {
+				// On wrap-around to the same line, find the first match.
+				if findFirstMatch(i) {
+					return
+				}
+			} else if findFirstMatch(i) {
 				return
 			}
 		}
 	} else {
+		// First: check for a match on the current line before the cursor.
+		if start >= 0 && start < len(m.logLines) {
+			dl := displayLine(start)
+			curBytePos := len(string([]rune(dl)[:m.logVisualCurCol]))
+			if curBytePos > 0 {
+				prefix := dl[:curBytePos]
+				idx := strings.LastIndex(strings.ToLower(prefix), query)
+				if idx >= 0 {
+					jumpToCol(start, len([]rune(prefix[:idx])))
+					return
+				}
+			}
+		}
+		// Then: search preceding lines.
 		for i := start - 1; i >= 0; i-- {
-			if strings.Contains(strings.ToLower(m.logLines[i]), query) {
-				jumpToMatch(i)
+			if findLastMatch(i) {
 				return
 			}
 		}
 		// Wrap around.
 		for i := len(m.logLines) - 1; i >= start; i-- {
-			if strings.Contains(strings.ToLower(m.logLines[i]), query) {
-				jumpToMatch(i)
+			if i == start {
+				if findLastMatch(i) {
+					return
+				}
+			} else if findLastMatch(i) {
 				return
 			}
 		}

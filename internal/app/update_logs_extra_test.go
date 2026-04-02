@@ -209,14 +209,46 @@ func TestLogSearchJumpsCursorColumn(t *testing.T) {
 		width:           80,
 		height:          40,
 	}
-	// Forward search: should jump to line 0 col 13 ("error" starts at byte 13 in "start middle_error end").
-	// Actually line 0 contains "error" at position 13. But since cursor is already on line 0,
-	// forward search skips to the next match on line 2.
+	// Forward search from col 0: finds "error" at col 13 on the same line.
 	ret, _ := m.handleLogKey(runeKey('n'))
 	result := ret.(Model)
-	assert.Equal(t, 2, result.logCursor)
-	// "error" in "another error_here" starts at column 8.
-	assert.Equal(t, 8, result.logVisualCurCol)
+	assert.Equal(t, 0, result.logCursor)
+	assert.Equal(t, 13, result.logVisualCurCol)
+
+	// Next match: no more matches on line 0 after col 13, jumps to line 2.
+	ret2, _ := result.handleLogKey(runeKey('n'))
+	result2 := ret2.(Model)
+	assert.Equal(t, 2, result2.logCursor)
+	assert.Equal(t, 8, result2.logVisualCurCol)
+}
+
+func TestLogSearchIntraLineMultipleMatches(t *testing.T) {
+	m := Model{
+		mode:            modeLogs,
+		logLines:        []string{"error first error second error third"},
+		logSearchQuery:  "error",
+		logCursor:       0,
+		logVisualCurCol: 0,
+		tabs:            []TabState{{}},
+		width:           80,
+		height:          40,
+	}
+	// First match at col 0 -> next at col 12 -> next at col 25 -> wraps to col 0.
+	ret, _ := m.handleLogKey(runeKey('n'))
+	r := ret.(Model)
+	assert.Equal(t, 0, r.logCursor)
+	assert.Equal(t, 12, r.logVisualCurCol)
+
+	ret2, _ := r.handleLogKey(runeKey('n'))
+	r2 := ret2.(Model)
+	assert.Equal(t, 0, r2.logCursor)
+	assert.Equal(t, 25, r2.logVisualCurCol)
+
+	// Next wraps around to col 0.
+	ret3, _ := r2.handleLogKey(runeKey('n'))
+	r3 := ret3.(Model)
+	assert.Equal(t, 0, r3.logCursor)
+	assert.Equal(t, 0, r3.logVisualCurCol)
 }
 
 func TestLogKeyGGGoesToTop(t *testing.T) {
