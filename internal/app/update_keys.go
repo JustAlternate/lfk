@@ -43,7 +43,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Tab switching keys work in all fullscreen modes (YAML, Logs, Describe, Diff, Help)
 	// as long as the user is not in a text input sub-mode (search, etc.).
 	kb := ui.ActiveKeybindings
-	if m.mode != modeExplorer && m.mode != modeExec && !m.yamlSearchMode && !m.logSearchActive && !m.helpSearchActive && !m.explainSearchActive {
+	if m.mode != modeExplorer && m.mode != modeExec && !m.yamlSearchMode && !m.logSearchActive && !m.helpSearchActive && !m.explainSearchActive && !m.diffSearchMode {
 		switch msg.String() {
 		case kb.NextTab:
 			if len(m.tabs) > 1 {

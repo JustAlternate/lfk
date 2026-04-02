@@ -446,6 +446,12 @@ type Model struct {
 	diffUnified     bool   // true = unified diff, false = side-by-side
 	diffLineNumbers bool   // show line numbers in diff view
 	diffLineInput   string // digit accumulator for jump-to-line (digits + G)
+	diffSearchMode  bool   // true when typing in the search bar
+	diffSearchText  TextInput
+	diffSearchQuery string // committed search query
+	diffMatchLines  []int  // diff line indices with matches
+	diffMatchIdx    int    // current match index in diffMatchLines
+	diffFoldState   []bool // per-unchanged-region collapsed state
 
 	// Embedded terminal state (PTY mode).
 	execPTY        *os.File       // PTY master file descriptor

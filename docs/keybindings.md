@@ -202,6 +202,10 @@ All other keys are forwarded to the PTY process. The PTY session continues runni
 | `gg` / `G` | Jump to top / bottom |
 | `Ctrl+D` / `Ctrl+U` | Page down / up (half page) |
 | `Ctrl+F` / `Ctrl+B` | Page down / up (full page) |
+| `/` | Search in diff |
+| `n` / `N` | Next / previous search match |
+| `Tab` / `z` | Toggle fold unchanged section |
+| `Z` | Toggle all folds |
 | `#` | Toggle line numbers |
 | `123G` | Jump to line number |
 | `u` | Toggle unified/side-by-side view |

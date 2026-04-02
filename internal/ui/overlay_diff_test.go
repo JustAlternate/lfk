@@ -96,7 +96,7 @@ func TestRenderUnifiedDiffView(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := RenderUnifiedDiffView(tt.left, tt.right, tt.leftName, tt.rightName, tt.scroll, tt.width, tt.height, tt.lineNums)
+			result := RenderUnifiedDiffView(tt.left, tt.right, tt.leftName, tt.rightName, tt.scroll, tt.width, tt.height, tt.lineNums, "", nil, nil, false, "")
 			for _, sub := range tt.wantSubstr {
 				assert.Contains(t, result, sub, "result should contain %q", sub)
 			}
@@ -152,7 +152,7 @@ func TestUnifiedDiffViewTotalLines(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, UnifiedDiffViewTotalLines(tt.left, tt.right))
+			assert.Equal(t, tt.expected, UnifiedDiffViewTotalLines(tt.left, tt.right, nil, nil))
 		})
 	}
 }

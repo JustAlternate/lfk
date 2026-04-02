@@ -109,10 +109,12 @@ func (m Model) viewExplain() string {
 }
 
 func (m Model) viewDiff() string {
+	foldRegions := ui.ComputeDiffFoldRegions(m.diffLeft, m.diffRight)
+	searchInput := m.diffSearchText.Value
 	if m.diffUnified {
-		return ui.RenderUnifiedDiffView(m.diffLeft, m.diffRight, m.diffLeftName, m.diffRightName, m.diffScroll, m.width, m.height, m.diffLineNumbers)
+		return ui.RenderUnifiedDiffView(m.diffLeft, m.diffRight, m.diffLeftName, m.diffRightName, m.diffScroll, m.width, m.height, m.diffLineNumbers, m.diffSearchQuery, foldRegions, m.diffFoldState, m.diffSearchMode, searchInput)
 	}
-	return ui.RenderDiffView(m.diffLeft, m.diffRight, m.diffLeftName, m.diffRightName, m.diffScroll, m.width, m.height, m.diffLineNumbers)
+	return ui.RenderDiffView(m.diffLeft, m.diffRight, m.diffLeftName, m.diffRightName, m.diffScroll, m.width, m.height, m.diffLineNumbers, m.diffSearchQuery, foldRegions, m.diffFoldState, m.diffSearchMode, searchInput)
 }
 
 func (m Model) logViewHeight() int {

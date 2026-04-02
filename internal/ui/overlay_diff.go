@@ -76,19 +76,25 @@ func computeDiff(leftText, rightText string) []diffLine {
 	return result
 }
 
-// DiffViewTotalLines returns the total number of rendered lines for a diff view,
-// used to calculate scroll bounds.
-func DiffViewTotalLines(left, right string) int {
-	lines := computeDiff(left, right)
-	// +1 for the header line.
-	return len(lines) + 1
+// ComputeDiffLines is the exported wrapper for computeDiff.
+func ComputeDiffLines(left, right string) []diffLine {
+	return computeDiff(left, right)
 }
 
-// RenderDiffView renders a side-by-side YAML diff view.
-// Lines present only on the left are shown in red, only on the right in green,
-// and lines that match are shown normally.
-func RenderDiffView(left, right, leftName, rightName string, scroll, width, height int, lineNumbers bool) string {
+// DiffViewTotalLines returns the total number of visible lines for a diff view
+// after applying fold state, used to calculate scroll bounds.
+func DiffViewTotalLines(left, right string, foldRegions []DiffFoldRegion, foldState []bool) int {
 	diffLines := computeDiff(left, right)
+	visLines := BuildVisibleDiffLines(diffLines, foldRegions, foldState)
+	// +1 for the header line.
+	return len(visLines) + 1
+}
+
+// RenderDiffView renders a side-by-side YAML diff view with search highlighting
+// and fold support.
+func RenderDiffView(left, right, leftName, rightName string, scroll, width, height int, lineNumbers bool, searchQuery string, foldRegions []DiffFoldRegion, foldState []bool, searchMode bool, searchInput string) string {
+	rawDiffLines := computeDiff(left, right)
+	visLines := BuildVisibleDiffLines(rawDiffLines, foldRegions, foldState)
 
 	// Styles for diff highlighting.
 	removedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorError)).Background(SurfaceBg)
@@ -100,12 +106,11 @@ func RenderDiffView(left, right, leftName, rightName string, scroll, width, heig
 	// Line number gutter width.
 	var gutterWidth int
 	if lineNumbers {
-		gutterWidth = len(fmt.Sprintf("%d", len(diffLines))) + 1 // digits + space
+		gutterWidth = len(fmt.Sprintf("%d", len(rawDiffLines))) + 1 // digits + space
 	}
 
 	// Calculate column widths: split the available content area in half with a separator.
-	// Available content width = width - 4 (border left/right + padding left/right).
-	colWidth := (width - 7 - gutterWidth*2) / 2 // 4 = border+padding, 3 = " | " separator, gutter on each side
+	colWidth := (width - 7 - gutterWidth*2) / 2
 	if colWidth < 10 {
 		colWidth = 10
 	}
@@ -123,7 +128,7 @@ func RenderDiffView(left, right, leftName, rightName string, scroll, width, heig
 	}
 
 	// Clamp scroll.
-	totalLines := len(diffLines)
+	totalLines := len(visLines)
 	maxScroll := totalLines - maxLines
 	if maxScroll < 0 {
 		maxScroll = 0
@@ -136,15 +141,19 @@ func RenderDiffView(left, right, leftName, rightName string, scroll, width, heig
 	}
 
 	// Visible slice.
-	visible := diffLines[scroll:]
+	visible := visLines[scroll:]
 	if len(visible) > maxLines {
 		visible = visible[:maxLines]
 	}
 
-	// Track left/right line numbers independently.
+	// Track left/right line numbers independently by counting from the start.
 	leftNum, rightNum := 1, 1
-	for i := 0; i < scroll && i < len(diffLines); i++ {
-		switch diffLines[i].status {
+	for i := 0; i < len(visLines) && i < scroll; i++ {
+		vl := visLines[i]
+		if vl.IsFoldPlaceholder || vl.Original < 0 {
+			continue
+		}
+		switch rawDiffLines[vl.Original].status {
 		case '=':
 			leftNum++
 			rightNum++
@@ -156,12 +165,26 @@ func RenderDiffView(left, right, leftName, rightName string, scroll, width, heig
 	}
 
 	rows := make([]string, 0, len(visible))
-	for _, dl := range visible {
+	for _, vl := range visible {
+		if vl.IsFoldPlaceholder {
+			placeholder := DiffFoldPlaceholderText(vl.HiddenCount)
+			fullWidth := colWidth*2 + gutterWidth*2 + 3 // 3 for " | "
+			row := padToWidth(placeholder, fullWidth)
+			rows = append(rows, row)
+			continue
+		}
+		dl := rawDiffLines[vl.Original]
 		var leftCol, rightCol, leftGutter, rightGutter string
 		switch dl.status {
 		case '=':
-			leftCol = normalStyle.Render(truncateToWidth(dl.left, colWidth))
-			rightCol = normalStyle.Render(truncateToWidth(dl.right, colWidth))
+			leftText := truncateToWidth(dl.left, colWidth)
+			rightText := truncateToWidth(dl.right, colWidth)
+			if searchQuery != "" {
+				leftText = highlightDiffSearchInLine(leftText, searchQuery)
+				rightText = highlightDiffSearchInLine(rightText, searchQuery)
+			}
+			leftCol = normalStyle.Render(leftText)
+			rightCol = normalStyle.Render(rightText)
 			if lineNumbers {
 				leftGutter = DimStyle.Render(fmt.Sprintf("%*d ", gutterWidth-1, leftNum))
 				rightGutter = DimStyle.Render(fmt.Sprintf("%*d ", gutterWidth-1, rightNum))
@@ -169,7 +192,11 @@ func RenderDiffView(left, right, leftName, rightName string, scroll, width, heig
 			leftNum++
 			rightNum++
 		case '<':
-			leftCol = removedStyle.Render(truncateToWidth(dl.left, colWidth))
+			leftText := truncateToWidth(dl.left, colWidth)
+			if searchQuery != "" {
+				leftText = highlightDiffSearchInLine(leftText, searchQuery)
+			}
+			leftCol = removedStyle.Render(leftText)
 			rightCol = ""
 			if lineNumbers {
 				leftGutter = DimStyle.Render(fmt.Sprintf("%*d ", gutterWidth-1, leftNum))
@@ -177,8 +204,12 @@ func RenderDiffView(left, right, leftName, rightName string, scroll, width, heig
 			}
 			leftNum++
 		case '>':
+			rightText := truncateToWidth(dl.right, colWidth)
+			if searchQuery != "" {
+				rightText = highlightDiffSearchInLine(rightText, searchQuery)
+			}
 			leftCol = ""
-			rightCol = addedStyle.Render(truncateToWidth(dl.right, colWidth))
+			rightCol = addedStyle.Render(rightText)
 			if lineNumbers {
 				leftGutter = strings.Repeat(" ", gutterWidth)
 				rightGutter = DimStyle.Render(fmt.Sprintf("%*d ", gutterWidth-1, rightNum))
@@ -194,7 +225,11 @@ func RenderDiffView(left, right, leftName, rightName string, scroll, width, heig
 		rows = append(rows, "")
 	}
 
-	title := TitleStyle.Width(width).MaxWidth(width).MaxHeight(1).Render("Resource Diff")
+	titleText := "Resource Diff"
+	if searchQuery != "" && !searchMode {
+		titleText += " [/" + searchQuery + "]"
+	}
+	title := TitleStyle.Width(width).MaxWidth(width).MaxHeight(1).Render(titleText)
 	sepLine := gutterPad + strings.Repeat("-", colWidth) + " + " + gutterPad + strings.Repeat("-", colWidth)
 	bodyContent := header + "\n" + separatorStyle.Render(sepLine) + "\n" + strings.Join(rows, "\n")
 
@@ -208,24 +243,35 @@ func RenderDiffView(left, right, leftName, rightName string, scroll, width, heig
 	body := borderStyle.Render(bodyContent)
 
 	// Hint bar.
-	hintContent := FormatHintParts([]HintEntry{
-		{Key: "j/k", Desc: "scroll"},
-		{Key: "g/G", Desc: "top/bottom"},
-		{Key: "ctrl+d/u", Desc: "half page"},
-		{Key: "ctrl+f/b", Desc: "page"},
-		{Key: "l", Desc: "lines"},
-		{Key: "u", Desc: "unified"},
-		{Key: "q/esc", Desc: "back"},
-	})
-	scrollInfo := BarDimStyle.Render(fmt.Sprintf(" [%d/%d]", scroll+1, max(1, maxScroll+1)))
-	hint := StatusBarBgStyle.Width(width).MaxWidth(width).MaxHeight(1).Render(hintContent + scrollInfo)
+	var hint string
+	if searchMode {
+		searchBar := HelpKeyStyle.Render("type: search") + BarDimStyle.Render(" | ") +
+			HelpKeyStyle.Render("enter") + BarDimStyle.Render(": apply | ") +
+			HelpKeyStyle.Render("esc") + BarDimStyle.Render(": cancel") +
+			BarDimStyle.Render("  /") + BarNormalStyle.Render(searchInput) + BarDimStyle.Render("\u2588")
+		hint = StatusBarBgStyle.Width(width).MaxWidth(width).MaxHeight(1).Render(searchBar)
+	} else {
+		hintContent := FormatHintParts([]HintEntry{
+			{Key: "j/k", Desc: "scroll"},
+			{Key: "g/G", Desc: "top/bottom"},
+			{Key: "/", Desc: "search"},
+			{Key: "z", Desc: "fold"},
+			{Key: "#", Desc: "lines"},
+			{Key: "u", Desc: "unified"},
+			{Key: "q/esc", Desc: "back"},
+		})
+		scrollInfo := BarDimStyle.Render(fmt.Sprintf(" [%d/%d]", scroll+1, max(1, maxScroll+1)))
+		hint = StatusBarBgStyle.Width(width).MaxWidth(width).MaxHeight(1).Render(hintContent + scrollInfo)
+	}
 
 	return lipgloss.JoinVertical(lipgloss.Left, title, body, hint)
 }
 
-// RenderUnifiedDiffView renders a unified diff view of two YAML resources.
-func RenderUnifiedDiffView(left, right, leftName, rightName string, scroll, width, height int, lineNumbers bool) string {
-	diffLines := computeDiff(left, right)
+// RenderUnifiedDiffView renders a unified diff view of two YAML resources
+// with search highlighting and fold support.
+func RenderUnifiedDiffView(left, right, leftName, rightName string, scroll, width, height int, lineNumbers bool, searchQuery string, foldRegions []DiffFoldRegion, foldState []bool, searchMode bool, searchInput string) string {
+	rawDiffLines := computeDiff(left, right)
+	visLines := BuildVisibleDiffLines(rawDiffLines, foldRegions, foldState)
 
 	// Styles.
 	removedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorError)).Background(SurfaceBg)
@@ -236,16 +282,21 @@ func RenderUnifiedDiffView(left, right, leftName, rightName string, scroll, widt
 	// Line number gutter width (for the unified line number).
 	var gutterWidth int
 	if lineNumbers {
-		gutterWidth = len(fmt.Sprintf("%d", len(diffLines)+2)) + 1 // +2 for header lines
+		gutterWidth = len(fmt.Sprintf("%d", len(rawDiffLines)+2)) + 1 // +2 for header lines
 	}
 
-	// Build unified diff lines.
+	// Build unified diff lines from visible lines.
 	var lines []string
 	lines = append(lines, headerStyle.Render("--- "+leftName))
 	lines = append(lines, headerStyle.Render("+++ "+rightName))
 
 	lineNum := 1
-	for _, dl := range diffLines {
+	for _, vl := range visLines {
+		if vl.IsFoldPlaceholder {
+			lines = append(lines, DiffFoldPlaceholderText(vl.HiddenCount))
+			continue
+		}
+		dl := rawDiffLines[vl.Original]
 		var gutter string
 		if lineNumbers {
 			gutter = DimStyle.Render(fmt.Sprintf("%*d ", gutterWidth-1, lineNum))
@@ -253,15 +304,31 @@ func RenderUnifiedDiffView(left, right, leftName, rightName string, scroll, widt
 		lineNum++
 		switch dl.status {
 		case '=':
-			lines = append(lines, gutter+normalStyle.Render(" "+dl.left))
+			content := " " + dl.left
+			if searchQuery != "" {
+				content = highlightDiffSearchInLine(content, searchQuery)
+			}
+			lines = append(lines, gutter+normalStyle.Render(content))
 		case '<':
-			lines = append(lines, gutter+removedStyle.Render("-"+dl.left))
+			content := "-" + dl.left
+			if searchQuery != "" {
+				content = highlightDiffSearchInLine(content, searchQuery)
+			}
+			lines = append(lines, gutter+removedStyle.Render(content))
 		case '>':
-			lines = append(lines, gutter+addedStyle.Render("+"+dl.right))
+			content := "+" + dl.right
+			if searchQuery != "" {
+				content = highlightDiffSearchInLine(content, searchQuery)
+			}
+			lines = append(lines, gutter+addedStyle.Render(content))
 		}
 	}
 
-	title := TitleStyle.Width(width).MaxWidth(width).MaxHeight(1).Render("Resource Diff (unified)")
+	titleText := "Resource Diff (unified)"
+	if searchQuery != "" && !searchMode {
+		titleText += " [/" + searchQuery + "]"
+	}
+	title := TitleStyle.Width(width).MaxWidth(width).MaxHeight(1).Render(titleText)
 
 	// Reserve lines for title, hint bar, and border (top+bottom).
 	maxLines := height - 4
@@ -298,26 +365,68 @@ func RenderUnifiedDiffView(left, right, leftName, rightName string, scroll, widt
 	body := borderStyle.Render(bodyContent)
 
 	// Hint bar.
-	hintContent := FormatHintParts([]HintEntry{
-		{Key: "j/k", Desc: "scroll"},
-		{Key: "g/G", Desc: "top/bottom"},
-		{Key: "ctrl+d/u", Desc: "half page"},
-		{Key: "ctrl+f/b", Desc: "page"},
-		{Key: "l", Desc: "lines"},
-		{Key: "u", Desc: "side-by-side"},
-		{Key: "q/esc", Desc: "back"},
-	})
-	scrollInfo := BarDimStyle.Render(fmt.Sprintf(" [%d/%d]", scroll+1, max(1, maxScroll+1)))
-	hint := StatusBarBgStyle.Width(width).MaxWidth(width).MaxHeight(1).Render(hintContent + scrollInfo)
+	var hint string
+	if searchMode {
+		searchBar := HelpKeyStyle.Render("type: search") + BarDimStyle.Render(" | ") +
+			HelpKeyStyle.Render("enter") + BarDimStyle.Render(": apply | ") +
+			HelpKeyStyle.Render("esc") + BarDimStyle.Render(": cancel") +
+			BarDimStyle.Render("  /") + BarNormalStyle.Render(searchInput) + BarDimStyle.Render("\u2588")
+		hint = StatusBarBgStyle.Width(width).MaxWidth(width).MaxHeight(1).Render(searchBar)
+	} else {
+		hintContent := FormatHintParts([]HintEntry{
+			{Key: "j/k", Desc: "scroll"},
+			{Key: "g/G", Desc: "top/bottom"},
+			{Key: "/", Desc: "search"},
+			{Key: "z", Desc: "fold"},
+			{Key: "#", Desc: "lines"},
+			{Key: "u", Desc: "side-by-side"},
+			{Key: "q/esc", Desc: "back"},
+		})
+		scrollInfo := BarDimStyle.Render(fmt.Sprintf(" [%d/%d]", scroll+1, max(1, maxScroll+1)))
+		hint = StatusBarBgStyle.Width(width).MaxWidth(width).MaxHeight(1).Render(hintContent + scrollInfo)
+	}
 
 	return lipgloss.JoinVertical(lipgloss.Left, title, body, hint)
 }
 
-// UnifiedDiffViewTotalLines returns the total number of rendered lines for a unified diff view.
-func UnifiedDiffViewTotalLines(left, right string) int {
-	lines := computeDiff(left, right)
+// UnifiedDiffViewTotalLines returns the total number of visible lines for a
+// unified diff view after applying fold state.
+func UnifiedDiffViewTotalLines(left, right string, foldRegions []DiffFoldRegion, foldState []bool) int {
+	diffLines := computeDiff(left, right)
+	visLines := BuildVisibleDiffLines(diffLines, foldRegions, foldState)
 	// +2 for the --- and +++ header lines.
-	return len(lines) + 2
+	return len(visLines) + 2
+}
+
+// UpdateDiffSearchMatches finds all diff line indices where the left or right
+// content matches the query (case-insensitive).
+func UpdateDiffSearchMatches(left, right, query string) []int {
+	if query == "" {
+		return nil
+	}
+	diffLines := computeDiff(left, right)
+	queryLower := strings.ToLower(query)
+	var matches []int
+	for i, dl := range diffLines {
+		if strings.Contains(strings.ToLower(dl.left), queryLower) ||
+			strings.Contains(strings.ToLower(dl.right), queryLower) {
+			matches = append(matches, i)
+		}
+	}
+	return matches
+}
+
+// DiffVisibleIndexForOriginal finds the visible line index corresponding to
+// the given original diff line index, or -1 if hidden.
+func DiffVisibleIndexForOriginal(left, right string, foldRegions []DiffFoldRegion, foldState []bool, origIdx int) int {
+	diffLines := computeDiff(left, right)
+	visLines := BuildVisibleDiffLines(diffLines, foldRegions, foldState)
+	for i, vl := range visLines {
+		if vl.Original == origIdx {
+			return i
+		}
+	}
+	return -1
 }
 
 // truncateToWidth truncates a string to fit within the given visual width.

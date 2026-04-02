@@ -957,7 +957,7 @@ func TestRenderNetworkPolicyOverlay(t *testing.T) {
 func TestRenderDiffView(t *testing.T) {
 	t.Run("identical content shows no colored lines", func(t *testing.T) {
 		yaml := "apiVersion: v1\nkind: Pod\nmetadata:\n  name: test"
-		result := RenderDiffView(yaml, yaml, "pod-a", "pod-b", 0, 80, 30, false)
+		result := RenderDiffView(yaml, yaml, "pod-a", "pod-b", 0, 80, 30, false, "", nil, nil, false, "")
 		assert.Contains(t, result, "Resource Diff")
 		assert.Contains(t, result, "pod-a")
 		assert.Contains(t, result, "pod-b")
@@ -967,7 +967,7 @@ func TestRenderDiffView(t *testing.T) {
 	t.Run("different content shows both sides", func(t *testing.T) {
 		left := "apiVersion: v1\nkind: Pod\nmetadata:\n  name: left-pod"
 		right := "apiVersion: v1\nkind: Pod\nmetadata:\n  name: right-pod"
-		result := RenderDiffView(left, right, "left", "right", 0, 80, 30, false)
+		result := RenderDiffView(left, right, "left", "right", 0, 80, 30, false, "", nil, nil, false, "")
 		assert.Contains(t, result, "Resource Diff")
 		assert.Contains(t, result, "left")
 		assert.Contains(t, result, "right")
@@ -976,7 +976,7 @@ func TestRenderDiffView(t *testing.T) {
 	})
 
 	t.Run("empty content renders without panic", func(t *testing.T) {
-		result := RenderDiffView("", "", "a", "b", 0, 80, 20, false)
+		result := RenderDiffView("", "", "a", "b", 0, 80, 20, false, "", nil, nil, false, "")
 		assert.Contains(t, result, "Resource Diff")
 	})
 
@@ -986,8 +986,8 @@ func TestRenderDiffView(t *testing.T) {
 			lines = append(lines, fmt.Sprintf("line-%d: value", i))
 		}
 		yaml := strings.Join(lines, "\n")
-		result0 := RenderDiffView(yaml, yaml, "a", "b", 0, 80, 20, false)
-		result10 := RenderDiffView(yaml, yaml, "a", "b", 10, 80, 20, false)
+		result0 := RenderDiffView(yaml, yaml, "a", "b", 0, 80, 20, false, "", nil, nil, false, "")
+		result10 := RenderDiffView(yaml, yaml, "a", "b", 10, 80, 20, false, "", nil, nil, false, "")
 		// First line visible at scroll 0 should differ from scroll 10.
 		assert.Contains(t, result0, "line-0")
 		assert.NotContains(t, result10, "line-0")
@@ -995,7 +995,7 @@ func TestRenderDiffView(t *testing.T) {
 	})
 
 	t.Run("shows hint bar", func(t *testing.T) {
-		result := RenderDiffView("a: 1", "a: 2", "x", "y", 0, 140, 20, false)
+		result := RenderDiffView("a: 1", "a: 2", "x", "y", 0, 140, 20, false, "", nil, nil, false, "")
 		assert.Contains(t, result, "j/k")
 		assert.Contains(t, result, "q/esc")
 	})
@@ -1004,7 +1004,7 @@ func TestRenderDiffView(t *testing.T) {
 func TestDiffViewTotalLines(t *testing.T) {
 	t.Run("identical content", func(t *testing.T) {
 		yaml := "a: 1\nb: 2\nc: 3"
-		total := DiffViewTotalLines(yaml, yaml)
+		total := DiffViewTotalLines(yaml, yaml, nil, nil)
 		// 3 content lines + 1 header line = 4.
 		assert.Equal(t, 4, total)
 	})
@@ -1012,13 +1012,13 @@ func TestDiffViewTotalLines(t *testing.T) {
 	t.Run("completely different content", func(t *testing.T) {
 		left := "a: 1\nb: 2"
 		right := "c: 3\nd: 4"
-		total := DiffViewTotalLines(left, right)
+		total := DiffViewTotalLines(left, right, nil, nil)
 		// No common lines: 2 left-only + 2 right-only = 4 diff lines + 1 header = 5.
 		assert.Equal(t, 5, total)
 	})
 
 	t.Run("empty content", func(t *testing.T) {
-		total := DiffViewTotalLines("", "")
+		total := DiffViewTotalLines("", "", nil, nil)
 		// 0 diff lines + 1 header = 1.
 		assert.Equal(t, 1, total)
 	})
