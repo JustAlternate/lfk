@@ -117,37 +117,37 @@ func TestUnifiedDiffViewTotalLines(t *testing.T) {
 			name:     "identical single lines",
 			left:     "line1",
 			right:    "line1",
-			expected: 3, // 1 diff line + 2 header lines (--- and +++)
+			expected: 1, // 1 diff line (headers not counted)
 		},
 		{
 			name:     "one addition",
 			left:     "line1",
 			right:    "line1\nline2",
-			expected: 4, // 2 diff lines + 2 headers
+			expected: 2, // 2 diff lines (headers not counted)
 		},
 		{
 			name:     "one removal",
 			left:     "line1\nline2",
 			right:    "line1",
-			expected: 4, // 2 diff lines + 2 headers
+			expected: 2, // 2 diff lines (headers not counted)
 		},
 		{
 			name:     "completely different",
 			left:     "aaa",
 			right:    "bbb",
-			expected: 4, // 1 removed + 1 added + 2 headers
+			expected: 2, // 1 removed + 1 added (headers not counted)
 		},
 		{
 			name:     "empty inputs",
 			left:     "",
 			right:    "",
-			expected: 2, // just the 2 headers
+			expected: 0, // headers are always visible, not counted
 		},
 		{
 			name:     "multi-line diff",
 			left:     "a\nb\nc",
 			right:    "a\nx\nc",
-			expected: 6, // a(=) + b(<) + x(>) + c(=) + 2 headers
+			expected: 4, // a(=) + b(<) + x(>) + c(=); headers not counted
 		},
 	}
 	for _, tt := range tests {

@@ -101,11 +101,12 @@ func (m Model) handleDiffKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		overhead++ // tab bar
 	}
 	// Side-by-side: renderer subtracts 6 (hint + border top/bottom + header + separator).
-	// Unified: renderer subtracts 4 (hint + border top/bottom; headers inside content).
+	// Unified: renderer subtracts 4 (hint + border top/bottom) then 2 more for
+	// the always-visible ---/+++ header lines inside the border.
 	visibleLines := m.height - overhead - 6
 	if m.diffUnified {
 		totalLines = ui.UnifiedDiffViewTotalLines(m.diffLeft, m.diffRight, foldRegions, m.diffFoldState)
-		visibleLines = m.height - overhead - 4
+		visibleLines = m.height - overhead - 6 // -4 border/hint, -2 headers
 	}
 	if visibleLines < 3 {
 		visibleLines = 3

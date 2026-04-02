@@ -480,9 +480,26 @@ func RenderUnifiedDiffView(left, right, leftName, rightName string, scroll, widt
 		maxLines = 3
 	}
 
-	// Clamp scroll.
-	totalLines := len(lines)
-	maxScroll := totalLines - maxLines
+	// Separate headers (always visible) from scrollable content.
+	var headerLines []unifiedLine
+	var contentLines []unifiedLine
+	for _, ul := range lines {
+		if ul.visIdx < 0 {
+			headerLines = append(headerLines, ul)
+		} else {
+			contentLines = append(contentLines, ul)
+		}
+	}
+
+	// Content area = maxLines minus header lines.
+	contentMaxLines := maxLines - len(headerLines)
+	if contentMaxLines < 1 {
+		contentMaxLines = 1
+	}
+
+	// Clamp scroll on content lines only.
+	totalContent := len(contentLines)
+	maxScroll := totalContent - contentMaxLines
 	if maxScroll < 0 {
 		maxScroll = 0
 	}
@@ -493,20 +510,23 @@ func RenderUnifiedDiffView(left, right, leftName, rightName string, scroll, widt
 		scroll = 0
 	}
 
-	// Visible slice.
-	visibleSlice := lines[scroll:]
-	if len(visibleSlice) > maxLines {
-		visibleSlice = visibleSlice[:maxLines]
+	// Visible content slice.
+	visibleContent := contentLines[scroll:]
+	if len(visibleContent) > contentMaxLines {
+		visibleContent = visibleContent[:contentMaxLines]
 	}
 
-	// Add cursor indicator gutter (> or space) to each visible line.
+	// Build rendered lines: headers first, then scrollable content.
 	cursorStyleU := lipgloss.NewStyle().Foreground(lipgloss.Color(ColorPrimary)).Bold(true).Background(SurfaceBg)
-	rendered := make([]string, len(visibleSlice))
-	for i, ul := range visibleSlice {
+	var rendered []string
+	for _, hl := range headerLines {
+		rendered = append(rendered, " "+hl.text)
+	}
+	for _, ul := range visibleContent {
 		if ul.visIdx == cursor {
-			rendered[i] = cursorStyleU.Render(">") + ul.text
+			rendered = append(rendered, cursorStyleU.Render(">")+ul.text)
 		} else {
-			rendered[i] = " " + ul.text
+			rendered = append(rendered, " "+ul.text)
 		}
 	}
 
@@ -555,13 +575,13 @@ func RenderUnifiedDiffView(left, right, leftName, rightName string, scroll, widt
 	return lipgloss.JoinVertical(lipgloss.Left, title, body, hint)
 }
 
-// UnifiedDiffViewTotalLines returns the total number of visible lines for a
-// unified diff view after applying fold state.
+// UnifiedDiffViewTotalLines returns the total number of scrollable content
+// lines for a unified diff view after applying fold state. The --- and +++
+// header lines are always visible but not part of the cursor range.
 func UnifiedDiffViewTotalLines(left, right string, foldRegions []DiffFoldRegion, foldState []bool) int {
 	diffLines := computeDiff(left, right)
 	visLines := BuildVisibleDiffLines(diffLines, foldRegions, foldState)
-	// +2 for the --- and +++ header lines.
-	return len(visLines) + 2
+	return len(visLines)
 }
 
 // UpdateDiffSearchMatches finds all diff line indices where the content on the
