@@ -97,7 +97,7 @@
 
 - **Resource templates**: Create resources from 25+ built-in templates (`a`, `/` to search); includes a Custom Resource template as a starting point
 - **Port forwarding** from the action menu (with local port setting and browser open); manage active forwards via the Networking group
-- **Clipboard support**: Copy resource name (`y`), YAML (`Ctrl+Y`), paste/apply from clipboard (`Ctrl+P`)
+- **Clipboard support**: Copy resource name (`y`), YAML (`Y`), paste/apply from clipboard (`Ctrl+P`)
 - **Bookmarks**: Save favorite resource paths for quick navigation
 - **Session persistence**: Remembers last context/namespace/resource across restarts
 - **Command bar**: Press `:` for shell/kubectl commands with autocompletion
@@ -294,7 +294,7 @@ Namespaces are **not** a navigation level. The current namespace is shown in the
 | `S` | Export resource YAML to file |
 | `Ctrl+O` | Open ingress host in browser |
 | `y` | Copy resource name to clipboard |
-| `Ctrl+Y` | Copy resource YAML to clipboard |
+| `Y` | Copy resource YAML to clipboard |
 | `Ctrl+P` | Apply resource from clipboard (`kubectl apply`) |
 
 ### Multi-Selection

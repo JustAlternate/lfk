@@ -130,7 +130,7 @@ func DefaultKeybindings() Keybindings {
 		CreateTemplate: "a", Refresh: "R", Restart: "r",
 		Exec: "s", Edit: "E", Describe: "v", Delete: "D",
 		ForceDelete: "X", Scale: "S",
-		OpenBrowser: "ctrl+o", CopyName: "y", CopyYAML: "ctrl+y",
+		OpenBrowser: "ctrl+o", CopyName: "y", CopyYAML: "Y",
 		PasteApply: "ctrl+p", Diff: "d",
 
 		// Multi-selection

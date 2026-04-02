@@ -90,7 +90,7 @@ Resource-specific actions (exec, scale, restart, secret editor, etc.) are availa
 | Key | Action |
 |---|---|
 | `y` | Copy resource name to clipboard |
-| `Ctrl+Y` | Copy resource YAML to clipboard |
+| `Y` | Copy resource YAML to clipboard |
 | `Ctrl+P` | Apply resource from clipboard (`kubectl apply`) |
 
 ## Multi-Selection
@@ -446,7 +446,7 @@ keybindings:
   secret_editor: "e"     # Secret/configmap editor
   create_template: "a"   # Create from template
   copy_name: "y"         # Copy name
-  copy_yaml: "ctrl+y"    # Copy YAML
+  copy_yaml: "Y"         # Copy YAML
   paste_apply: "ctrl+p"  # Apply from clipboard
   open_browser: "ctrl+o" # Open in browser
   diff: "d"              # Diff resources
