@@ -129,6 +129,12 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleDescribeKey(msg)
 	}
 
+	// In fullscreen event viewer mode: reuse the overlay key handler,
+	// but override q/esc/f to return to explorer mode.
+	if m.mode == modeEventViewer {
+		return m.handleEventViewerModeKey(msg)
+	}
+
 	// In explain view mode: handle search input before general keys.
 	if m.mode == modeExplain && m.explainSearchActive {
 		return m.handleExplainSearchKey(msg)

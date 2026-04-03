@@ -180,7 +180,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.err = nil
 		if msg.forPreview {
 			m.rightItems = msg.items
-			if len(msg.items) == 0 {
+			// Filter events in children view to warnings-only when enabled.
+			if m.warningEventsOnly && len(m.rightItems) > 0 && m.rightItems[0].Kind == "Event" {
+				filtered := make([]model.Item, 0, len(m.rightItems))
+				for _, item := range m.rightItems {
+					if item.Status == "Warning" {
+						filtered = append(filtered, item)
+					}
+				}
+				m.rightItems = filtered
+			}
+			if len(m.rightItems) == 0 {
 				logger.Info("No child resources found", "resourceType", m.nav.ResourceType.Kind, "resource", m.nav.ResourceName)
 			}
 			return m, nil
@@ -517,6 +527,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.mode = modeDescribe
 				m.describeContent = strings.TrimSpace(msg.output)
 				m.describeScroll = 0
+				m.describeCursor = 0
+				m.describeCursorCol = 0
 				m.describeTitle = "Command Output (error)"
 				return m, nil
 			}
@@ -530,6 +542,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.mode = modeDescribe
 			m.describeContent = output
 			m.describeScroll = 0
+			m.describeCursor = 0
+			m.describeCursorCol = 0
 			m.describeTitle = "Command Output"
 			return m, nil
 		}
@@ -773,6 +787,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.eventTimelineData = msg.events
 		m.eventTimelineScroll = 0
+		m.eventTimelineCursor = 0
+		m.eventTimelineCursorCol = 0
+		m.eventTimelineVisualMode = 0
+		m.eventTimelineSearchQuery = ""
+		m.eventTimelineSearchActive = false
+		m.eventTimelineFullscreen = false
+		m.eventTimelineLines = m.buildEventTimelineLines()
 		m.overlay = overlayEventTimeline
 		return m, nil
 
@@ -906,9 +927,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.mode = modeDescribe
 		m.describeContent = msg.content
-		// Preserve scroll on auto-refresh, reset on first load.
+		// Preserve scroll/cursor on auto-refresh, reset on first load.
 		if !m.describeAutoRefresh {
 			m.describeScroll = 0
+			m.describeCursor = 0
+			m.describeCursorCol = 0
 		}
 		m.describeTitle = msg.title
 		if m.describeAutoRefresh {
@@ -931,6 +954,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.mode = modeDescribe
 		m.describeContent = msg.content
 		m.describeScroll = 0
+		m.describeCursor = 0
+		m.describeCursorCol = 0
 		m.describeTitle = msg.title
 		return m, nil
 
@@ -1260,6 +1285,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case dashboardLoadedMsg:
 		if msg.context == m.nav.Context {
 			m.dashboardPreview = msg.content
+			m.dashboardEventsPreview = msg.events
 		}
 		return m, nil
 

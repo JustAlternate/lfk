@@ -345,6 +345,7 @@ func (m Model) navigateToBookmark(bm model.Bookmark) (tea.Model, tea.Cmd) {
 	// Switch context (global bookmarks change cluster, local bookmarks keep current).
 	m.nav.Context = effectiveContext
 	m.dashboardPreview = ""
+	m.dashboardEventsPreview = ""
 	m.monitoringPreview = ""
 	m.applyPinnedGroups()
 

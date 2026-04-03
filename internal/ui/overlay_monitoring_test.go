@@ -30,17 +30,17 @@ func TestRelativeTime(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := relativeTime(time.Now().Add(-tt.offset))
+			result := RelativeTime(time.Now().Add(-tt.offset))
 			assert.Equal(t, tt.expected, result)
 		})
 	}
 
 	t.Run("zero time returns unknown", func(t *testing.T) {
-		assert.Equal(t, "unknown", relativeTime(time.Time{}))
+		assert.Equal(t, "unknown", RelativeTime(time.Time{}))
 	})
 
 	t.Run("sub-second clamps to 1s", func(t *testing.T) {
-		result := relativeTime(time.Now().Add(-100 * time.Millisecond))
+		result := RelativeTime(time.Now().Add(-100 * time.Millisecond))
 		assert.Equal(t, "1s ago", result)
 	})
 }

@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/x/ansi"
 	"github.com/hinshun/vt10x"
 
 	"github.com/janosmiko/lfk/internal/ui"
@@ -25,23 +24,53 @@ func (m Model) viewLogs() string {
 }
 
 func (m Model) viewDescribe() string {
+	// Build title with mode indicators.
 	titleText := m.describeTitle
+	var indicators []string
 	if m.describeWrap {
-		titleText += " [WRAP]"
+		indicators = append(indicators, "WRAP")
+	}
+	if m.describeVisualMode != 0 {
+		switch m.describeVisualMode {
+		case 'v':
+			indicators = append(indicators, "VISUAL")
+		case 'V':
+			indicators = append(indicators, "VISUAL LINE")
+		case 'B':
+			indicators = append(indicators, "VISUAL BLOCK")
+		}
+	}
+	if m.describeSearchQuery != "" {
+		indicators = append(indicators, "/"+m.describeSearchQuery)
+	}
+	if len(indicators) > 0 {
+		titleText += " [" + strings.Join(indicators, " | ") + "]"
 	}
 	title := ui.TitleStyle.Width(m.width).MaxWidth(m.width).MaxHeight(1).Render(titleText)
+
+	// Build hint bar or search bar.
 	hints := []ui.HintEntry{
-		{Key: "j/k", Desc: "scroll"},
-		{Key: "g/G", Desc: "top/bottom"},
-		{Key: "ctrl+d/u", Desc: "half page"},
-		{Key: "ctrl+f/b", Desc: "page"},
+		{Key: "j/k", Desc: "navigate"},
+		{Key: "h/l", Desc: "column"},
+		{Key: "v/V", Desc: "visual"},
+		{Key: "y", Desc: "copy"},
+		{Key: "/", Desc: "search"},
 		{Key: "ctrl+w/>", Desc: "wrap"},
 		{Key: "q/esc", Desc: "back"},
 	}
 	if m.describeAutoRefresh {
 		hints = append(hints, ui.HintEntry{Key: "LIVE", Desc: "auto-refresh"})
 	}
-	hint := ui.RenderHintBar(hints, m.width)
+	var hint string
+	if m.describeSearchActive {
+		searchBar := ui.HelpKeyStyle.Render("/") + ui.BarNormalStyle.Render(m.describeSearchInput.CursorLeft()) + ui.BarDimStyle.Render("\u2588") + ui.BarNormalStyle.Render(m.describeSearchInput.CursorRight())
+		hint = ui.StatusBarBgStyle.Width(m.width).MaxWidth(m.width).MaxHeight(1).Render(searchBar)
+	} else if m.describeSearchQuery != "" {
+		searchBar := ui.HelpKeyStyle.Render("/") + ui.BarNormalStyle.Render(m.describeSearchQuery)
+		hint = ui.StatusBarBgStyle.Width(m.width).MaxWidth(m.width).MaxHeight(1).Render(searchBar)
+	} else {
+		hint = ui.RenderHintBar(hints, m.width)
+	}
 
 	lines := strings.Split(m.describeContent, "\n")
 
@@ -51,9 +80,14 @@ func (m Model) viewDescribe() string {
 	}
 
 	// Content width for wrapping/truncation.
+	// Account for cursor gutter (1 char).
 	contentWidth := m.width - 4 // border (2) + padding (2)
 	if contentWidth < 10 {
 		contentWidth = 10
+	}
+	lineContentWidth := contentWidth - 1 // -1 for cursor gutter
+	if lineContentWidth < 10 {
+		lineContentWidth = 10
 	}
 
 	scroll := m.describeScroll
@@ -63,18 +97,27 @@ func (m Model) viewDescribe() string {
 	if scroll < 0 {
 		scroll = 0
 	}
-	visible := lines[scroll:]
-	if len(visible) > maxLines {
-		visible = visible[:maxLines]
-	}
 
-	// When wrap is enabled, expand long lines into sub-lines.
+	// Visual selection range.
+	selStart := min(m.describeVisualStart, m.describeCursor)
+	selEnd := max(m.describeVisualStart, m.describeCursor)
+	colStart := min(m.describeVisualCol, m.describeCursorCol)
+	colEnd := max(m.describeVisualCol, m.describeCursorCol)
+
+	// Search query for highlighting.
+	lowerQuery := strings.ToLower(m.describeSearchQuery)
+
+	// When wrap is enabled, use a simplified rendering path (no column cursor).
 	if m.describeWrap {
+		visible := lines[scroll:]
+		if len(visible) > maxLines {
+			visible = visible[:maxLines]
+		}
 		var expanded []string
 		for _, line := range visible {
-			subLines := ui.WrapLine(line, contentWidth)
+			subLines := ui.WrapLine(line, lineContentWidth)
 			for _, sub := range subLines {
-				expanded = append(expanded, sub)
+				expanded = append(expanded, " "+sub)
 				if len(expanded) >= maxLines {
 					break
 				}
@@ -83,29 +126,102 @@ func (m Model) viewDescribe() string {
 				break
 			}
 		}
-		visible = expanded
+		for len(expanded) < maxLines {
+			expanded = append(expanded, "")
+		}
+
+		bodyContent := strings.Join(expanded, "\n")
+		borderStyle := ui.FullscreenBorderStyle(m.width, maxLines)
+		body := borderStyle.Render(bodyContent)
+		return lipgloss.JoinVertical(lipgloss.Left, title, body, hint)
 	}
 
-	// Pad to fill available height so the hint bar stays at the bottom.
-	for len(visible) < maxLines {
-		visible = append(visible, "")
-	}
+	// Non-wrap rendering with cursor, visual selection, and search.
+	end := min(scroll+maxLines, len(lines))
+	var renderedLines []string
 
-	// Truncate lines that exceed the content area width to prevent lipgloss
-	// from wrapping them internally, which would push the bottom border off screen.
-	if !m.describeWrap {
-		for i, line := range visible {
-			if lipgloss.Width(line) > contentWidth {
-				visible[i] = ansi.Truncate(line, contentWidth, "")
+	for i := scroll; i < end; i++ {
+		line := lines[i]
+		inSelection := m.describeVisualMode != 0 && i >= selStart && i <= selEnd
+		isCursorLine := i == m.describeCursor
+
+		// Truncate to content width.
+		plainLine := line
+		if len([]rune(plainLine)) > lineContentWidth {
+			plainLine = string([]rune(plainLine)[:lineContentWidth])
+		}
+
+		if inSelection {
+			rendered := ui.RenderVisualSelection(
+				plainLine, rune(m.describeVisualMode),
+				i, selStart, selEnd,
+				m.describeVisualStart, m.describeVisualCol, m.describeCursorCol,
+				colStart, colEnd,
+			)
+			if isCursorLine {
+				renderedLines = append(renderedLines, ui.YamlCursorIndicatorStyle.Render("\u258e")+rendered)
+			} else {
+				renderedLines = append(renderedLines, " "+rendered)
 			}
+		} else if isCursorLine {
+			displayLine := plainLine
+			if lowerQuery != "" {
+				displayLine = highlightDescribeSearchLine(plainLine, lowerQuery)
+			}
+			cursorLine := ui.RenderCursorAtCol(displayLine, plainLine, m.describeCursorCol)
+			renderedLines = append(renderedLines, ui.YamlCursorIndicatorStyle.Render("\u258e")+cursorLine)
+		} else {
+			displayLine := plainLine
+			if lowerQuery != "" {
+				displayLine = highlightDescribeSearchLine(plainLine, lowerQuery)
+			}
+			renderedLines = append(renderedLines, " "+displayLine)
 		}
 	}
 
-	bodyContent := strings.Join(visible, "\n")
+	// Pad to fill available height.
+	for len(renderedLines) < maxLines {
+		renderedLines = append(renderedLines, "")
+	}
+
+	bodyContent := strings.Join(renderedLines, "\n")
 	borderStyle := ui.FullscreenBorderStyle(m.width, maxLines)
 	body := borderStyle.Render(bodyContent)
 
 	return lipgloss.JoinVertical(lipgloss.Left, title, body, hint)
+}
+
+// highlightDescribeSearchLine highlights search matches in a single line of
+// the describe view. The query should be pre-lowered for case-insensitive matching.
+func highlightDescribeSearchLine(line, lowerQuery string) string {
+	if lowerQuery == "" {
+		return line
+	}
+	lowerLine := strings.ToLower(line)
+	matchStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color(ui.ColorSelectedFg)).
+		Background(lipgloss.Color(ui.ColorWarning)).
+		Bold(true)
+
+	var result strings.Builder
+	pos := 0
+	for pos < len(line) {
+		idx := strings.Index(lowerLine[pos:], lowerQuery)
+		if idx < 0 {
+			result.WriteString(line[pos:])
+			break
+		}
+		if idx > 0 {
+			result.WriteString(line[pos : pos+idx])
+		}
+		matchEnd := pos + idx + len(lowerQuery)
+		if matchEnd > len(line) {
+			matchEnd = len(line)
+		}
+		result.WriteString(matchStyle.Render(line[pos+idx : matchEnd]))
+		pos = matchEnd
+	}
+	return result.String()
 }
 
 func (m Model) viewExplain() string {
@@ -425,4 +541,165 @@ func (m Model) viewExecTerminal() string {
 // vt10xColorToLipgloss converts a vt10x color to a lipgloss terminal color.
 func vt10xColorToLipgloss(c vt10x.Color) lipgloss.TerminalColor {
 	return lipgloss.Color(fmt.Sprintf("%d", int(c)))
+}
+
+// viewEventViewer renders the fullscreen event viewer mode.
+func (m Model) viewEventViewer() string {
+	// Title with indicators.
+	titleText := "Event Timeline"
+	if m.actionCtx.name != "" {
+		titleText += " - " + m.actionCtx.name
+	}
+	var indicators []string
+	if m.eventTimelineWrap {
+		indicators = append(indicators, "WRAP")
+	}
+	if m.eventTimelineVisualMode != 0 {
+		switch m.eventTimelineVisualMode {
+		case 'v':
+			indicators = append(indicators, "VISUAL")
+		case 'V':
+			indicators = append(indicators, "VISUAL LINE")
+		case 'B':
+			indicators = append(indicators, "VISUAL BLOCK")
+		}
+	}
+	if m.eventTimelineSearchQuery != "" {
+		indicators = append(indicators, "/"+m.eventTimelineSearchQuery)
+	}
+	if len(indicators) > 0 {
+		titleText += " [" + strings.Join(indicators, " | ") + "]"
+	}
+	title := ui.TitleStyle.Width(m.width).MaxWidth(m.width).MaxHeight(1).Render(titleText)
+
+	// Hint bar.
+	var hint string
+	if m.eventTimelineSearchActive {
+		searchBar := ui.HelpKeyStyle.Render("/") + ui.BarNormalStyle.Render(m.eventTimelineSearchInput.CursorLeft()) + ui.BarDimStyle.Render("\u2588") + ui.BarNormalStyle.Render(m.eventTimelineSearchInput.CursorRight())
+		hint = ui.StatusBarBgStyle.Width(m.width).MaxWidth(m.width).MaxHeight(1).Render(searchBar)
+	} else if m.eventTimelineVisualMode != 0 {
+		hints := []ui.HintEntry{
+			{Key: "j/k", Desc: "extend"},
+			{Key: "h/l", Desc: "column"},
+			{Key: "y", Desc: "copy"},
+			{Key: "v/V", Desc: "switch mode"},
+			{Key: "esc", Desc: "cancel"},
+		}
+		hint = ui.RenderHintBar(hints, m.width)
+	} else {
+		hints := []ui.HintEntry{
+			{Key: "j/k", Desc: "navigate"},
+			{Key: "h/l", Desc: "column"},
+			{Key: "v/V", Desc: "visual"},
+			{Key: "y", Desc: "copy"},
+			{Key: "/", Desc: "search"},
+			{Key: ">", Desc: "wrap"},
+			{Key: "f", Desc: "minimize"},
+			{Key: "q/esc", Desc: "back"},
+		}
+		hint = ui.RenderHintBar(hints, m.width)
+	}
+
+	lines := m.eventTimelineLines
+	maxLines := m.height - 4
+	if maxLines < 3 {
+		maxLines = 3
+	}
+	contentWidth := m.width - 4
+	if contentWidth < 10 {
+		contentWidth = 10
+	}
+	lineContentWidth := contentWidth - 1
+	if lineContentWidth < 10 {
+		lineContentWidth = 10
+	}
+
+	scroll := m.eventTimelineScroll
+	if scroll > len(lines) {
+		scroll = len(lines) - 1
+	}
+	if scroll < 0 {
+		scroll = 0
+	}
+
+	selStart := min(m.eventTimelineVisualStart, m.eventTimelineCursor)
+	selEnd := max(m.eventTimelineVisualStart, m.eventTimelineCursor)
+	colStart := min(m.eventTimelineVisualCol, m.eventTimelineCursorCol)
+	colEnd := max(m.eventTimelineVisualCol, m.eventTimelineCursorCol)
+
+	lowerQuery := strings.ToLower(m.eventTimelineSearchQuery)
+
+	wrapStyle := lipgloss.NewStyle().Width(lineContentWidth)
+
+	var visible []string
+	if m.eventTimelineWrap {
+		for i := scroll; i < len(lines) && len(visible) < maxLines; i++ {
+			line := lines[i]
+			isCursor := i == m.eventTimelineCursor
+			wrapped := wrapStyle.Render(line)
+			subLines := strings.Split(wrapped, "\n")
+			for si, sub := range subLines {
+				if len(visible) >= maxLines {
+					break
+				}
+				if isCursor && si == 0 {
+					visible = append(visible, ui.YamlCursorIndicatorStyle.Render("\u258e")+sub)
+				} else {
+					visible = append(visible, " "+sub)
+				}
+			}
+		}
+	} else {
+		end := scroll + maxLines
+		if end > len(lines) {
+			end = len(lines)
+		}
+		for i := scroll; i < end; i++ {
+			line := lines[i]
+			isCursor := i == m.eventTimelineCursor
+			inSel := m.eventTimelineVisualMode != 0 && i >= selStart && i <= selEnd
+
+			truncLine := line
+			if len([]rune(truncLine)) > lineContentWidth {
+				truncLine = string([]rune(truncLine)[:lineContentWidth])
+			}
+
+			if inSel {
+				rendered := ui.RenderVisualSelection(
+					truncLine, rune(m.eventTimelineVisualMode),
+					i, selStart, selEnd,
+					m.eventTimelineVisualStart, m.eventTimelineVisualCol, m.eventTimelineCursorCol,
+					colStart, colEnd,
+				)
+				if isCursor {
+					visible = append(visible, ui.YamlCursorIndicatorStyle.Render("\u258e")+rendered)
+				} else {
+					visible = append(visible, " "+rendered)
+				}
+			} else if isCursor {
+				displayLine := truncLine
+				if lowerQuery != "" {
+					displayLine = highlightDescribeSearchLine(displayLine, lowerQuery)
+				}
+				cursorLine := ui.RenderCursorAtCol(displayLine, truncLine, m.eventTimelineCursorCol)
+				visible = append(visible, ui.YamlCursorIndicatorStyle.Render("\u258e")+cursorLine)
+			} else {
+				displayLine := truncLine
+				if lowerQuery != "" {
+					displayLine = highlightDescribeSearchLine(displayLine, lowerQuery)
+				}
+				visible = append(visible, " "+displayLine)
+			}
+		}
+	}
+
+	for len(visible) < maxLines {
+		visible = append(visible, "")
+	}
+
+	bodyContent := strings.Join(visible, "\n")
+	borderStyle := ui.FullscreenBorderStyle(m.width, maxLines)
+	body := borderStyle.Render(bodyContent)
+
+	return lipgloss.JoinVertical(lipgloss.Left, title, body, hint)
 }

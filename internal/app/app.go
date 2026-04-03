@@ -30,6 +30,7 @@ const (
 	modeDiff
 	modeExec
 	modeExplain
+	modeEventViewer
 )
 
 // overlayKind tracks which overlay is currently open.
@@ -116,40 +117,41 @@ type TabState struct {
 	// a full refreshCurrentLevel instead of the lighter loadPreview.
 	needsLoad bool
 
-	nav                 model.NavigationState
-	leftItems           []model.Item
-	middleItems         []model.Item
-	rightItems          []model.Item
-	leftItemsHistory    [][]model.Item
-	cursors             [5]int
-	middleScroll        int // persistent scroll position for middle column (vim-style scrolloff)
-	leftScroll          int // persistent scroll position for left column (vim-style scrolloff)
-	cursorMemory        map[string]int
-	itemCache           map[string][]model.Item
-	yamlContent         string
-	yamlScroll          int
-	yamlCursor          int // cursor position in visible lines (relative to scroll)
-	yamlSearchText      TextInput
-	yamlMatchLines      []int
-	yamlMatchIdx        int
-	yamlCollapsed       map[string]bool // collapsed state for YAML sections
-	splitPreview        bool
-	fullYAMLPreview     bool
-	previewYAML         string
-	namespace           string
-	allNamespaces       bool
-	selectedNamespaces  map[string]bool
-	sortColumnName      string // column name to sort by (e.g. "Name", "Age", "CPU")
-	sortAscending       bool
-	filterText          string
-	watchMode           bool
-	requestGen          uint64
-	selectedItems       map[string]bool
-	selectionAnchor     int // anchor index for region selection (-1 = unset)
-	fullscreenMiddle    bool
-	fullscreenDashboard bool
-	dashboardPreview    string
-	monitoringPreview   string
+	nav                    model.NavigationState
+	leftItems              []model.Item
+	middleItems            []model.Item
+	rightItems             []model.Item
+	leftItemsHistory       [][]model.Item
+	cursors                [5]int
+	middleScroll           int // persistent scroll position for middle column (vim-style scrolloff)
+	leftScroll             int // persistent scroll position for left column (vim-style scrolloff)
+	cursorMemory           map[string]int
+	itemCache              map[string][]model.Item
+	yamlContent            string
+	yamlScroll             int
+	yamlCursor             int // cursor position in visible lines (relative to scroll)
+	yamlSearchText         TextInput
+	yamlMatchLines         []int
+	yamlMatchIdx           int
+	yamlCollapsed          map[string]bool // collapsed state for YAML sections
+	splitPreview           bool
+	fullYAMLPreview        bool
+	previewYAML            string
+	namespace              string
+	allNamespaces          bool
+	selectedNamespaces     map[string]bool
+	sortColumnName         string // column name to sort by (e.g. "Name", "Age", "CPU")
+	sortAscending          bool
+	filterText             string
+	watchMode              bool
+	requestGen             uint64
+	selectedItems          map[string]bool
+	selectionAnchor        int // anchor index for region selection (-1 = unset)
+	fullscreenMiddle       bool
+	fullscreenDashboard    bool
+	dashboardPreview       string
+	dashboardEventsPreview string // warning events for two-column dashboard
+	monitoringPreview      string
 
 	// Toggle to show only Warning events in Event list view.
 	warningEventsOnly bool
@@ -434,12 +436,21 @@ type Model struct {
 	logSearchQuery  string // applied search
 
 	// Describe viewer state.
-	describeContent     string
-	describeScroll      int
-	describeTitle       string
-	describeWrap        bool           // word wrap toggle for describe view
-	describeAutoRefresh bool           // when true, describe viewer auto-refreshes every 2s
-	describeRefreshFunc func() tea.Cmd // returns the load command for auto-refresh
+	describeContent      string
+	describeScroll       int
+	describeTitle        string
+	describeWrap         bool           // word wrap toggle for describe view
+	describeAutoRefresh  bool           // when true, describe viewer auto-refreshes every 2s
+	describeRefreshFunc  func() tea.Cmd // returns the load command for auto-refresh
+	describeLineInput    string         // digit buffer for 123G jump-to-line
+	describeCursor       int            // cursor line position
+	describeCursorCol    int            // cursor column position
+	describeVisualMode   byte           // 0=off, 'v'=char, 'V'=line, 'B'=block
+	describeVisualStart  int            // anchor line for visual selection
+	describeVisualCol    int            // anchor column for visual mode
+	describeSearchActive bool
+	describeSearchInput  TextInput
+	describeSearchQuery  string
 
 	// Diff viewer state.
 	diffLeft         string // YAML content of first resource
@@ -539,6 +550,9 @@ type Model struct {
 	// Dashboard preview: rendered cluster dashboard for the right column.
 	dashboardPreview string
 
+	// Dashboard events preview: warning events for the two-column dashboard layout.
+	dashboardEventsPreview string
+
 	// Monitoring preview: rendered monitoring dashboard for the right column.
 	monitoringPreview string
 
@@ -551,12 +565,13 @@ type Model struct {
 	overlayErrorLog        bool
 	errorLogScroll         int
 	showDebugLogs          bool
-	errorLogFullscreen     bool // true = fullscreen, false = overlay
-	errorLogVisualMode     byte // 0 = off, 'v' = char, 'V' = line
-	errorLogVisualStart    int  // anchor line index in visual mode
-	errorLogVisualStartCol int  // anchor column when entering char visual mode
-	errorLogCursorLine     int  // cursor position (line index into visible entries)
-	errorLogCursorCol      int  // cursor column for character visual mode
+	errorLogFullscreen     bool   // true = fullscreen, false = overlay
+	errorLogVisualMode     byte   // 0 = off, 'v' = char, 'V' = line
+	errorLogVisualStart    int    // anchor line index in visual mode
+	errorLogVisualStartCol int    // anchor column when entering char visual mode
+	errorLogCursorLine     int    // cursor position (line index into visible entries)
+	errorLogCursorCol      int    // cursor column for character visual mode
+	errorLogLineInput      string // digit buffer for 123G jump-to-line
 
 	// Color scheme selector state.
 	schemeEntries      []ui.SchemeEntry
@@ -620,12 +635,14 @@ type Model struct {
 	quotaData []k8s.QuotaInfo
 
 	// Prometheus alerts overlay state.
-	alertsData   []k8s.AlertInfo // alerts for current resource
-	alertsScroll int             // scroll position in alerts overlay
+	alertsData      []k8s.AlertInfo // alerts for current resource
+	alertsScroll    int             // scroll position in alerts overlay
+	alertsLineInput string          // digit buffer for 123G jump-to-line
 
 	// Network policy visualizer state.
-	netpolData   *k8s.NetworkPolicyInfo
-	netpolScroll int
+	netpolData      *k8s.NetworkPolicyInfo
+	netpolScroll    int
+	netpolLineInput string // digit buffer for 123G jump-to-line
 
 	// Batch label/annotation editor state.
 	batchLabelMode   int       // 0=labels, 1=annotations
@@ -636,8 +653,20 @@ type Model struct {
 	podStartupData *k8s.PodStartupInfo
 
 	// Event timeline overlay state.
-	eventTimelineData   []k8s.EventInfo // event timeline data
-	eventTimelineScroll int             // scroll position
+	eventTimelineData         []k8s.EventInfo // event timeline data
+	eventTimelineLines        []string        // flat text lines for cursor navigation
+	eventTimelineScroll       int             // scroll position
+	eventTimelineLineInput    string          // digit buffer for 123G jump-to-line
+	eventTimelineCursor       int             // cursor position (line index in rendered lines)
+	eventTimelineWrap         bool            // word wrap toggle
+	eventTimelineFullscreen   bool            // fullscreen mode
+	eventTimelineVisualMode   byte            // 0=off, 'v'=char, 'V'=line, 'B'=block
+	eventTimelineVisualStart  int             // anchor line for visual selection
+	eventTimelineVisualCol    int             // anchor column for char visual mode
+	eventTimelineCursorCol    int             // cursor column for char visual mode
+	eventTimelineSearchActive bool
+	eventTimelineSearchInput  TextInput
+	eventTimelineSearchQuery  string
 
 	// Command bar state.
 	commandBarActive             bool
@@ -687,6 +716,7 @@ type Model struct {
 	explainTitle                 string
 	explainCursor                int
 	explainScroll                int
+	explainLineInput             string               // digit buffer for 123G jump-to-line
 	explainSearchActive          bool                 // true when typing in search bar
 	explainSearchInput           TextInput            // current search input
 	explainSearchQuery           string               // persisted search query for n/N navigation

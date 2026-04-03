@@ -89,53 +89,23 @@ func (m Model) handleOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// handleEventTimelineOverlayKey handles keyboard input for the event timeline overlay.
-func (m Model) handleEventTimelineOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	key := msg.String()
-	// Max scroll is clamped by the renderer, so use event count as upper bound.
-	maxScroll := max(len(m.eventTimelineData)-1, 0)
-
-	switch key {
-	case "esc", "q":
-		m.overlay = overlayNone
-	case "j", "down":
-		m.eventTimelineScroll = clampOverlayCursor(m.eventTimelineScroll, 1, maxScroll)
-	case "k", "up":
-		m.eventTimelineScroll = clampOverlayCursor(m.eventTimelineScroll, -1, maxScroll)
-	case "g":
-		if m.pendingG {
-			m.pendingG = false
-			m.eventTimelineScroll = 0
-		} else {
-			m.pendingG = true
-		}
-	case "G":
-		m.eventTimelineScroll = maxScroll
-	case "ctrl+d":
-		m.eventTimelineScroll = clampOverlayCursor(m.eventTimelineScroll, 10, maxScroll)
-	case "ctrl+u":
-		m.eventTimelineScroll = clampOverlayCursor(m.eventTimelineScroll, -10, maxScroll)
-	case "ctrl+f":
-		m.eventTimelineScroll = clampOverlayCursor(m.eventTimelineScroll, 20, maxScroll)
-	case "ctrl+b":
-		m.eventTimelineScroll = clampOverlayCursor(m.eventTimelineScroll, -20, maxScroll)
-	}
-	return m, nil
-}
-
 // handleNetworkPolicyOverlayKey handles keyboard input in the network policy visualizer overlay.
 func (m Model) handleNetworkPolicyOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc", "q":
+		m.netpolLineInput = ""
 		m.overlay = overlayNone
 		m.netpolData = nil
 	case "j", "down":
+		m.netpolLineInput = ""
 		m.netpolScroll++
 	case "k", "up":
+		m.netpolLineInput = ""
 		if m.netpolScroll > 0 {
 			m.netpolScroll--
 		}
 	case "g":
+		m.netpolLineInput = ""
 		if m.pendingG {
 			m.pendingG = false
 			m.netpolScroll = 0
@@ -143,22 +113,45 @@ func (m Model) handleNetworkPolicyOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd
 			m.pendingG = true
 		}
 	case "G":
-		// Jump to bottom: will be clamped during rendering.
-		m.netpolScroll = 9999
+		if m.netpolLineInput != "" {
+			lineNum, _ := strconv.Atoi(m.netpolLineInput)
+			m.netpolLineInput = ""
+			if lineNum > 0 {
+				lineNum--
+			}
+			m.netpolScroll = lineNum
+		} else {
+			// Jump to bottom: will be clamped during rendering.
+			m.netpolScroll = 9999
+		}
+	case "1", "2", "3", "4", "5", "6", "7", "8", "9":
+		m.netpolLineInput += msg.String()
+		return m, nil
+	case "0":
+		if m.netpolLineInput != "" {
+			m.netpolLineInput += "0"
+			return m, nil
+		}
 	case "ctrl+d":
+		m.netpolLineInput = ""
 		m.netpolScroll += m.height / 2
 	case "ctrl+u":
+		m.netpolLineInput = ""
 		m.netpolScroll -= m.height / 2
 		if m.netpolScroll < 0 {
 			m.netpolScroll = 0
 		}
 	case "ctrl+f":
+		m.netpolLineInput = ""
 		m.netpolScroll += m.height
 	case "ctrl+b":
+		m.netpolLineInput = ""
 		m.netpolScroll -= m.height
 		if m.netpolScroll < 0 {
 			m.netpolScroll = 0
 		}
+	default:
+		m.netpolLineInput = ""
 	}
 	return m, nil
 }
@@ -188,12 +181,14 @@ func (m Model) handleErrorLogOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	// In visual mode, Esc cancels visual mode instead of closing.
 	if key == "esc" && m.errorLogVisualMode != 0 {
+		m.errorLogLineInput = ""
 		m.errorLogVisualMode = 0
 		return m, nil
 	}
 
 	switch key {
 	case "esc", "q":
+		m.errorLogLineInput = ""
 		m.overlayErrorLog = false
 		m.errorLogScroll = 0
 		m.errorLogFullscreen = false
@@ -202,12 +197,14 @@ func (m Model) handleErrorLogOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "f":
+		m.errorLogLineInput = ""
 		m.errorLogFullscreen = !m.errorLogFullscreen
 		// Reset scroll when toggling to avoid out-of-bounds.
 		m.errorLogScroll = 0
 		return m, nil
 
 	case "V":
+		m.errorLogLineInput = ""
 		if m.errorLogVisualMode == 'V' {
 			m.errorLogVisualMode = 0
 		} else {
@@ -217,6 +214,7 @@ func (m Model) handleErrorLogOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "v":
+		m.errorLogLineInput = ""
 		if m.errorLogVisualMode == 'v' {
 			m.errorLogVisualMode = 0
 		} else {
@@ -227,12 +225,14 @@ func (m Model) handleErrorLogOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "h", "left":
+		m.errorLogLineInput = ""
 		if m.errorLogVisualMode == 'v' && m.errorLogCursorCol > 0 {
 			m.errorLogCursorCol--
 		}
 		return m, nil
 
 	case "l", "right":
+		m.errorLogLineInput = ""
 		if m.errorLogVisualMode == 'v' {
 			// Clamp to line length.
 			reversed := ui.FilteredErrorLogEntries(m.errorLog, m.showDebugLogs)
@@ -246,12 +246,17 @@ func (m Model) handleErrorLogOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "0":
+		if m.errorLogLineInput != "" {
+			m.errorLogLineInput += "0"
+			return m, nil
+		}
 		if m.errorLogVisualMode == 'v' {
 			m.errorLogCursorCol = 0
 		}
 		return m, nil
 
 	case "$":
+		m.errorLogLineInput = ""
 		if m.errorLogVisualMode == 'v' {
 			reversed := ui.FilteredErrorLogEntries(m.errorLog, m.showDebugLogs)
 			if m.errorLogCursorLine < len(reversed) {
@@ -262,9 +267,11 @@ func (m Model) handleErrorLogOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "y":
+		m.errorLogLineInput = ""
 		return m.errorLogYank()
 
 	case "d":
+		m.errorLogLineInput = ""
 		if m.errorLogVisualMode != 0 {
 			// Don't toggle debug in visual mode — 'd' is ambiguous.
 			return m, nil
@@ -275,6 +282,7 @@ func (m Model) handleErrorLogOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "j", "down":
+		m.errorLogLineInput = ""
 		if m.errorLogCursorLine < maxCursor {
 			m.errorLogCursorLine++
 		}
@@ -282,6 +290,7 @@ func (m Model) handleErrorLogOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "k", "up":
+		m.errorLogLineInput = ""
 		if m.errorLogCursorLine > 0 {
 			m.errorLogCursorLine--
 		}
@@ -289,6 +298,7 @@ func (m Model) handleErrorLogOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "g":
+		m.errorLogLineInput = ""
 		if m.pendingG {
 			m.pendingG = false
 			m.errorLogCursorLine = 0
@@ -299,31 +309,52 @@ func (m Model) handleErrorLogOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "G":
+		if m.errorLogLineInput != "" {
+			lineNum, _ := strconv.Atoi(m.errorLogLineInput)
+			m.errorLogLineInput = ""
+			if lineNum > 0 {
+				lineNum--
+			}
+			m.errorLogCursorLine = min(lineNum, maxCursor)
+			m.errorLogScroll = m.errorLogEnsureCursorVisible(maxVisible, maxScroll)
+			return m, nil
+		}
 		m.errorLogCursorLine = maxCursor
 		m.errorLogScroll = maxScroll
 		return m, nil
 
+	case "1", "2", "3", "4", "5", "6", "7", "8", "9":
+		m.errorLogLineInput += key
+		return m, nil
+
 	case "ctrl+d":
+		m.errorLogLineInput = ""
 		halfPage := maxVisible / 2
 		m.errorLogCursorLine = min(m.errorLogCursorLine+halfPage, maxCursor)
 		m.errorLogScroll = m.errorLogEnsureCursorVisible(maxVisible, maxScroll)
 		return m, nil
 
 	case "ctrl+u":
+		m.errorLogLineInput = ""
 		halfPage := maxVisible / 2
 		m.errorLogCursorLine = max(m.errorLogCursorLine-halfPage, 0)
 		m.errorLogScroll = m.errorLogEnsureCursorVisible(maxVisible, maxScroll)
 		return m, nil
 
 	case "ctrl+f":
+		m.errorLogLineInput = ""
 		m.errorLogCursorLine = min(m.errorLogCursorLine+maxVisible, maxCursor)
 		m.errorLogScroll = m.errorLogEnsureCursorVisible(maxVisible, maxScroll)
 		return m, nil
 
 	case "ctrl+b":
+		m.errorLogLineInput = ""
 		m.errorLogCursorLine = max(m.errorLogCursorLine-maxVisible, 0)
 		m.errorLogScroll = m.errorLogEnsureCursorVisible(maxVisible, maxScroll)
 		return m, nil
+
+	default:
+		m.errorLogLineInput = ""
 	}
 	return m, nil
 }
@@ -465,39 +496,74 @@ func (m Model) applyFilterPreset(preset FilterPreset) (tea.Model, tea.Cmd) {
 // handleBatchLabelOverlayKey handles keyboard input for the batch label/annotation editor overlay.
 func (m Model) handleAlertsOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	key := msg.String()
+	maxScroll := max(len(m.alertsData)-1, 0)
+
 	switch key {
 	case "esc", "q":
+		m.alertsLineInput = ""
 		m.overlay = overlayNone
 		return m, nil
 	case "j", "down":
+		m.alertsLineInput = ""
 		m.alertsScroll++
 		return m, nil
 	case "k", "up":
+		m.alertsLineInput = ""
 		if m.alertsScroll > 0 {
 			m.alertsScroll--
 		}
 		return m, nil
 	case "g":
-		m.alertsScroll = 0
+		m.alertsLineInput = ""
+		if m.pendingG {
+			m.pendingG = false
+			m.alertsScroll = 0
+			return m, nil
+		}
+		m.pendingG = true
 		return m, nil
 	case "G":
+		if m.alertsLineInput != "" {
+			lineNum, _ := strconv.Atoi(m.alertsLineInput)
+			m.alertsLineInput = ""
+			if lineNum > 0 {
+				lineNum--
+			}
+			m.alertsScroll = min(lineNum, maxScroll)
+			return m, nil
+		}
 		// Jump to bottom -- the render function will clamp.
 		m.alertsScroll = len(m.alertsData)
 		return m, nil
+	case "1", "2", "3", "4", "5", "6", "7", "8", "9":
+		m.alertsLineInput += key
+		return m, nil
+	case "0":
+		if m.alertsLineInput != "" {
+			m.alertsLineInput += "0"
+			return m, nil
+		}
 	case "ctrl+d":
+		m.alertsLineInput = ""
 		m.alertsScroll += 10
 		return m, nil
 	case "ctrl+u":
+		m.alertsLineInput = ""
 		m.alertsScroll = max(m.alertsScroll-10, 0)
 		return m, nil
 	case "ctrl+f":
+		m.alertsLineInput = ""
 		m.alertsScroll += 20
 		return m, nil
 	case "ctrl+b":
+		m.alertsLineInput = ""
 		m.alertsScroll = max(m.alertsScroll-20, 0)
 		return m, nil
 	case "ctrl+c":
+		m.alertsLineInput = ""
 		return m.closeTabOrQuit()
+	default:
+		m.alertsLineInput = ""
 	}
 	return m, nil
 }

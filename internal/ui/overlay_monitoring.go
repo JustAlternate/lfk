@@ -660,7 +660,7 @@ func RenderEventTimelineOverlay(events []EventTimelineEntry, resourceName string
 		event := events[i]
 
 		// Relative timestamp.
-		ts := relativeTime(event.Timestamp)
+		ts := RelativeTime(event.Timestamp)
 		tsStr := OverlayDimStyle.Render(fmt.Sprintf("%-8s", ts))
 
 		// Type indicator.
@@ -730,8 +730,235 @@ func RenderEventTimelineOverlay(events []EventTimelineEntry, resourceName string
 	return b.String()
 }
 
-// relativeTime returns a human-readable relative time string (e.g., "2m ago", "1h ago", "3d ago").
-func relativeTime(t time.Time) string {
+// EventViewerParams holds state for the rich event viewer rendering.
+type EventViewerParams struct {
+	Lines        []string // flat text lines (one per event)
+	ResourceName string
+	Scroll       int
+	Cursor       int
+	CursorCol    int
+	Width        int
+	Height       int
+	Wrap         bool
+	Fullscreen   bool
+	VisualMode   byte // 0=off, 'v'=char, 'V'=line, 'B'=block
+	VisualStart  int
+	VisualCol    int
+	SearchQuery  string
+	SearchActive bool
+	SearchInput  string
+}
+
+// RenderEventViewer renders the event viewer with cursor, visual selection,
+// search highlighting, and fullscreen support.
+func RenderEventViewer(p EventViewerParams) string {
+	var b strings.Builder
+
+	// Title with mode indicators.
+	title := "Event Timeline"
+	if p.ResourceName != "" {
+		title += " - " + p.ResourceName
+	}
+	var indicators []string
+	if p.Fullscreen {
+		indicators = append(indicators, "FULLSCREEN")
+	}
+	if p.Wrap {
+		indicators = append(indicators, "WRAP")
+	}
+	if p.VisualMode != 0 {
+		switch p.VisualMode {
+		case 'v':
+			indicators = append(indicators, "VISUAL")
+		case 'V':
+			indicators = append(indicators, "VISUAL LINE")
+		case 'B':
+			indicators = append(indicators, "VISUAL BLOCK")
+		}
+	}
+	if p.SearchQuery != "" {
+		indicators = append(indicators, "/"+p.SearchQuery)
+	}
+	if len(indicators) > 0 {
+		title += " [" + strings.Join(indicators, " | ") + "]"
+	}
+	b.WriteString(OverlayTitleStyle.Render(title))
+	b.WriteString("\n")
+
+	if len(p.Lines) == 0 {
+		b.WriteString(OverlayDimStyle.Render("No events found"))
+		return b.String()
+	}
+
+	// Calculate visible area.
+	maxVisible := max(p.Height-4, 1) // reserve for title, blank, footer, padding
+
+	// Clamp scroll.
+	maxScroll := max(len(p.Lines)-maxVisible, 0)
+	scroll := p.Scroll
+	if scroll > maxScroll {
+		scroll = maxScroll
+	}
+	if scroll < 0 {
+		scroll = 0
+	}
+
+	end := min(scroll+maxVisible, len(p.Lines))
+
+	// Visual selection range.
+	selStart := min(p.VisualStart, p.Cursor)
+	selEnd := max(p.VisualStart, p.Cursor)
+	colStart := min(p.VisualCol, p.CursorCol)
+	colEnd := max(p.VisualCol, p.CursorCol)
+
+	// Search query for highlighting.
+	lowerQuery := strings.ToLower(p.SearchQuery)
+
+	// Available content width.
+	// Overlay mode: OverlayStyle adds border(2) + padding(4) = 6, plus 1 for gutter.
+	// Fullscreen mode: no border/padding, just gutter + margin.
+	contentW := p.Width - 7
+	if p.Fullscreen {
+		contentW = p.Width - 2
+	}
+	if contentW < 10 {
+		contentW = 10
+	}
+
+	wrapStyle := lipgloss.NewStyle().Width(contentW)
+
+	for i := scroll; i < end; i++ {
+		line := p.Lines[i]
+		inSelection := p.VisualMode != 0 && i >= selStart && i <= selEnd
+		isCursorLine := i == p.Cursor
+
+		// Fit line to content width: wrap or truncate.
+		fitLine := line
+		if p.Wrap {
+			fitLine = wrapStyle.Render(line)
+		} else if len([]rune(fitLine)) > contentW {
+			fitLine = string([]rune(fitLine)[:contentW])
+		}
+
+		if inSelection {
+			// For selection, truncate to single line (wrapping + selection is complex).
+			selLine := line
+			if len([]rune(selLine)) > contentW {
+				selLine = string([]rune(selLine)[:contentW])
+			}
+			rendered := RenderVisualSelection(
+				selLine, rune(p.VisualMode),
+				i, selStart, selEnd,
+				p.VisualStart, p.VisualCol, p.CursorCol,
+				colStart, colEnd,
+			)
+			if isCursorLine {
+				b.WriteString(YamlCursorIndicatorStyle.Render("\u258e") + rendered)
+			} else {
+				b.WriteString(" " + rendered)
+			}
+		} else if isCursorLine {
+			// Cursor line: gutter indicator + block cursor at column position.
+			if p.Wrap {
+				// In wrap mode, show wrapped content without column cursor.
+				displayLine := fitLine
+				if p.SearchQuery != "" {
+					displayLine = highlightEventSearchLine(line, lowerQuery)
+					displayLine = wrapStyle.Render(displayLine)
+				}
+				b.WriteString(YamlCursorIndicatorStyle.Render("\u258e") + displayLine)
+			} else {
+				displayLine := fitLine
+				if p.SearchQuery != "" {
+					displayLine = highlightEventSearchLine(displayLine, lowerQuery)
+				}
+				cursorLine := RenderCursorAtCol(displayLine, fitLine, p.CursorCol)
+				b.WriteString(YamlCursorIndicatorStyle.Render("\u258e") + cursorLine)
+			}
+		} else {
+			if p.Wrap {
+				displayLine := fitLine
+				if p.SearchQuery != "" {
+					displayLine = highlightEventSearchLine(line, lowerQuery)
+					displayLine = wrapStyle.Render(displayLine)
+				}
+				b.WriteString(" " + displayLine)
+			} else {
+				displayLine := fitLine
+				if p.SearchQuery != "" {
+					displayLine = highlightEventSearchLine(displayLine, lowerQuery)
+				} else {
+					displayLine = OverlayNormalStyle.Render(displayLine)
+				}
+				b.WriteString(" " + displayLine)
+			}
+		}
+		if i < end-1 {
+			b.WriteString("\n")
+		}
+	}
+
+	// Pad to fixed height.
+	rendered := end - scroll
+	for rendered < maxVisible {
+		b.WriteString("\n")
+		rendered++
+	}
+	b.WriteString("\n")
+
+	// Search input / footer.
+	if p.SearchActive {
+		b.WriteString(OverlayFilterStyle.Render("/ " + p.SearchInput + "\u2588"))
+	} else {
+		// Footer info.
+		info := fmt.Sprintf("%d events", len(p.Lines))
+		if scroll > 0 || end < len(p.Lines) {
+			info += fmt.Sprintf(" | line %d/%d", p.Cursor+1, len(p.Lines))
+		} else {
+			info += fmt.Sprintf(" | line %d", p.Cursor+1)
+		}
+		if p.VisualMode != 0 {
+			lineCount := selEnd - selStart + 1
+			info += fmt.Sprintf(" | %d selected", lineCount)
+		}
+		b.WriteString(OverlayDimStyle.Render(info))
+	}
+
+	return b.String()
+}
+
+// highlightEventSearchLine highlights search matches in a single line using
+// the overlay styles. The query should be pre-lowered for case-insensitive matching.
+func highlightEventSearchLine(line, lowerQuery string) string {
+	if lowerQuery == "" {
+		return OverlayNormalStyle.Render(line)
+	}
+	lowerLine := strings.ToLower(line)
+	matchStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color(ColorSelectedFg)).
+		Background(lipgloss.Color(ColorWarning)).
+		Bold(true)
+
+	var result strings.Builder
+	pos := 0
+	for pos < len(line) {
+		idx := strings.Index(lowerLine[pos:], lowerQuery)
+		if idx < 0 {
+			result.WriteString(OverlayNormalStyle.Render(line[pos:]))
+			break
+		}
+		if idx > 0 {
+			result.WriteString(OverlayNormalStyle.Render(line[pos : pos+idx]))
+		}
+		matchEnd := pos + idx + len(lowerQuery)
+		result.WriteString(matchStyle.Render(line[pos+idx : matchEnd]))
+		pos = matchEnd
+	}
+	return result.String()
+}
+
+// RelativeTime returns a human-readable relative time string (e.g., "2m ago", "1h ago", "3d ago").
+func RelativeTime(t time.Time) string {
 	if t.IsZero() {
 		return "unknown"
 	}

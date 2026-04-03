@@ -24,7 +24,7 @@ func (m Model) View() string {
 	if m.mode == modeHelp {
 		renderMode = m.helpPreviousMode
 	}
-	if renderMode == modeYAML || renderMode == modeLogs || renderMode == modeDescribe || renderMode == modeDiff || renderMode == modeExec || renderMode == modeExplain {
+	if renderMode == modeYAML || renderMode == modeLogs || renderMode == modeDescribe || renderMode == modeDiff || renderMode == modeExec || renderMode == modeExplain || renderMode == modeEventViewer {
 		// Save original height before reducing for title/tab bar — overlays
 		// need the full terminal dimensions for correct sizing and placement.
 		fullHeight := m.height
@@ -52,6 +52,8 @@ func (m Model) View() string {
 			content = m.viewExecTerminal()
 		case modeExplain:
 			content = m.viewExplain()
+		case modeEventViewer:
+			content = m.viewEventViewer()
 		}
 
 		var parts []string
@@ -236,7 +238,8 @@ func (m Model) viewExplorer() string {
 		// Fullscreen dashboard: render cluster/monitoring dashboard using full width.
 		var dashContent string
 		sel := m.selectedMiddleItem()
-		if sel != nil && sel.Extra == "__monitoring__" {
+		isMonitoring := sel != nil && sel.Extra == "__monitoring__"
+		if isMonitoring {
 			dashContent = m.monitoringPreview
 			if dashContent == "" {
 				dashContent = ui.DimStyle.Render(m.spinner.View() + " Loading monitoring dashboard...")
@@ -247,20 +250,126 @@ func (m Model) viewExplorer() string {
 				dashContent = ui.DimStyle.Render(m.spinner.View() + " Loading cluster dashboard...")
 			}
 		}
-		// Apply preview scroll.
-		if m.previewScroll > 0 {
-			lines := strings.Split(dashContent, "\n")
-			if m.previewScroll >= len(lines) {
-				m.previewScroll = len(lines) - 1
+
+		// Two-column layout: charts on left, events on right (cluster dashboard only).
+		fullW := m.width - 2
+		if !isMonitoring && m.dashboardEventsPreview != "" {
+			// Size left column to fit its content, give remaining space to events.
+			leftW := fullW / 2
+			// Measure actual content width (widest line in the dashboard).
+			for _, line := range strings.Split(dashContent, "\n") {
+				if w := lipgloss.Width(line); w+2 > leftW {
+					leftW = w + 2
+				}
 			}
+			// Cap left column at 60% so events always get reasonable space.
+			maxLeft := fullW * 60 / 100
+			if leftW > maxLeft {
+				leftW = maxLeft
+			}
+			rightW := fullW - leftW - 1 // 1 for vertical separator
+
+			// Strip the "RECENT WARNING EVENTS" section from the left column
+			// since events are shown in the right column.
+			leftContent := dashContent
+			if idx := strings.Index(leftContent, "RECENT WARNING EVENTS"); idx > 0 {
+				// Find the start of the line containing the header.
+				lineStart := strings.LastIndex(leftContent[:idx], "\n")
+				if lineStart > 0 {
+					leftContent = leftContent[:lineStart]
+				}
+			}
+			rightContent := m.dashboardEventsPreview
+
+			// Apply preview scroll to both columns.
 			if m.previewScroll > 0 {
-				lines = lines[m.previewScroll:]
+				leftLines := strings.Split(leftContent, "\n")
+				if m.previewScroll >= len(leftLines) {
+					m.previewScroll = len(leftLines) - 1
+				}
+				if m.previewScroll > 0 {
+					leftLines = leftLines[m.previewScroll:]
+				}
+				leftContent = strings.Join(leftLines, "\n")
+
+				rightLines := strings.Split(rightContent, "\n")
+				if m.previewScroll < len(rightLines) {
+					rightLines = rightLines[m.previewScroll:]
+				} else {
+					rightLines = nil
+				}
+				rightContent = strings.Join(rightLines, "\n")
 			}
-			dashContent = strings.Join(lines, "\n")
+
+			// Build left and right line arrays.
+			leftLines := strings.Split(leftContent, "\n")
+			rightRawLines := strings.Split(rightContent, "\n")
+
+			// Word-wrap right column with left padding for readability.
+			// Reserve space for padding on both sides.
+			pad := "  "               // 2-space left padding
+			maxContentW := rightW - 4 // 2 padding left + 2 right margin
+			if maxContentW < 10 {
+				maxContentW = 10
+			}
+			wrapStyle := lipgloss.NewStyle().Width(maxContentW)
+			rightLines := make([]string, 0, len(rightRawLines))
+			for _, line := range rightRawLines {
+				if lipgloss.Width(line) == 0 {
+					rightLines = append(rightLines, "")
+				} else if lipgloss.Width(line) <= maxContentW {
+					rightLines = append(rightLines, pad+line)
+				} else {
+					wrapped := wrapStyle.Render(line)
+					for _, wl := range strings.Split(wrapped, "\n") {
+						rightLines = append(rightLines, pad+wl)
+					}
+				}
+			}
+
+			// Pad both to contentHeight.
+			for len(leftLines) < contentHeight {
+				leftLines = append(leftLines, "")
+			}
+			for len(rightLines) < contentHeight {
+				rightLines = append(rightLines, "")
+			}
+
+			// Build aligned rows: left (fixed width) | separator | right (fixed width).
+			// Use Width + MaxWidth to both pad short lines and clip long ones.
+			leftStyle := lipgloss.NewStyle().Width(leftW).MaxWidth(leftW)
+			rightStyle := lipgloss.NewStyle().Width(rightW).MaxWidth(rightW)
+			sep := ui.DimStyle.Render("\u2502")
+			rows := make([]string, contentHeight)
+			for i := range contentHeight {
+				l := ""
+				if i < len(leftLines) {
+					l = leftLines[i]
+				}
+				r := ""
+				if i < len(rightLines) {
+					r = rightLines[i]
+				}
+				rows[i] = leftStyle.Render(l) + sep + rightStyle.Render(r)
+			}
+			dashCol := strings.Join(rows, "\n")
+			columns = ui.ActiveColumnStyle.Width(fullW).Height(contentHeight).MaxHeight(contentHeight + 2).Render(dashCol)
+		} else {
+			// Single column (monitoring dashboard or no events available).
+			if m.previewScroll > 0 {
+				lines := strings.Split(dashContent, "\n")
+				if m.previewScroll >= len(lines) {
+					m.previewScroll = len(lines) - 1
+				}
+				if m.previewScroll > 0 {
+					lines = lines[m.previewScroll:]
+				}
+				dashContent = strings.Join(lines, "\n")
+			}
+			dashCol := ui.PadToHeight(dashContent, contentHeight)
+			dashCol = ui.FillLinesBg(dashCol, m.width-4, ui.BaseBg)
+			columns = ui.ActiveColumnStyle.Width(fullW).Height(contentHeight).MaxHeight(contentHeight + 2).Render(dashCol)
 		}
-		dashCol := ui.PadToHeight(dashContent, contentHeight)
-		dashCol = ui.FillLinesBg(dashCol, m.width-4, ui.BaseBg)
-		columns = ui.ActiveColumnStyle.Width(m.width - 2).Height(contentHeight).MaxHeight(contentHeight + 2).Render(dashCol)
 	case m.fullscreenMiddle:
 		columns = middle
 	default:

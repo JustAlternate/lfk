@@ -274,7 +274,7 @@ func TestViewDescribe(t *testing.T) {
 		stripped := stripANSI(output)
 		assert.Contains(t, stripped, "Describe: my-pod")
 		assert.Contains(t, stripped, "my-pod")
-		assert.Contains(t, stripped, "scroll")
+		assert.Contains(t, stripped, "navigate")
 		assert.Contains(t, stripped, "back")
 	})
 

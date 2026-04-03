@@ -175,9 +175,29 @@ func (m Model) overlayHintBar() string {
 		})
 
 	case overlayEventTimeline:
+		if m.eventTimelineSearchActive {
+			return m.renderHints([]ui.HintEntry{
+				{Key: "type", Desc: "search"},
+				{Key: "enter", Desc: "find"},
+				{Key: "esc", Desc: "cancel"},
+			})
+		}
+		if m.eventTimelineVisualMode != 0 {
+			return m.renderHints([]ui.HintEntry{
+				{Key: "j/k", Desc: "extend"},
+				{Key: "y", Desc: "copy"},
+				{Key: "v/V", Desc: "switch mode"},
+				{Key: "esc", Desc: "cancel"},
+			})
+		}
 		return m.renderHints([]ui.HintEntry{
-			{Key: "j/k", Desc: "scroll"},
+			{Key: "j/k", Desc: "move"},
 			{Key: "g/G", Desc: "top/bottom"},
+			{Key: "v/V", Desc: "select"},
+			{Key: "y", Desc: "copy"},
+			{Key: "/", Desc: "search"},
+			{Key: "f", Desc: "fullscreen"},
+			{Key: ">", Desc: "wrap"},
 			{Key: "esc", Desc: "close"},
 		})
 

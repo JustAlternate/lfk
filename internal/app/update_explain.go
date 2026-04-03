@@ -1,6 +1,7 @@
 package app
 
 import (
+	"strconv"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -108,6 +109,7 @@ func (m Model) handleExplainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	switch msg.String() {
 	case "?", "f1":
+		m.explainLineInput = ""
 		m.helpPreviousMode = modeExplain
 		m.mode = modeHelp
 		m.helpScroll = 0
@@ -117,11 +119,13 @@ func (m Model) handleExplainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "q":
+		m.explainLineInput = ""
 		// Quit explain view immediately.
 		m.exitExplainView()
 		return m, nil
 
 	case "esc":
+		m.explainLineInput = ""
 		// Step back one level; exit only at root.
 		if m.explainPath == "" {
 			m.exitExplainView()
@@ -139,6 +143,7 @@ func (m Model) handleExplainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, m.execKubectlExplain(m.explainResource, m.explainAPIVersion, newPath)
 
 	case "/":
+		m.explainLineInput = ""
 		// Start search mode.
 		m.explainSearchActive = true
 		m.explainSearchInput.Clear()
@@ -146,6 +151,7 @@ func (m Model) handleExplainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "n":
+		m.explainLineInput = ""
 		// Jump to next search match; wrap around if no match found.
 		if m.explainSearchQuery != "" {
 			found := m.explainJumpToMatch(m.explainSearchQuery, m.explainCursor+1, true)
@@ -161,6 +167,7 @@ func (m Model) handleExplainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "N":
+		m.explainLineInput = ""
 		// Jump to previous search match; wrap around if no match found.
 		if m.explainSearchQuery != "" {
 			found := m.explainJumpToMatch(m.explainSearchQuery, m.explainCursor-1, false)
@@ -176,12 +183,14 @@ func (m Model) handleExplainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "r":
+		m.explainLineInput = ""
 		// Launch recursive field browser: load all fields and show filter overlay.
 		m.loading = true
 		m.setStatusMessage("Loading recursive fields...", false)
 		return m, m.execKubectlExplainRecursive(m.explainResource, m.explainAPIVersion, "")
 
 	case "j", "down":
+		m.explainLineInput = ""
 		if m.explainCursor < fieldCount-1 {
 			m.explainCursor++
 			// Scroll down if cursor goes below visible area.
@@ -192,6 +201,7 @@ func (m Model) handleExplainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "k", "up":
+		m.explainLineInput = ""
 		if m.explainCursor > 0 {
 			m.explainCursor--
 			// Scroll up if cursor goes above visible area.
@@ -202,6 +212,7 @@ func (m Model) handleExplainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "g":
+		m.explainLineInput = ""
 		if m.pendingG {
 			m.pendingG = false
 			m.explainCursor = 0
@@ -212,6 +223,23 @@ func (m Model) handleExplainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "G":
+		if m.explainLineInput != "" {
+			lineNum, _ := strconv.Atoi(m.explainLineInput)
+			m.explainLineInput = ""
+			if lineNum > 0 {
+				lineNum--
+			}
+			if fieldCount > 0 {
+				m.explainCursor = min(lineNum, fieldCount-1)
+			}
+			// Adjust scroll to keep cursor visible.
+			if m.explainCursor < m.explainScroll {
+				m.explainScroll = m.explainCursor
+			} else if m.explainCursor >= m.explainScroll+visibleLines {
+				m.explainScroll = m.explainCursor - visibleLines + 1
+			}
+			return m, nil
+		}
 		if fieldCount > 0 {
 			m.explainCursor = fieldCount - 1
 			maxScroll := fieldCount - visibleLines
@@ -222,7 +250,18 @@ func (m Model) handleExplainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case "1", "2", "3", "4", "5", "6", "7", "8", "9":
+		m.explainLineInput += msg.String()
+		return m, nil
+
+	case "0":
+		if m.explainLineInput != "" {
+			m.explainLineInput += "0"
+			return m, nil
+		}
+
 	case "ctrl+d":
+		m.explainLineInput = ""
 		halfPage := visibleLines / 2
 		m.explainCursor += halfPage
 		if m.explainCursor >= fieldCount {
@@ -242,6 +281,7 @@ func (m Model) handleExplainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "ctrl+u":
+		m.explainLineInput = ""
 		halfPage := visibleLines / 2
 		m.explainCursor -= halfPage
 		if m.explainCursor < 0 {
@@ -254,6 +294,7 @@ func (m Model) handleExplainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "ctrl+f":
+		m.explainLineInput = ""
 		m.explainCursor += visibleLines
 		if m.explainCursor >= fieldCount {
 			m.explainCursor = fieldCount - 1
@@ -272,6 +313,7 @@ func (m Model) handleExplainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "ctrl+b":
+		m.explainLineInput = ""
 		m.explainCursor -= visibleLines
 		if m.explainCursor < 0 {
 			m.explainCursor = 0
@@ -283,6 +325,7 @@ func (m Model) handleExplainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "l", "right", "enter":
+		m.explainLineInput = ""
 		// Drill into the selected field if it has an object/array type.
 		if m.explainCursor >= 0 && m.explainCursor < fieldCount {
 			f := m.explainFields[m.explainCursor]
@@ -297,6 +340,7 @@ func (m Model) handleExplainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "h", "left", "backspace":
+		m.explainLineInput = ""
 		// Go back one level in the path.
 		if m.explainPath == "" {
 			// Already at root: exit explain view.
@@ -313,6 +357,13 @@ func (m Model) handleExplainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.loading = true
 		m.setStatusMessage("Loading parent...", false)
 		return m, m.execKubectlExplain(m.explainResource, m.explainAPIVersion, newPath)
+
+	case "ctrl+c":
+		m.explainLineInput = ""
+		return m.closeTabOrQuit()
+
+	default:
+		m.explainLineInput = ""
 	}
 
 	return m, nil

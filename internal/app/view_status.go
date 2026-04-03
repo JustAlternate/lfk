@@ -232,6 +232,17 @@ func (m Model) statusBar() string {
 			{Key: kb.Help, Desc: "help"},
 			{Key: "q", Desc: "quit"},
 		}
+		// Add context-specific hints for Events resource type.
+		if m.nav.Level == model.LevelResources && m.nav.ResourceType.Kind == "Event" {
+			toggleDesc := "warnings only"
+			if m.warningEventsOnly {
+				toggleDesc = "all events"
+			}
+			hintEntries = append(hintEntries[:len(hintEntries)-1], // before "quit"
+				ui.HintEntry{Key: kb.SaveResource, Desc: toggleDesc},
+				hintEntries[len(hintEntries)-1], // "quit" at end
+			)
+		}
 	}
 	parts = append(parts, ui.FormatHintParts(hintEntries))
 
@@ -368,22 +379,26 @@ func (m Model) renderOverlay(background string) string {
 		overlayW = min(80, m.width-10)
 		overlayH = min(30, m.height-6)
 	case overlayEventTimeline:
-		entries := make([]ui.EventTimelineEntry, len(m.eventTimelineData))
-		for i, e := range m.eventTimelineData {
-			entries[i] = ui.EventTimelineEntry{
-				Timestamp:    e.Timestamp,
-				Type:         e.Type,
-				Reason:       e.Reason,
-				Message:      e.Message,
-				Source:       e.Source,
-				Count:        e.Count,
-				InvolvedName: e.InvolvedName,
-				InvolvedKind: e.InvolvedKind,
-			}
-		}
 		overlayW = min(100, m.width-6)
 		overlayH = min(30, m.height-4)
-		content = ui.RenderEventTimelineOverlay(entries, m.actionCtx.name, m.eventTimelineScroll, overlayW, overlayH)
+		params := ui.EventViewerParams{
+			Lines:        m.eventTimelineLines,
+			ResourceName: m.actionCtx.name,
+			Scroll:       m.eventTimelineScroll,
+			Cursor:       m.eventTimelineCursor,
+			CursorCol:    m.eventTimelineCursorCol,
+			Width:        overlayW,
+			Height:       overlayH,
+			Wrap:         m.eventTimelineWrap,
+			Fullscreen:   false,
+			VisualMode:   m.eventTimelineVisualMode,
+			VisualStart:  m.eventTimelineVisualStart,
+			VisualCol:    m.eventTimelineVisualCol,
+			SearchQuery:  m.eventTimelineSearchQuery,
+			SearchActive: m.eventTimelineSearchActive,
+			SearchInput:  m.eventTimelineSearchInput.Value,
+		}
+		content = ui.RenderEventViewer(params)
 	case overlayAlerts:
 		entries := make([]ui.AlertEntry, len(m.alertsData))
 		for i, a := range m.alertsData {

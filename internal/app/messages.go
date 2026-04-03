@@ -100,6 +100,7 @@ type containerSelectMsg struct {
 // dashboardLoadedMsg carries the rendered dashboard content.
 type dashboardLoadedMsg struct {
 	content string
+	events  string // recent warning events for the right column in two-column mode
 	context string
 }
 

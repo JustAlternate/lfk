@@ -42,7 +42,7 @@ func TestOverlayHintBar_ReturnsNonEmpty(t *testing.T) {
 		{"BatchLabel", overlayBatchLabel, nil, "Enter"},
 		{"PodStartup", overlayPodStartup, nil, "close"},
 		{"QuotaDashboard", overlayQuotaDashboard, nil, "close"},
-		{"EventTimeline", overlayEventTimeline, nil, "scroll"},
+		{"EventTimeline", overlayEventTimeline, nil, "move"},
 		{"Alerts", overlayAlerts, nil, "scroll"},
 		{"NetworkPolicy", overlayNetworkPolicy, nil, "scroll"},
 		{"SecretEditor", overlaySecretEditor, nil, "nav"},

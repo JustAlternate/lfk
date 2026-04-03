@@ -141,10 +141,12 @@ func (m Model) loadDashboard() tea.Cmd {
 				warningEvents = append(warningEvents, e)
 			}
 		}
-		// Sort by creation time (most recent first) and limit to 10.
+		// Sort by creation time (most recent first).
 		sort.Slice(warningEvents, func(i, j int) bool {
 			return warningEvents[i].CreatedAt.After(warningEvents[j].CreatedAt)
 		})
+		// Keep the full sorted list for the events column; limit for inline display below.
+		allWarningEvents := warningEvents
 		if len(warningEvents) > 10 {
 			warningEvents = warningEvents[:10]
 		}
@@ -391,14 +393,8 @@ func (m Model) loadDashboard() tea.Cmd {
 			lines = append(lines, "")
 		}
 
-		// Warnings.
-		lines = append(lines, ui.DimStyle.Bold(true).Render("  WARNINGS"))
-		lines = append(lines, "")
-		hasWarnings := false
-		if failedPods > 0 {
-			lines = append(lines, ui.StatusFailed.Render(fmt.Sprintf("  ! %d pod(s) in failed state", failedPods)))
-			hasWarnings = true
-		}
+		// Warnings (pod/node health issues).
+		hasHealthWarnings := failedPods > 0 || crashLoopPods > 0
 		notReadyWorkerNodes := 0
 		for _, ni := range nodeItems {
 			if ni.Status != "Ready" {
@@ -415,32 +411,40 @@ func (m Model) loadDashboard() tea.Cmd {
 			}
 		}
 		if notReadyWorkerNodes > 0 {
-			lines = append(lines, ui.StatusFailed.Render(fmt.Sprintf("  ! %d worker node(s) not ready", notReadyWorkerNodes)))
-			hasWarnings = true
+			hasHealthWarnings = true
 		}
-		if crashLoopPods > 0 {
-			lines = append(lines, ui.StatusFailed.Render(fmt.Sprintf("  ! %d pod(s) in CrashLoopBackOff", crashLoopPods)))
-			hasWarnings = true
-		}
-		// PDB violation warnings.
-		if len(pdbWarnings) > 0 {
+		if hasHealthWarnings || len(pdbWarnings) > 0 {
+			lines = append(lines, ui.DimStyle.Bold(true).Render("  WARNINGS"))
 			lines = append(lines, "")
-			lines = append(lines, ui.DimStyle.Bold(true).Render("  PDB WARNINGS"))
-			lines = append(lines, "")
-			for _, pw := range pdbWarnings {
-				lines = append(lines, fmt.Sprintf("  %s %s/%s",
-					ui.StatusProgressing.Render("\u2298"),
-					ui.DimStyle.Render(pw.namespace),
-					ui.StatusProgressing.Render(pw.name)))
-				detail := fmt.Sprintf("       MinAvail=%s  Healthy=%s  DisruptionsAllowed=%s",
-					pw.minAvailable, pw.currentHealthy, pw.disruptionsAllowed)
-				lines = append(lines, ui.DimStyle.Render(detail))
+			if failedPods > 0 {
+				lines = append(lines, ui.StatusFailed.Render(fmt.Sprintf("  ! %d pod(s) in failed state", failedPods)))
 			}
-			hasWarnings = true
-		}
-		// Recent warning events.
-		if len(warningEvents) > 0 {
+			if notReadyWorkerNodes > 0 {
+				lines = append(lines, ui.StatusFailed.Render(fmt.Sprintf("  ! %d worker node(s) not ready", notReadyWorkerNodes)))
+			}
+			if crashLoopPods > 0 {
+				lines = append(lines, ui.StatusFailed.Render(fmt.Sprintf("  ! %d pod(s) in CrashLoopBackOff", crashLoopPods)))
+			}
+			if len(pdbWarnings) > 0 {
+				lines = append(lines, "")
+				lines = append(lines, ui.DimStyle.Bold(true).Render("  PDB WARNINGS"))
+				lines = append(lines, "")
+				for _, pw := range pdbWarnings {
+					lines = append(lines, fmt.Sprintf("  %s %s/%s",
+						ui.StatusProgressing.Render("\u2298"),
+						ui.DimStyle.Render(pw.namespace),
+						ui.StatusProgressing.Render(pw.name)))
+					detail := fmt.Sprintf("       MinAvail=%s  Healthy=%s  DisruptionsAllowed=%s",
+						pw.minAvailable, pw.currentHealthy, pw.disruptionsAllowed)
+					lines = append(lines, ui.DimStyle.Render(detail))
+				}
+			}
 			lines = append(lines, "")
+			lines = append(lines, ui.DimStyle.Render("  "+strings.Repeat("\u2500", 50)))
+		}
+
+		// Recent warning events (also shown in the right column in fullscreen two-column mode).
+		if len(warningEvents) > 0 {
 			lines = append(lines, ui.DimStyle.Bold(true).Render("  RECENT WARNING EVENTS"))
 			lines = append(lines, "")
 			for _, ev := range warningEvents {
@@ -464,7 +468,6 @@ func (m Model) loadDashboard() tea.Cmd {
 						count = kv.Value
 					}
 				}
-				// Format: warning icon [Age] (xN) Reason: Object - Message
 				countLabel := ""
 				if count != "" && count != "1" {
 					countLabel = ui.DimStyle.Render(fmt.Sprintf("(x%s) ", count))
@@ -480,15 +483,77 @@ func (m Model) loadDashboard() tea.Cmd {
 					lines = append(lines, fmt.Sprintf("       %s", ui.DimStyle.Render(message)))
 				}
 			}
-			hasWarnings = true
-		}
-		if !hasWarnings {
-			lines = append(lines, ui.StatusRunning.Render("  No warnings"))
 		}
 
 		lines = append(lines, "")
 
-		return dashboardLoadedMsg{content: strings.Join(lines, "\n"), context: kctx}
+		// Build separate events column for two-column dashboard layout.
+		var eventLines []string
+		eventLines = append(eventLines, "")
+		eventLines = append(eventLines, ui.DimStyle.Bold(true).Render("  RECENT EVENTS"))
+		eventLines = append(eventLines, "")
+
+		// Show more events in the dedicated column (up to 30).
+		columnEvents := allWarningEvents
+		if len(columnEvents) > 30 {
+			columnEvents = columnEvents[:30]
+		}
+
+		if len(columnEvents) == 0 {
+			eventLines = append(eventLines, ui.StatusRunning.Render("  No warning events"))
+		} else {
+			for i, ev := range columnEvents {
+				reason := ""
+				object := ""
+				message := ""
+				count := ""
+				namespace := ""
+				for _, kv := range ev.Columns {
+					switch kv.Key {
+					case "Reason":
+						reason = kv.Value
+					case "Object":
+						object = kv.Value
+					case "Message":
+						message = kv.Value
+					case "Count":
+						count = kv.Value
+					}
+				}
+				if ev.Namespace != "" {
+					namespace = ev.Namespace
+				}
+				countLabel := ""
+				if count != "" && count != "1" {
+					countLabel = ui.DimStyle.Render(fmt.Sprintf("(x%s) ", count))
+				}
+				nsLabel := ""
+				if namespace != "" {
+					nsLabel = ui.DimStyle.Render("[" + namespace + "] ")
+				}
+				line := fmt.Sprintf("  %s %s %s%s%s %s",
+					ui.StatusProgressing.Render("\u26a0"),
+					ui.DimStyle.Render(fmt.Sprintf("%-4s", ev.Age)),
+					countLabel,
+					nsLabel,
+					ui.StatusFailed.Render(reason+":"),
+					ui.NormalStyle.Render(object))
+				eventLines = append(eventLines, line)
+				if message != "" {
+					eventLines = append(eventLines, fmt.Sprintf("       %s", ui.DimStyle.Render(message)))
+				}
+				// Add spacing between events (except after the last one).
+				if i < len(columnEvents)-1 {
+					eventLines = append(eventLines, "")
+				}
+			}
+		}
+
+		return dashboardLoadedMsg{
+			content: strings.Join(lines, "\n"),
+			events:  strings.Join(eventLines, "\n"),
+			context: kctx,
+		}
 	}
 }
 

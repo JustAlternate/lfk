@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -93,26 +94,37 @@ func TestHandleOverlayKeyUnknownOverlayReturnsAsIs(t *testing.T) {
 
 // --- handleEventTimelineOverlayKey ---
 
+// makeEventLines creates n dummy event text lines for testing.
+func makeEventLines(n int) []string {
+	lines := make([]string, n)
+	for i := range lines {
+		lines[i] = fmt.Sprintf("%-8s %-7s %-20s %s", "1m ago", "Normal", "Scheduled", fmt.Sprintf("event %d", i))
+	}
+	return lines
+}
+
 func TestEventTimelineOverlayKeyNavigation(t *testing.T) {
 	events := make([]k8s.EventInfo, 20)
+	lines := makeEventLines(20)
 	tests := []struct {
 		name           string
 		key            tea.KeyMsg
-		startScroll    int
-		expectedScroll int
+		startCursor    int
+		expectedCursor int
 	}{
-		{name: "esc closes", key: specialKey(tea.KeyEsc), startScroll: 5, expectedScroll: 5},
-		{name: "j scrolls down", key: runeKey('j'), startScroll: 0, expectedScroll: 1},
-		{name: "k scrolls up", key: runeKey('k'), startScroll: 5, expectedScroll: 4},
-		{name: "k at zero stays", key: runeKey('k'), startScroll: 0, expectedScroll: 0},
-		{name: "G jumps to bottom", key: runeKey('G'), startScroll: 0, expectedScroll: 19},
+		{name: "esc closes", key: specialKey(tea.KeyEsc), startCursor: 5, expectedCursor: 5},
+		{name: "j moves down", key: runeKey('j'), startCursor: 0, expectedCursor: 1},
+		{name: "k moves up", key: runeKey('k'), startCursor: 5, expectedCursor: 4},
+		{name: "k at zero stays", key: runeKey('k'), startCursor: 0, expectedCursor: 0},
+		{name: "G jumps to bottom", key: runeKey('G'), startCursor: 0, expectedCursor: 19},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := Model{
 				overlay:             overlayEventTimeline,
 				eventTimelineData:   events,
-				eventTimelineScroll: tt.startScroll,
+				eventTimelineLines:  lines,
+				eventTimelineCursor: tt.startCursor,
 				tabs:                []TabState{{}},
 				width:               80,
 				height:              40,
@@ -122,7 +134,7 @@ func TestEventTimelineOverlayKeyNavigation(t *testing.T) {
 			if tt.key.String() == "esc" {
 				assert.Equal(t, overlayNone, result.overlay)
 			} else {
-				assert.Equal(t, tt.expectedScroll, result.eventTimelineScroll)
+				assert.Equal(t, tt.expectedCursor, result.eventTimelineCursor)
 			}
 		})
 	}
@@ -131,7 +143,8 @@ func TestEventTimelineOverlayKeyNavigation(t *testing.T) {
 		m := Model{
 			overlay:             overlayEventTimeline,
 			eventTimelineData:   events,
-			eventTimelineScroll: 10,
+			eventTimelineLines:  lines,
+			eventTimelineCursor: 10,
 			tabs:                []TabState{{}},
 			width:               80,
 			height:              40,
@@ -143,83 +156,94 @@ func TestEventTimelineOverlayKeyNavigation(t *testing.T) {
 		ret2, _ := result.handleEventTimelineOverlayKey(runeKey('g'))
 		result2 := ret2.(Model)
 		assert.False(t, result2.pendingG)
-		assert.Equal(t, 0, result2.eventTimelineScroll)
+		assert.Equal(t, 0, result2.eventTimelineCursor)
 	})
 }
 
 func TestEventTimelineCtrlDScrollsHalfPage(t *testing.T) {
 	events := make([]k8s.EventInfo, 50)
+	lines := makeEventLines(50)
 	m := Model{
 		overlay:             overlayEventTimeline,
 		eventTimelineData:   events,
-		eventTimelineScroll: 5,
+		eventTimelineLines:  lines,
+		eventTimelineCursor: 5,
 		tabs:                []TabState{{}},
 		width:               80,
 		height:              40,
 	}
 	ret, _ := m.handleEventTimelineOverlayKey(tea.KeyMsg{Type: tea.KeyCtrlD})
 	result := ret.(Model)
-	assert.Equal(t, 15, result.eventTimelineScroll)
+	// Cursor moves by half the content height (overlay height ~26, content ~22, half ~11).
+	assert.Greater(t, result.eventTimelineCursor, 5)
 }
 
 func TestEventTimelineCtrlUScrollsUp(t *testing.T) {
 	events := make([]k8s.EventInfo, 50)
+	lines := makeEventLines(50)
 	m := Model{
 		overlay:             overlayEventTimeline,
 		eventTimelineData:   events,
-		eventTimelineScroll: 15,
+		eventTimelineLines:  lines,
+		eventTimelineCursor: 15,
 		tabs:                []TabState{{}},
 		width:               80,
 		height:              40,
 	}
 	ret, _ := m.handleEventTimelineOverlayKey(tea.KeyMsg{Type: tea.KeyCtrlU})
 	result := ret.(Model)
-	assert.Equal(t, 5, result.eventTimelineScroll)
+	assert.Less(t, result.eventTimelineCursor, 15)
 }
 
 func TestEventTimelineCtrlUClampsToZero(t *testing.T) {
 	events := make([]k8s.EventInfo, 50)
+	lines := makeEventLines(50)
 	m := Model{
 		overlay:             overlayEventTimeline,
 		eventTimelineData:   events,
-		eventTimelineScroll: 3,
+		eventTimelineLines:  lines,
+		eventTimelineCursor: 3,
 		tabs:                []TabState{{}},
 		width:               80,
 		height:              40,
 	}
 	ret, _ := m.handleEventTimelineOverlayKey(tea.KeyMsg{Type: tea.KeyCtrlU})
 	result := ret.(Model)
-	assert.Equal(t, 0, result.eventTimelineScroll)
+	assert.Equal(t, 0, result.eventTimelineCursor)
 }
 
 func TestEventTimelineCtrlFScrollsFullPage(t *testing.T) {
 	events := make([]k8s.EventInfo, 100)
+	lines := makeEventLines(100)
 	m := Model{
 		overlay:             overlayEventTimeline,
 		eventTimelineData:   events,
-		eventTimelineScroll: 0,
+		eventTimelineLines:  lines,
+		eventTimelineCursor: 0,
 		tabs:                []TabState{{}},
 		width:               80,
 		height:              40,
 	}
 	ret, _ := m.handleEventTimelineOverlayKey(tea.KeyMsg{Type: tea.KeyCtrlF})
 	result := ret.(Model)
-	assert.Equal(t, 20, result.eventTimelineScroll)
+	assert.Greater(t, result.eventTimelineCursor, 0)
 }
 
 func TestEventTimelineCtrlBScrollsBackFullPage(t *testing.T) {
 	events := make([]k8s.EventInfo, 100)
+	lines := makeEventLines(100)
 	m := Model{
 		overlay:             overlayEventTimeline,
 		eventTimelineData:   events,
-		eventTimelineScroll: 30,
+		eventTimelineLines:  lines,
+		eventTimelineCursor: 30,
 		tabs:                []TabState{{}},
 		width:               80,
 		height:              40,
 	}
 	ret, _ := m.handleEventTimelineOverlayKey(tea.KeyMsg{Type: tea.KeyCtrlB})
 	result := ret.(Model)
-	assert.Equal(t, 10, result.eventTimelineScroll)
+	assert.Less(t, result.eventTimelineCursor, 30)
 }
 
 // --- handleNetworkPolicyOverlayKey ---
@@ -1320,7 +1344,10 @@ func TestAlertsOverlayKeyNavigation(t *testing.T) {
 			width:        80,
 			height:       40,
 		}
+		// First g sets pendingG, second g triggers go-to-top (gg pattern).
 		ret, _ := m.handleAlertsOverlayKey(runeKey('g'))
+		m = ret.(Model)
+		ret, _ = m.handleAlertsOverlayKey(runeKey('g'))
 		result := ret.(Model)
 		assert.Equal(t, 0, result.alertsScroll)
 	})

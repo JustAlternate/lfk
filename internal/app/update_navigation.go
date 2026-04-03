@@ -215,6 +215,7 @@ func (m Model) navigateChild() (tea.Model, tea.Cmd) {
 		m.saveCursor()
 		m.nav.Context = sel.Name
 		m.dashboardPreview = ""
+		m.dashboardEventsPreview = ""
 		m.monitoringPreview = ""
 		m.applyPinnedGroups()
 		m.nav.Level = model.LevelResourceTypes

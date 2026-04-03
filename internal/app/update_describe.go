@@ -10,18 +10,24 @@ import (
 )
 
 func (m Model) handleDescribeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	totalLines := countLines(m.describeContent)
-	visibleLines := m.height - 4
-	if visibleLines < 3 {
-		visibleLines = 3
-	}
-	maxScroll := totalLines - visibleLines
-	if maxScroll < 0 {
-		maxScroll = 0
+	lines := strings.Split(m.describeContent, "\n")
+	maxIdx := max(len(lines)-1, 0)
+
+	// Handle search input mode first.
+	if m.describeSearchActive {
+		return m.handleDescribeSearchKey(msg)
 	}
 
-	switch msg.String() {
+	// Handle visual mode keys.
+	if m.describeVisualMode != 0 {
+		return m.handleDescribeVisualKey(msg)
+	}
+
+	key := msg.String()
+
+	switch key {
 	case "?", "f1":
+		m.describeLineInput = ""
 		m.helpPreviousMode = modeDescribe
 		m.mode = modeHelp
 		m.helpScroll = 0
@@ -30,65 +36,542 @@ func (m Model) handleDescribeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.helpContextMode = "Describe View"
 		return m, nil
 	case "ctrl+w", ">":
+		m.describeLineInput = ""
 		m.describeWrap = !m.describeWrap
 		return m, nil
 	case "q", "esc":
+		if m.describeSearchQuery != "" {
+			m.describeSearchQuery = ""
+			return m, nil
+		}
+		m.describeLineInput = ""
 		m.mode = modeExplorer
 		m.describeScroll = 0
+		m.describeCursor = 0
+		m.describeCursorCol = 0
 		m.describeWrap = false
 		m.describeAutoRefresh = false
 		m.describeRefreshFunc = nil
+		m.describeVisualMode = 0
+		m.describeSearchQuery = ""
+		m.describeSearchInput.Clear()
 		return m, nil
+
+	// Cursor movement.
 	case "j", "down":
-		m.describeScroll++
-		if m.describeScroll > maxScroll {
-			m.describeScroll = maxScroll
+		m.describeLineInput = ""
+		if m.describeCursor < maxIdx {
+			m.describeCursor++
 		}
+		m.ensureDescribeCursorVisible()
 		return m, nil
 	case "k", "up":
-		if m.describeScroll > 0 {
-			m.describeScroll--
+		m.describeLineInput = ""
+		if m.describeCursor > 0 {
+			m.describeCursor--
+		}
+		m.ensureDescribeCursorVisible()
+		return m, nil
+	case "h", "left":
+		m.describeLineInput = ""
+		if m.describeCursorCol > 0 {
+			m.describeCursorCol--
 		}
 		return m, nil
+	case "l", "right":
+		m.describeLineInput = ""
+		m.describeCursorCol++
+		return m, nil
+
+	// Line navigation.
+	case "0":
+		if m.describeLineInput != "" {
+			m.describeLineInput += "0"
+			return m, nil
+		}
+		m.describeCursorCol = 0
+		return m, nil
+	case "$":
+		m.describeLineInput = ""
+		if m.describeCursor >= 0 && m.describeCursor < len(lines) {
+			lineLen := len([]rune(lines[m.describeCursor]))
+			if lineLen > 0 {
+				m.describeCursorCol = lineLen - 1
+			}
+		}
+		return m, nil
+	case "^":
+		m.describeLineInput = ""
+		if m.describeCursor >= 0 && m.describeCursor < len(lines) {
+			m.describeCursorCol = firstNonWhitespace(lines[m.describeCursor])
+		}
+		return m, nil
+
+	// Word motions.
+	case "w":
+		m.describeLineInput = ""
+		if m.describeCursor >= 0 && m.describeCursor < len(lines) {
+			m.describeCursorCol = nextWordStart(lines[m.describeCursor], m.describeCursorCol)
+		}
+		return m, nil
+	case "W":
+		m.describeLineInput = ""
+		if m.describeCursor >= 0 && m.describeCursor < len(lines) {
+			m.describeCursorCol = nextWORDStart(lines[m.describeCursor], m.describeCursorCol)
+		}
+		return m, nil
+	case "b":
+		m.describeLineInput = ""
+		if m.describeCursor >= 0 && m.describeCursor < len(lines) {
+			nc := prevWordStart(lines[m.describeCursor], m.describeCursorCol)
+			if nc >= 0 {
+				m.describeCursorCol = nc
+			}
+		}
+		return m, nil
+	case "B":
+		m.describeLineInput = ""
+		if m.describeCursor >= 0 && m.describeCursor < len(lines) {
+			nc := prevWORDStart(lines[m.describeCursor], m.describeCursorCol)
+			if nc >= 0 {
+				m.describeCursorCol = nc
+			}
+		}
+		return m, nil
+	case "e":
+		m.describeLineInput = ""
+		if m.describeCursor >= 0 && m.describeCursor < len(lines) {
+			m.describeCursorCol = wordEnd(lines[m.describeCursor], m.describeCursorCol)
+		}
+		return m, nil
+	case "E":
+		m.describeLineInput = ""
+		if m.describeCursor >= 0 && m.describeCursor < len(lines) {
+			m.describeCursorCol = WORDEnd(lines[m.describeCursor], m.describeCursorCol)
+		}
+		return m, nil
+
+	// Page movement.
+	case "ctrl+d":
+		m.describeLineInput = ""
+		m.describeCursor += m.describeContentHeight() / 2
+		if m.describeCursor > maxIdx {
+			m.describeCursor = maxIdx
+		}
+		m.ensureDescribeCursorVisible()
+		return m, nil
+	case "ctrl+u":
+		m.describeLineInput = ""
+		m.describeCursor -= m.describeContentHeight() / 2
+		if m.describeCursor < 0 {
+			m.describeCursor = 0
+		}
+		m.ensureDescribeCursorVisible()
+		return m, nil
+	case "ctrl+f":
+		m.describeLineInput = ""
+		m.describeCursor += m.describeContentHeight()
+		if m.describeCursor > maxIdx {
+			m.describeCursor = maxIdx
+		}
+		m.ensureDescribeCursorVisible()
+		return m, nil
+	case "ctrl+b":
+		m.describeLineInput = ""
+		m.describeCursor -= m.describeContentHeight()
+		if m.describeCursor < 0 {
+			m.describeCursor = 0
+		}
+		m.ensureDescribeCursorVisible()
+		return m, nil
+
+	// Jump to top/bottom.
+	case "g":
+		m.describeLineInput = ""
+		if m.pendingG {
+			m.pendingG = false
+			m.describeCursor = 0
+			m.ensureDescribeCursorVisible()
+		} else {
+			m.pendingG = true
+		}
+		return m, nil
+	case "G":
+		if m.describeLineInput != "" {
+			lineNum, _ := strconv.Atoi(m.describeLineInput)
+			m.describeLineInput = ""
+			if lineNum > 0 {
+				lineNum--
+			}
+			m.describeCursor = min(lineNum, maxIdx)
+		} else {
+			m.describeCursor = maxIdx
+		}
+		m.ensureDescribeCursorVisible()
+		return m, nil
+
+	// Digit buffer for 123G.
+	case "1", "2", "3", "4", "5", "6", "7", "8", "9":
+		m.describeLineInput += key
+		return m, nil
+
+	// Visual modes.
+	case "v":
+		m.describeLineInput = ""
+		m.describeVisualMode = 'v'
+		m.describeVisualStart = m.describeCursor
+		m.describeVisualCol = m.describeCursorCol
+		return m, nil
+	case "V":
+		m.describeLineInput = ""
+		m.describeVisualMode = 'V'
+		m.describeVisualStart = m.describeCursor
+		m.describeVisualCol = m.describeCursorCol
+		return m, nil
+	case "ctrl+v":
+		m.describeLineInput = ""
+		m.describeVisualMode = 'B'
+		m.describeVisualStart = m.describeCursor
+		m.describeVisualCol = m.describeCursorCol
+		return m, nil
+
+	// Copy current line (yy).
+	case "y":
+		m.describeLineInput = ""
+		if m.describeCursor >= 0 && m.describeCursor < len(lines) {
+			text := lines[m.describeCursor]
+			m.setStatusMessage("Copied 1 line", false)
+			return m, tea.Batch(copyToSystemClipboard(text), scheduleStatusClear())
+		}
+		return m, nil
+
+	// Search.
+	case "/":
+		m.describeLineInput = ""
+		m.describeSearchActive = true
+		m.describeSearchInput.Clear()
+		return m, nil
+	case "n":
+		m.describeLineInput = ""
+		m.findNextDescribeMatch(true)
+		return m, nil
+	case "N":
+		m.describeLineInput = ""
+		m.findNextDescribeMatch(false)
+		return m, nil
+
+	case "ctrl+c":
+		m.describeLineInput = ""
+		return m.closeTabOrQuit()
+	default:
+		m.describeLineInput = ""
+	}
+	return m, nil
+}
+
+// handleDescribeVisualKey handles keys while visual mode is active in the describe view.
+func (m Model) handleDescribeVisualKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	lines := strings.Split(m.describeContent, "\n")
+	maxIdx := max(len(lines)-1, 0)
+	key := msg.String()
+
+	switch key {
+	case "esc":
+		m.describeVisualMode = 0
+		return m, nil
+	case "V":
+		if m.describeVisualMode == 'V' {
+			m.describeVisualMode = 0
+		} else {
+			m.describeVisualMode = 'V'
+		}
+		return m, nil
+	case "v":
+		if m.describeVisualMode == 'v' {
+			m.describeVisualMode = 0
+		} else {
+			m.describeVisualMode = 'v'
+		}
+		return m, nil
+	case "ctrl+v":
+		if m.describeVisualMode == 'B' {
+			m.describeVisualMode = 0
+		} else {
+			m.describeVisualMode = 'B'
+		}
+		return m, nil
+
+	// Movement extends selection.
+	case "j", "down":
+		if m.describeCursor < maxIdx {
+			m.describeCursor++
+		}
+		m.ensureDescribeCursorVisible()
+	case "k", "up":
+		if m.describeCursor > 0 {
+			m.describeCursor--
+		}
+		m.ensureDescribeCursorVisible()
+	case "h", "left":
+		if m.describeCursorCol > 0 {
+			m.describeCursorCol--
+		}
+	case "l", "right":
+		m.describeCursorCol++
+	case "0":
+		m.describeCursorCol = 0
+	case "$":
+		if m.describeCursor >= 0 && m.describeCursor < len(lines) {
+			lineLen := len([]rune(lines[m.describeCursor]))
+			if lineLen > 0 {
+				m.describeCursorCol = lineLen - 1
+			}
+		}
+	case "^":
+		if m.describeCursor >= 0 && m.describeCursor < len(lines) {
+			m.describeCursorCol = firstNonWhitespace(lines[m.describeCursor])
+		}
+	case "w":
+		if m.describeCursor >= 0 && m.describeCursor < len(lines) {
+			m.describeCursorCol = nextWordStart(lines[m.describeCursor], m.describeCursorCol)
+		}
+	case "W":
+		if m.describeCursor >= 0 && m.describeCursor < len(lines) {
+			m.describeCursorCol = nextWORDStart(lines[m.describeCursor], m.describeCursorCol)
+		}
+	case "b":
+		if m.describeCursor >= 0 && m.describeCursor < len(lines) {
+			if nc := prevWordStart(lines[m.describeCursor], m.describeCursorCol); nc >= 0 {
+				m.describeCursorCol = nc
+			}
+		}
+	case "B":
+		if m.describeCursor >= 0 && m.describeCursor < len(lines) {
+			if nc := prevWORDStart(lines[m.describeCursor], m.describeCursorCol); nc >= 0 {
+				m.describeCursorCol = nc
+			}
+		}
+	case "e":
+		if m.describeCursor >= 0 && m.describeCursor < len(lines) {
+			m.describeCursorCol = wordEnd(lines[m.describeCursor], m.describeCursorCol)
+		}
+	case "E":
+		if m.describeCursor >= 0 && m.describeCursor < len(lines) {
+			m.describeCursorCol = WORDEnd(lines[m.describeCursor], m.describeCursorCol)
+		}
+	case "G":
+		m.describeCursor = maxIdx
+		m.ensureDescribeCursorVisible()
 	case "g":
 		if m.pendingG {
 			m.pendingG = false
-			m.describeScroll = 0
-			return m, nil
+			m.describeCursor = 0
+			m.ensureDescribeCursorVisible()
+		} else {
+			m.pendingG = true
 		}
-		m.pendingG = true
-		return m, nil
-	case "G":
-		m.describeScroll = maxScroll
-		return m, nil
 	case "ctrl+d":
-		m.describeScroll += m.height / 2
-		if m.describeScroll > maxScroll {
-			m.describeScroll = maxScroll
+		m.describeCursor += m.describeContentHeight() / 2
+		if m.describeCursor > maxIdx {
+			m.describeCursor = maxIdx
 		}
-		return m, nil
+		m.ensureDescribeCursorVisible()
 	case "ctrl+u":
-		m.describeScroll -= m.height / 2
-		if m.describeScroll < 0 {
-			m.describeScroll = 0
+		m.describeCursor -= m.describeContentHeight() / 2
+		if m.describeCursor < 0 {
+			m.describeCursor = 0
 		}
-		return m, nil
-	case "ctrl+f":
-		m.describeScroll += m.height
-		if m.describeScroll > maxScroll {
-			m.describeScroll = maxScroll
+		m.ensureDescribeCursorVisible()
+
+	// Copy selected text.
+	case "y":
+		selStart := min(m.describeVisualStart, m.describeCursor)
+		selEnd := max(m.describeVisualStart, m.describeCursor)
+		if selStart < 0 {
+			selStart = 0
 		}
-		return m, nil
-	case "ctrl+b":
-		m.describeScroll -= m.height
-		if m.describeScroll < 0 {
-			m.describeScroll = 0
+		if selEnd >= len(lines) {
+			selEnd = len(lines) - 1
 		}
-		return m, nil
+		var clipText string
+		switch m.describeVisualMode {
+		case 'v': // Character mode: partial first/last lines.
+			var parts []string
+			anchorCol := m.describeVisualCol
+			cursorCol := m.describeCursorCol
+			startCol, endCol := anchorCol, cursorCol
+			if m.describeVisualStart > m.describeCursor {
+				startCol, endCol = cursorCol, anchorCol
+			}
+			for i := selStart; i <= selEnd; i++ {
+				line := lines[i]
+				runes := []rune(line)
+				if selStart == selEnd {
+					cs := min(anchorCol, cursorCol)
+					ce := max(anchorCol, cursorCol) + 1
+					if cs > len(runes) {
+						cs = len(runes)
+					}
+					if ce > len(runes) {
+						ce = len(runes)
+					}
+					parts = append(parts, string(runes[cs:ce]))
+				} else if i == selStart {
+					cs := startCol
+					if cs > len(runes) {
+						cs = len(runes)
+					}
+					parts = append(parts, string(runes[cs:]))
+				} else if i == selEnd {
+					ce := endCol + 1
+					if ce > len(runes) {
+						ce = len(runes)
+					}
+					parts = append(parts, string(runes[:ce]))
+				} else {
+					parts = append(parts, line)
+				}
+			}
+			clipText = strings.Join(parts, "\n")
+		case 'B': // Block mode: rectangular column range.
+			colStart := min(m.describeVisualCol, m.describeCursorCol)
+			colEnd := max(m.describeVisualCol, m.describeCursorCol) + 1
+			var parts []string
+			for i := selStart; i <= selEnd; i++ {
+				line := lines[i]
+				runes := []rune(line)
+				cs := colStart
+				ce := colEnd
+				if cs > len(runes) {
+					cs = len(runes)
+				}
+				if ce > len(runes) {
+					ce = len(runes)
+				}
+				parts = append(parts, string(runes[cs:ce]))
+			}
+			clipText = strings.Join(parts, "\n")
+		default: // Line mode: whole lines.
+			var parts []string
+			for i := selStart; i <= selEnd; i++ {
+				parts = append(parts, lines[i])
+			}
+			clipText = strings.Join(parts, "\n")
+		}
+		lineCount := selEnd - selStart + 1
+		m.describeVisualMode = 0
+		m.setStatusMessage(fmt.Sprintf("Copied %d line(s)", lineCount), false)
+		return m, tea.Batch(copyToSystemClipboard(clipText), scheduleStatusClear())
+
 	case "ctrl+c":
 		return m.closeTabOrQuit()
 	}
 	return m, nil
+}
+
+// handleDescribeSearchKey handles keyboard input during describe search.
+func (m Model) handleDescribeSearchKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "enter":
+		m.describeSearchActive = false
+		m.describeSearchQuery = m.describeSearchInput.Value
+		m.findNextDescribeMatch(true)
+	case "esc":
+		m.describeSearchActive = false
+		m.describeSearchInput.Clear()
+	case "backspace":
+		if len(m.describeSearchInput.Value) > 0 {
+			m.describeSearchInput.Backspace()
+		}
+	case "ctrl+w":
+		m.describeSearchInput.DeleteWord()
+	case "ctrl+a":
+		m.describeSearchInput.Home()
+	case "ctrl+e":
+		m.describeSearchInput.End()
+	case "left":
+		m.describeSearchInput.Left()
+	case "right":
+		m.describeSearchInput.Right()
+	case "ctrl+c":
+		return m.closeTabOrQuit()
+	default:
+		key := msg.String()
+		if len(key) == 1 && key[0] >= 32 && key[0] < 127 {
+			m.describeSearchInput.Insert(key)
+		}
+	}
+	return m, nil
+}
+
+// describeContentHeight returns the visible content height for the describe view.
+func (m *Model) describeContentHeight() int {
+	h := m.height - 4
+	if h < 3 {
+		h = 3
+	}
+	return h
+}
+
+// ensureDescribeCursorVisible adjusts describeScroll so the cursor is within
+// the viewport with scrolloff padding.
+func (m *Model) ensureDescribeCursorVisible() {
+	lines := strings.Split(m.describeContent, "\n")
+	total := len(lines)
+	if m.describeCursor >= total {
+		m.describeCursor = total - 1
+	}
+	if m.describeCursor < 0 {
+		m.describeCursor = 0
+	}
+	viewH := m.describeContentHeight()
+	so := ui.ConfigScrollOff
+	if so > viewH/2 {
+		so = viewH / 2
+	}
+	if m.describeCursor < m.describeScroll+so {
+		m.describeScroll = m.describeCursor - so
+	}
+	if m.describeCursor >= m.describeScroll+viewH-so {
+		m.describeScroll = m.describeCursor - viewH + so + 1
+	}
+	if m.describeScroll < 0 {
+		m.describeScroll = 0
+	}
+	maxScroll := max(total-viewH, 0)
+	if m.describeScroll > maxScroll {
+		m.describeScroll = maxScroll
+	}
+}
+
+// findNextDescribeMatch searches for the next/previous occurrence of the search
+// query in the describe content lines and moves the cursor to it.
+func (m *Model) findNextDescribeMatch(forward bool) {
+	if m.describeSearchQuery == "" {
+		return
+	}
+	lines := strings.Split(m.describeContent, "\n")
+	if len(lines) == 0 {
+		return
+	}
+	query := strings.ToLower(m.describeSearchQuery)
+	start := m.describeCursor
+	total := len(lines)
+
+	for i := 1; i <= total; i++ {
+		var idx int
+		if forward {
+			idx = (start + i) % total
+		} else {
+			idx = (start - i + total) % total
+		}
+		if strings.Contains(strings.ToLower(lines[idx]), query) {
+			m.describeCursor = idx
+			m.ensureDescribeCursorVisible()
+			return
+		}
+	}
+	m.setStatusMessage("Pattern not found: "+m.describeSearchQuery, false)
 }
 
 func (m Model) handleDiffKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {

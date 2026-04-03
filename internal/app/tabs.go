@@ -463,6 +463,7 @@ func (m *Model) saveCurrentTab() {
 	t.fullscreenMiddle = m.fullscreenMiddle
 	t.fullscreenDashboard = m.fullscreenDashboard
 	t.dashboardPreview = m.dashboardPreview
+	t.dashboardEventsPreview = m.dashboardEventsPreview
 	t.monitoringPreview = m.monitoringPreview
 	t.warningEventsOnly = m.warningEventsOnly
 	t.expandedGroup = m.expandedGroup
@@ -561,6 +562,7 @@ func (m *Model) loadTab(idx int) tea.Cmd {
 	m.fullscreenMiddle = t.fullscreenMiddle
 	m.fullscreenDashboard = t.fullscreenDashboard
 	m.dashboardPreview = t.dashboardPreview
+	m.dashboardEventsPreview = t.dashboardEventsPreview
 	m.monitoringPreview = t.monitoringPreview
 	m.warningEventsOnly = t.warningEventsOnly
 	m.expandedGroup = t.expandedGroup
@@ -668,43 +670,44 @@ func (m *Model) loadTab(idx int) tea.Cmd {
 // cloneCurrentTab creates a deep copy of the current model state as a new TabState.
 func (m *Model) cloneCurrentTab() TabState {
 	newTab := TabState{
-		nav:                 m.nav,
-		leftItems:           append([]model.Item(nil), m.leftItems...),
-		middleItems:         append([]model.Item(nil), m.middleItems...),
-		rightItems:          append([]model.Item(nil), m.rightItems...),
-		cursors:             m.cursors,
-		middleScroll:        ui.ActiveMiddleScroll,
-		leftScroll:          ui.ActiveLeftScroll,
-		cursorMemory:        copyMapStringInt(m.cursorMemory),
-		itemCache:           copyItemCache(m.itemCache),
-		yamlContent:         m.yamlContent,
-		yamlCollapsed:       copyMapStringBool(m.yamlCollapsed),
-		splitPreview:        m.splitPreview,
-		fullYAMLPreview:     m.fullYAMLPreview,
-		previewYAML:         m.previewYAML,
-		namespace:           m.namespace,
-		allNamespaces:       m.allNamespaces,
-		selectedNamespaces:  copyMapStringBool(m.selectedNamespaces),
-		sortColumnName:      m.sortColumnName,
-		sortAscending:       m.sortAscending,
-		filterText:          m.filterText,
-		watchMode:           m.watchMode,
-		requestGen:          m.requestGen,
-		selectedItems:       copyMapStringBool(m.selectedItems),
-		selectionAnchor:     m.selectionAnchor,
-		fullscreenMiddle:    m.fullscreenMiddle,
-		fullscreenDashboard: m.fullscreenDashboard,
-		dashboardPreview:    m.dashboardPreview,
-		monitoringPreview:   m.monitoringPreview,
-		warningEventsOnly:   m.warningEventsOnly,
-		expandedGroup:       m.expandedGroup,
-		allGroupsExpanded:   m.allGroupsExpanded,
-		logCursor:           m.logCursor,
-		logVisualMode:       false, // don't clone visual mode into new tabs
-		logVisualStart:      0,
-		logVisualType:       'V',
-		logVisualCol:        0,
-		logVisualCurCol:     0,
+		nav:                    m.nav,
+		leftItems:              append([]model.Item(nil), m.leftItems...),
+		middleItems:            append([]model.Item(nil), m.middleItems...),
+		rightItems:             append([]model.Item(nil), m.rightItems...),
+		cursors:                m.cursors,
+		middleScroll:           ui.ActiveMiddleScroll,
+		leftScroll:             ui.ActiveLeftScroll,
+		cursorMemory:           copyMapStringInt(m.cursorMemory),
+		itemCache:              copyItemCache(m.itemCache),
+		yamlContent:            m.yamlContent,
+		yamlCollapsed:          copyMapStringBool(m.yamlCollapsed),
+		splitPreview:           m.splitPreview,
+		fullYAMLPreview:        m.fullYAMLPreview,
+		previewYAML:            m.previewYAML,
+		namespace:              m.namespace,
+		allNamespaces:          m.allNamespaces,
+		selectedNamespaces:     copyMapStringBool(m.selectedNamespaces),
+		sortColumnName:         m.sortColumnName,
+		sortAscending:          m.sortAscending,
+		filterText:             m.filterText,
+		watchMode:              m.watchMode,
+		requestGen:             m.requestGen,
+		selectedItems:          copyMapStringBool(m.selectedItems),
+		selectionAnchor:        m.selectionAnchor,
+		fullscreenMiddle:       m.fullscreenMiddle,
+		fullscreenDashboard:    m.fullscreenDashboard,
+		dashboardPreview:       m.dashboardPreview,
+		dashboardEventsPreview: m.dashboardEventsPreview,
+		monitoringPreview:      m.monitoringPreview,
+		warningEventsOnly:      m.warningEventsOnly,
+		expandedGroup:          m.expandedGroup,
+		allGroupsExpanded:      m.allGroupsExpanded,
+		logCursor:              m.logCursor,
+		logVisualMode:          false, // don't clone visual mode into new tabs
+		logVisualStart:         0,
+		logVisualType:          'V',
+		logVisualCol:           0,
+		logVisualCurCol:        0,
 	}
 	// Deep copy leftItemsHistory.
 	newTab.leftItemsHistory = make([][]model.Item, len(m.leftItemsHistory))

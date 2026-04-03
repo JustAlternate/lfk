@@ -444,7 +444,7 @@ func RenderPreviewEvents(events []EventTimelineEntry, width int) string {
 	maxAgeW := 0
 	maxReasonW := 0
 	for _, e := range events {
-		ageStr := relativeTime(e.Timestamp)
+		ageStr := RelativeTime(e.Timestamp)
 		if len(ageStr) > maxAgeW {
 			maxAgeW = len(ageStr)
 		}
@@ -461,7 +461,7 @@ func RenderPreviewEvents(events []EventTimelineEntry, width int) string {
 	msgWidth := max(width-maxAgeW-3-maxReasonW-4, 20) // 3 for " ● ", 4 for spacing
 
 	for _, e := range events {
-		ageStr := relativeTime(e.Timestamp)
+		ageStr := RelativeTime(e.Timestamp)
 
 		// Type indicator and styling.
 		var dot, reasonStr string

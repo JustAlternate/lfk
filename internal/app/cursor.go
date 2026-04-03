@@ -142,6 +142,17 @@ func (m *Model) carryOverMetricsColumns(newItems []model.Item) {
 // clampAllCursors ensures all cursor positions are within bounds after resize.
 func (m *Model) clampAllCursors() {
 	m.clampCursor()
+	// Clamp event timeline cursor on resize.
+	if len(m.eventTimelineLines) > 0 {
+		if m.eventTimelineCursor >= len(m.eventTimelineLines) {
+			m.eventTimelineCursor = len(m.eventTimelineLines) - 1
+		}
+		m.ensureEventCursorVisible()
+	}
+	// Clamp describe cursor on resize.
+	if m.mode == modeDescribe && m.describeContent != "" {
+		m.ensureDescribeCursorVisible()
+	}
 }
 
 // navKey builds a unique key from the current navigation state, used for

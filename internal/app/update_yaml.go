@@ -751,18 +751,21 @@ func (m Model) handleYAMLKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case "j", "down":
+		m.yamlLineInput = ""
 		if m.yamlCursor < totalVisible-1 {
 			m.yamlCursor++
 		}
 		m.ensureYAMLCursorVisible()
 		return m, nil
 	case "k", "up":
+		m.yamlLineInput = ""
 		if m.yamlCursor > 0 {
 			m.yamlCursor--
 		}
 		m.ensureYAMLCursorVisible()
 		return m, nil
 	case "g":
+		m.yamlLineInput = ""
 		if m.pendingG {
 			m.pendingG = false
 			m.yamlCursor = 0
@@ -772,6 +775,22 @@ func (m Model) handleYAMLKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.pendingG = true
 		return m, nil
 	case "G":
+		if m.yamlLineInput != "" {
+			lineNum, _ := strconv.Atoi(m.yamlLineInput)
+			m.yamlLineInput = ""
+			if lineNum > 0 {
+				lineNum-- // 1-indexed to 0-indexed
+			}
+			if lineNum >= totalVisible {
+				lineNum = totalVisible - 1
+			}
+			if lineNum < 0 {
+				lineNum = 0
+			}
+			m.yamlCursor = lineNum
+			m.ensureYAMLCursorVisible()
+			return m, nil
+		}
 		m.yamlCursor = totalVisible - 1
 		if m.yamlCursor < 0 {
 			m.yamlCursor = 0
@@ -779,6 +798,7 @@ func (m Model) handleYAMLKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.yamlScroll = maxScroll
 		return m, nil
 	case "ctrl+d":
+		m.yamlLineInput = ""
 		m.yamlCursor += m.height / 2
 		if m.yamlCursor >= totalVisible {
 			m.yamlCursor = totalVisible - 1
@@ -786,6 +806,7 @@ func (m Model) handleYAMLKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.ensureYAMLCursorVisible()
 		return m, nil
 	case "ctrl+u":
+		m.yamlLineInput = ""
 		m.yamlCursor -= m.height / 2
 		if m.yamlCursor < 0 {
 			m.yamlCursor = 0
@@ -793,6 +814,7 @@ func (m Model) handleYAMLKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.ensureYAMLCursorVisible()
 		return m, nil
 	case "ctrl+f":
+		m.yamlLineInput = ""
 		m.yamlCursor += m.height
 		if m.yamlCursor >= totalVisible {
 			m.yamlCursor = totalVisible - 1
@@ -800,12 +822,15 @@ func (m Model) handleYAMLKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.ensureYAMLCursorVisible()
 		return m, nil
 	case "ctrl+b":
+		m.yamlLineInput = ""
 		m.yamlCursor -= m.height
 		if m.yamlCursor < 0 {
 			m.yamlCursor = 0
 		}
 		m.ensureYAMLCursorVisible()
 		return m, nil
+	default:
+		m.yamlLineInput = ""
 	}
 	return m, nil
 }
