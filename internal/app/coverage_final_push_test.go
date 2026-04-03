@@ -1054,6 +1054,7 @@ func TestFinalBookmarkToSlotTooLow(t *testing.T) {
 }
 
 func TestFinalBookmarkToSlotLocal(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	m := baseFinalModel()
 	m.nav.Level = model.LevelResources
 	m.nav.ResourceType = model.ResourceTypeEntry{DisplayName: "Pods", Kind: "Pod", Resource: "pods"}
@@ -1064,6 +1065,7 @@ func TestFinalBookmarkToSlotLocal(t *testing.T) {
 }
 
 func TestFinalBookmarkToSlotGlobal(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	m := baseFinalModel()
 	m.nav.Level = model.LevelResources
 	m.nav.Context = "prod-cluster"
@@ -1086,6 +1088,7 @@ func TestFinalBookmarkToSlotOverwrite(t *testing.T) {
 }
 
 func TestFinalBookmarkToSlotAllNamespaces(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	m := baseFinalModel()
 	m.nav.Level = model.LevelResources
 	m.nav.ResourceType = model.ResourceTypeEntry{DisplayName: "Pods", Kind: "Pod", Resource: "pods"}
@@ -1096,6 +1099,7 @@ func TestFinalBookmarkToSlotAllNamespaces(t *testing.T) {
 }
 
 func TestFinalBookmarkToSlotMultiNamespaces(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	m := baseFinalModel()
 	m.nav.Level = model.LevelResources
 	m.nav.ResourceType = model.ResourceTypeEntry{DisplayName: "Pods", Kind: "Pod", Resource: "pods"}
@@ -1135,6 +1139,7 @@ func TestFinalBookmarkDeleteCurrentEmpty(t *testing.T) {
 }
 
 func TestFinalBookmarkDeleteCurrentValid(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	m := baseFinalModel()
 	m.bookmarks = []model.Bookmark{{Name: "bm1", Slot: "a"}}
 	m.overlayCursor = 0
@@ -1144,6 +1149,7 @@ func TestFinalBookmarkDeleteCurrentValid(t *testing.T) {
 }
 
 func TestFinalBookmarkDeleteAll(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	m := baseFinalModel()
 	m.bookmarks = []model.Bookmark{{Name: "bm1", Slot: "a"}, {Name: "bm2", Slot: "b"}}
 	cmd := m.bookmarkDeleteAll()
@@ -1309,6 +1315,7 @@ func TestFinalHandleBookmarkFilterModeTyping(t *testing.T) {
 }
 
 func TestFinalHandleBookmarkConfirmDeleteYes(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	m := baseFinalModel()
 	m.overlay = overlayBookmarks
 	m.bookmarkSearchMode = bookmarkModeConfirmDelete
@@ -1331,6 +1338,7 @@ func TestFinalHandleBookmarkConfirmDeleteNo(t *testing.T) {
 }
 
 func TestFinalHandleBookmarkConfirmDeleteAllYes(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	m := baseFinalModel()
 	m.overlay = overlayBookmarks
 	m.bookmarkSearchMode = bookmarkModeConfirmDeleteAll
@@ -1946,6 +1954,7 @@ func TestFinalNavigateToBookmarkSingleNamespaceInList(t *testing.T) {
 // =====================================================================
 
 func TestFinalBookmarkDeleteAllWithFilter(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	m := baseFinalModel()
 	m.bookmarks = []model.Bookmark{
 		{Name: "alpha-bm", Slot: "a"},
