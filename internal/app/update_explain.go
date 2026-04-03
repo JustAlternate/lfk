@@ -109,85 +109,25 @@ func (m Model) handleExplainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	switch msg.String() {
 	case "?", "f1":
-		m.explainLineInput = ""
-		m.helpPreviousMode = modeExplain
-		m.mode = modeHelp
-		m.helpScroll = 0
-		m.helpFilter.Clear()
-		m.helpSearchActive = false
-		m.helpContextMode = "API Explorer"
-		return m, nil
+		return m.handleExplainKeyQuestion()
 
 	case "q":
-		m.explainLineInput = ""
-		// Quit explain view immediately.
-		m.exitExplainView()
-		return m, nil
+		return m.handleExplainKeyQ()
 
 	case "esc":
-		m.explainLineInput = ""
-		// Step back one level; exit only at root.
-		if m.explainPath == "" {
-			m.exitExplainView()
-			return m, nil
-		}
-		// Go back one level (same as h/left/backspace).
-		newPath := m.explainPath
-		if idx := strings.LastIndex(newPath, "."); idx >= 0 {
-			newPath = newPath[:idx]
-		} else {
-			newPath = ""
-		}
-		m.loading = true
-		m.setStatusMessage("Loading parent...", false)
-		return m, m.execKubectlExplain(m.explainResource, m.explainAPIVersion, newPath)
+		return m.handleExplainKeyEsc()
 
 	case "/":
-		m.explainLineInput = ""
-		// Start search mode.
-		m.explainSearchActive = true
-		m.explainSearchInput.Clear()
-		m.explainSearchPrevCursor = m.explainCursor
-		return m, nil
+		return m.handleExplainKeySlash()
 
 	case "n":
-		m.explainLineInput = ""
-		// Jump to next search match; wrap around if no match found.
-		if m.explainSearchQuery != "" {
-			found := m.explainJumpToMatch(m.explainSearchQuery, m.explainCursor+1, true)
-			if !found {
-				// Wrap around from beginning.
-				found = m.explainJumpToMatch(m.explainSearchQuery, 0, true)
-				if !found {
-					m.setStatusMessage("No matches at this level - press r to search recursively", true)
-					return m, scheduleStatusClear()
-				}
-			}
-		}
-		return m, nil
+		return m.handleExplainKeyN()
 
 	case "N":
-		m.explainLineInput = ""
-		// Jump to previous search match; wrap around if no match found.
-		if m.explainSearchQuery != "" {
-			found := m.explainJumpToMatch(m.explainSearchQuery, m.explainCursor-1, false)
-			if !found {
-				// Wrap around from end.
-				found = m.explainJumpToMatch(m.explainSearchQuery, len(m.explainFields)-1, false)
-				if !found {
-					m.setStatusMessage("No matches at this level - press r to search recursively", true)
-					return m, scheduleStatusClear()
-				}
-			}
-		}
-		return m, nil
+		return m.handleExplainKeyN2()
 
 	case "r":
-		m.explainLineInput = ""
-		// Launch recursive field browser: load all fields and show filter overlay.
-		m.loading = true
-		m.setStatusMessage("Loading recursive fields...", false)
-		return m, m.execKubectlExplainRecursive(m.explainResource, m.explainAPIVersion, "")
+		return m.handleExplainKeyR()
 
 	case "j", "down":
 		m.explainLineInput = ""
@@ -201,26 +141,10 @@ func (m Model) handleExplainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "k", "up":
-		m.explainLineInput = ""
-		if m.explainCursor > 0 {
-			m.explainCursor--
-			// Scroll up if cursor goes above visible area.
-			if m.explainCursor < m.explainScroll {
-				m.explainScroll = m.explainCursor
-			}
-		}
-		return m, nil
+		return m.handleExplainKeyK()
 
 	case "g":
-		m.explainLineInput = ""
-		if m.pendingG {
-			m.pendingG = false
-			m.explainCursor = 0
-			m.explainScroll = 0
-			return m, nil
-		}
-		m.pendingG = true
-		return m, nil
+		return m.handleExplainKeyG()
 
 	case "G":
 		if m.explainLineInput != "" {
@@ -255,10 +179,7 @@ func (m Model) handleExplainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "0":
-		if m.explainLineInput != "" {
-			m.explainLineInput += "0"
-			return m, nil
-		}
+		return m.handleExplainKeyZero()
 
 	case "ctrl+d":
 		m.explainLineInput = ""
@@ -340,23 +261,7 @@ func (m Model) handleExplainKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "h", "left", "backspace":
-		m.explainLineInput = ""
-		// Go back one level in the path.
-		if m.explainPath == "" {
-			// Already at root: exit explain view.
-			m.exitExplainView()
-			return m, nil
-		}
-		// Trim the last path segment.
-		newPath := m.explainPath
-		if idx := strings.LastIndex(newPath, "."); idx >= 0 {
-			newPath = newPath[:idx]
-		} else {
-			newPath = ""
-		}
-		m.loading = true
-		m.setStatusMessage("Loading parent...", false)
-		return m, m.execKubectlExplain(m.explainResource, m.explainAPIVersion, newPath)
+		return m.handleExplainKeyH()
 
 	case "ctrl+c":
 		m.explainLineInput = ""
@@ -605,4 +510,144 @@ func (m Model) handleExplainSearchOverlayFilterKey(msg tea.KeyMsg) (tea.Model, t
 		}
 		return m, nil
 	}
+}
+
+func (m Model) handleExplainKeyQuestion() (tea.Model, tea.Cmd) {
+	m.explainLineInput = ""
+	m.helpPreviousMode = modeExplain
+	m.mode = modeHelp
+	m.helpScroll = 0
+	m.helpFilter.Clear()
+	m.helpSearchActive = false
+	m.helpContextMode = "API Explorer"
+	return m, nil
+}
+
+func (m Model) handleExplainKeyQ() (tea.Model, tea.Cmd) {
+	m.explainLineInput = ""
+	// Quit explain view immediately.
+	m.exitExplainView()
+	return m, nil
+}
+
+func (m Model) handleExplainKeyEsc() (tea.Model, tea.Cmd) {
+	m.explainLineInput = ""
+	// Step back one level; exit only at root.
+	if m.explainPath == "" {
+		m.exitExplainView()
+		return m, nil
+	}
+	// Go back one level (same as h/left/backspace).
+	newPath := m.explainPath
+	if idx := strings.LastIndex(newPath, "."); idx >= 0 {
+		newPath = newPath[:idx]
+	} else {
+		newPath = ""
+	}
+	m.loading = true
+	m.setStatusMessage("Loading parent...", false)
+	return m, m.execKubectlExplain(m.explainResource, m.explainAPIVersion, newPath)
+}
+
+func (m Model) handleExplainKeySlash() (tea.Model, tea.Cmd) {
+	m.explainLineInput = ""
+	// Start search mode.
+	m.explainSearchActive = true
+	m.explainSearchInput.Clear()
+	m.explainSearchPrevCursor = m.explainCursor
+	return m, nil
+}
+
+func (m Model) handleExplainKeyN() (tea.Model, tea.Cmd) {
+	m.explainLineInput = ""
+	// Jump to next search match; wrap around if no match found.
+	if m.explainSearchQuery != "" {
+		found := m.explainJumpToMatch(m.explainSearchQuery, m.explainCursor+1, true)
+		if !found {
+			// Wrap around from beginning.
+			found = m.explainJumpToMatch(m.explainSearchQuery, 0, true)
+			if !found {
+				m.setStatusMessage("No matches at this level - press r to search recursively", true)
+				return m, scheduleStatusClear()
+			}
+		}
+	}
+	return m, nil
+}
+
+func (m Model) handleExplainKeyN2() (tea.Model, tea.Cmd) {
+	m.explainLineInput = ""
+	// Jump to previous search match; wrap around if no match found.
+	if m.explainSearchQuery != "" {
+		found := m.explainJumpToMatch(m.explainSearchQuery, m.explainCursor-1, false)
+		if !found {
+			// Wrap around from end.
+			found = m.explainJumpToMatch(m.explainSearchQuery, len(m.explainFields)-1, false)
+			if !found {
+				m.setStatusMessage("No matches at this level - press r to search recursively", true)
+				return m, scheduleStatusClear()
+			}
+		}
+	}
+	return m, nil
+}
+
+func (m Model) handleExplainKeyR() (tea.Model, tea.Cmd) {
+	m.explainLineInput = ""
+	// Launch recursive field browser: load all fields and show filter overlay.
+	m.loading = true
+	m.setStatusMessage("Loading recursive fields...", false)
+	return m, m.execKubectlExplainRecursive(m.explainResource, m.explainAPIVersion, "")
+}
+
+func (m Model) handleExplainKeyK() (tea.Model, tea.Cmd) {
+	m.explainLineInput = ""
+	if m.explainCursor > 0 {
+		m.explainCursor--
+		// Scroll up if cursor goes above visible area.
+		if m.explainCursor < m.explainScroll {
+			m.explainScroll = m.explainCursor
+		}
+	}
+	return m, nil
+}
+
+func (m Model) handleExplainKeyG() (tea.Model, tea.Cmd) {
+	m.explainLineInput = ""
+	if m.pendingG {
+		m.pendingG = false
+		m.explainCursor = 0
+		m.explainScroll = 0
+		return m, nil
+	}
+	m.pendingG = true
+	return m, nil
+}
+
+func (m Model) handleExplainKeyZero() (tea.Model, tea.Cmd) {
+	if m.explainLineInput != "" {
+		m.explainLineInput += "0"
+		return m, nil
+	}
+	return m, nil
+}
+
+func (m Model) handleExplainKeyH() (tea.Model, tea.Cmd) {
+	m.explainLineInput = ""
+	// Go back one level in the path.
+	if m.explainPath == "" {
+		// Already at root: exit explain view.
+		m.exitExplainView()
+		return m, nil
+	}
+	// Trim the last path segment.
+	newPath := m.explainPath
+	if idx := strings.LastIndex(newPath, "."); idx >= 0 {
+		newPath = newPath[:idx]
+	} else {
+		newPath = ""
+	}
+	m.loading = true
+	m.setStatusMessage("Loading parent...", false)
+	return m, m.execKubectlExplain(m.explainResource, m.explainAPIVersion, newPath)
 }

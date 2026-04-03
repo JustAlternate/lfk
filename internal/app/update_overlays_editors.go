@@ -111,40 +111,21 @@ func (m Model) handleSecretEditorKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Normal mode.
 	switch msg.String() {
 	case "esc", "q":
-		m.overlay = overlayNone
-		m.secretData = nil
-		return m, nil
+		return m.handleSecretEditorKeyEsc()
 	case "j", "down":
-		if m.secretCursor < len(m.secretData.Keys)-1 {
-			m.secretCursor++
-		}
-		return m, nil
+		return m.handleSecretEditorKeyJ()
 	case "k", "up":
-		if m.secretCursor > 0 {
-			m.secretCursor--
-		}
-		return m, nil
+		return m.handleSecretEditorKeyK()
 	case "v":
 		// Toggle visibility for selected row.
-		if m.secretCursor >= 0 && m.secretCursor < len(m.secretData.Keys) {
-			key := m.secretData.Keys[m.secretCursor]
-			m.secretRevealed[key] = !m.secretRevealed[key]
-		}
-		return m, nil
+		return m.handleSecretEditorKeyV()
 	case "V":
 		// Toggle all values visibility.
 		m.secretAllRevealed = !m.secretAllRevealed
 		return m, nil
 	case "e":
 		// Edit selected value.
-		if m.secretCursor >= 0 && m.secretCursor < len(m.secretData.Keys) {
-			key := m.secretData.Keys[m.secretCursor]
-			m.secretEditing = true
-			m.secretEditColumn = 1
-			m.secretEditKey.Set(key)
-			m.secretEditValue.Set(m.secretData.Data[key])
-		}
-		return m, nil
+		return m.handleSecretEditorKeyE()
 	case "a":
 		// Add new key-value pair.
 		newKey := fmt.Sprintf("new-key-%d", len(m.secretData.Keys)+1)
@@ -158,15 +139,7 @@ func (m Model) handleSecretEditorKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "D":
 		// Delete selected row.
-		if m.secretCursor >= 0 && m.secretCursor < len(m.secretData.Keys) {
-			key := m.secretData.Keys[m.secretCursor]
-			delete(m.secretData.Data, key)
-			m.secretData.Keys = append(m.secretData.Keys[:m.secretCursor], m.secretData.Keys[m.secretCursor+1:]...)
-			if m.secretCursor >= len(m.secretData.Keys) && m.secretCursor > 0 {
-				m.secretCursor--
-			}
-		}
-		return m, nil
+		return m.handleSecretEditorKeyD()
 	case "y":
 		// Copy current value to clipboard.
 		if m.secretCursor >= 0 && m.secretCursor < len(m.secretData.Keys) {
@@ -290,29 +263,14 @@ func (m Model) handleConfigMapEditorKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Normal mode.
 	switch msg.String() {
 	case "esc", "q":
-		m.overlay = overlayNone
-		m.configMapData = nil
-		return m, nil
+		return m.handleConfigMapEditorKeyEsc()
 	case "j", "down":
-		if m.configMapCursor < len(m.configMapData.Keys)-1 {
-			m.configMapCursor++
-		}
-		return m, nil
+		return m.handleConfigMapEditorKeyJ()
 	case "k", "up":
-		if m.configMapCursor > 0 {
-			m.configMapCursor--
-		}
-		return m, nil
+		return m.handleConfigMapEditorKeyK()
 	case "e":
 		// Edit selected value.
-		if m.configMapCursor >= 0 && m.configMapCursor < len(m.configMapData.Keys) {
-			key := m.configMapData.Keys[m.configMapCursor]
-			m.configMapEditing = true
-			m.configMapEditColumn = 1
-			m.configMapEditKey.Set(key)
-			m.configMapEditValue.Set(m.configMapData.Data[key])
-		}
-		return m, nil
+		return m.handleConfigMapEditorKeyE()
 	case "a":
 		// Add new key-value pair.
 		newKey := fmt.Sprintf("new-key-%d", len(m.configMapData.Keys)+1)
@@ -326,15 +284,7 @@ func (m Model) handleConfigMapEditorKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "D":
 		// Delete selected row.
-		if m.configMapCursor >= 0 && m.configMapCursor < len(m.configMapData.Keys) {
-			key := m.configMapData.Keys[m.configMapCursor]
-			delete(m.configMapData.Data, key)
-			m.configMapData.Keys = append(m.configMapData.Keys[:m.configMapCursor], m.configMapData.Keys[m.configMapCursor+1:]...)
-			if m.configMapCursor >= len(m.configMapData.Keys) && m.configMapCursor > 0 {
-				m.configMapCursor--
-			}
-		}
-		return m, nil
+		return m.handleConfigMapEditorKeyD()
 	case "y":
 		// Copy current value to clipboard.
 		if m.configMapCursor >= 0 && m.configMapCursor < len(m.configMapData.Keys) {
@@ -499,24 +449,17 @@ func (m Model) handleLabelEditorKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	switch msg.String() {
 	case "esc", "q":
-		m.overlay = overlayNone
-		m.labelData = nil
-		return m, nil
+		return m.handleLabelEditorKeyEsc()
 	case "tab":
 		// Switch between labels and annotations tabs.
-		m.labelTab = (m.labelTab + 1) % 2
-		m.labelCursor = 0
-		return m, nil
+		return m.handleLabelEditorKeyTab()
 	case "j", "down":
 		if m.labelCursor < len(currentKeys)-1 {
 			m.labelCursor++
 		}
 		return m, nil
 	case "k", "up":
-		if m.labelCursor > 0 {
-			m.labelCursor--
-		}
-		return m, nil
+		return m.handleLabelEditorKeyK()
 	case "e":
 		if m.labelCursor >= 0 && m.labelCursor < len(currentKeys) {
 			key := currentKeys[m.labelCursor]
@@ -568,6 +511,119 @@ func (m Model) handleLabelEditorKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, m.saveLabelData()
 	case "ctrl+c":
 		return m.closeTabOrQuit()
+	}
+	return m, nil
+}
+
+func (m Model) handleSecretEditorKeyEsc() (tea.Model, tea.Cmd) {
+	m.overlay = overlayNone
+	m.secretData = nil
+	return m, nil
+}
+
+func (m Model) handleSecretEditorKeyJ() (tea.Model, tea.Cmd) {
+	if m.secretCursor < len(m.secretData.Keys)-1 {
+		m.secretCursor++
+	}
+	return m, nil
+}
+
+func (m Model) handleSecretEditorKeyK() (tea.Model, tea.Cmd) {
+	if m.secretCursor > 0 {
+		m.secretCursor--
+	}
+	return m, nil
+}
+
+func (m Model) handleSecretEditorKeyV() (tea.Model, tea.Cmd) {
+	if m.secretCursor >= 0 && m.secretCursor < len(m.secretData.Keys) {
+		key := m.secretData.Keys[m.secretCursor]
+		m.secretRevealed[key] = !m.secretRevealed[key]
+	}
+	return m, nil
+}
+
+func (m Model) handleSecretEditorKeyE() (tea.Model, tea.Cmd) {
+	if m.secretCursor >= 0 && m.secretCursor < len(m.secretData.Keys) {
+		key := m.secretData.Keys[m.secretCursor]
+		m.secretEditing = true
+		m.secretEditColumn = 1
+		m.secretEditKey.Set(key)
+		m.secretEditValue.Set(m.secretData.Data[key])
+	}
+	return m, nil
+}
+
+func (m Model) handleSecretEditorKeyD() (tea.Model, tea.Cmd) {
+	if m.secretCursor >= 0 && m.secretCursor < len(m.secretData.Keys) {
+		key := m.secretData.Keys[m.secretCursor]
+		delete(m.secretData.Data, key)
+		m.secretData.Keys = append(m.secretData.Keys[:m.secretCursor], m.secretData.Keys[m.secretCursor+1:]...)
+		if m.secretCursor >= len(m.secretData.Keys) && m.secretCursor > 0 {
+			m.secretCursor--
+		}
+	}
+	return m, nil
+}
+
+func (m Model) handleLabelEditorKeyEsc() (tea.Model, tea.Cmd) {
+	m.overlay = overlayNone
+	m.labelData = nil
+	return m, nil
+}
+
+func (m Model) handleLabelEditorKeyTab() (tea.Model, tea.Cmd) {
+	m.labelTab = (m.labelTab + 1) % 2
+	m.labelCursor = 0
+	return m, nil
+}
+
+func (m Model) handleLabelEditorKeyK() (tea.Model, tea.Cmd) {
+	if m.labelCursor > 0 {
+		m.labelCursor--
+	}
+	return m, nil
+}
+
+func (m Model) handleConfigMapEditorKeyEsc() (tea.Model, tea.Cmd) {
+	m.overlay = overlayNone
+	m.configMapData = nil
+	return m, nil
+}
+
+func (m Model) handleConfigMapEditorKeyJ() (tea.Model, tea.Cmd) {
+	if m.configMapCursor < len(m.configMapData.Keys)-1 {
+		m.configMapCursor++
+	}
+	return m, nil
+}
+
+func (m Model) handleConfigMapEditorKeyK() (tea.Model, tea.Cmd) {
+	if m.configMapCursor > 0 {
+		m.configMapCursor--
+	}
+	return m, nil
+}
+
+func (m Model) handleConfigMapEditorKeyE() (tea.Model, tea.Cmd) {
+	if m.configMapCursor >= 0 && m.configMapCursor < len(m.configMapData.Keys) {
+		key := m.configMapData.Keys[m.configMapCursor]
+		m.configMapEditing = true
+		m.configMapEditColumn = 1
+		m.configMapEditKey.Set(key)
+		m.configMapEditValue.Set(m.configMapData.Data[key])
+	}
+	return m, nil
+}
+
+func (m Model) handleConfigMapEditorKeyD() (tea.Model, tea.Cmd) {
+	if m.configMapCursor >= 0 && m.configMapCursor < len(m.configMapData.Keys) {
+		key := m.configMapData.Keys[m.configMapCursor]
+		delete(m.configMapData.Data, key)
+		m.configMapData.Keys = append(m.configMapData.Keys[:m.configMapCursor], m.configMapData.Keys[m.configMapCursor+1:]...)
+		if m.configMapCursor >= len(m.configMapData.Keys) && m.configMapCursor > 0 {
+			m.configMapCursor--
+		}
 	}
 	return m, nil
 }

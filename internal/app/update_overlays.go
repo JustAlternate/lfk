@@ -61,10 +61,7 @@ func (m Model) handleOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case overlayBatchLabel:
 		return m.handleBatchLabelOverlayKey(msg)
 	case overlayQuotaDashboard:
-		if msg.String() == "esc" || msg.String() == "q" {
-			m.overlay = overlayNone
-		}
-		return m, nil
+		return m.handleOverlayKeyOverlayQuotaDashboard(msg)
 	case overlayEventTimeline:
 		return m.handleEventTimelineOverlayKey(msg)
 	case overlayNetworkPolicy:
@@ -188,98 +185,35 @@ func (m Model) handleErrorLogOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	switch key {
 	case "esc", "q":
-		m.errorLogLineInput = ""
-		m.overlayErrorLog = false
-		m.errorLogScroll = 0
-		m.errorLogFullscreen = false
-		m.errorLogVisualMode = 0
-		m.errorLogCursorLine = 0
-		return m, nil
+		return m.handleErrorLogOverlayKeyEsc()
 
 	case "f":
-		m.errorLogLineInput = ""
-		m.errorLogFullscreen = !m.errorLogFullscreen
-		// Reset scroll when toggling to avoid out-of-bounds.
-		m.errorLogScroll = 0
-		return m, nil
+		return m.handleErrorLogOverlayKeyF()
 
 	case "V":
-		m.errorLogLineInput = ""
-		if m.errorLogVisualMode == 'V' {
-			m.errorLogVisualMode = 0
-		} else {
-			m.errorLogVisualMode = 'V'
-			m.errorLogVisualStart = m.errorLogCursorLine
-		}
-		return m, nil
+		return m.handleErrorLogOverlayKeyV()
 
 	case "v":
-		m.errorLogLineInput = ""
-		if m.errorLogVisualMode == 'v' {
-			m.errorLogVisualMode = 0
-		} else {
-			m.errorLogVisualMode = 'v'
-			m.errorLogVisualStart = m.errorLogCursorLine
-			m.errorLogVisualStartCol = m.errorLogCursorCol
-		}
-		return m, nil
+		return m.handleErrorLogOverlayKeyV2()
 
 	case "h", "left":
-		m.errorLogLineInput = ""
-		if m.errorLogVisualMode == 'v' && m.errorLogCursorCol > 0 {
-			m.errorLogCursorCol--
-		}
-		return m, nil
+		return m.handleErrorLogOverlayKeyH()
 
 	case "l", "right":
-		m.errorLogLineInput = ""
-		if m.errorLogVisualMode == 'v' {
-			// Clamp to line length.
-			reversed := ui.FilteredErrorLogEntries(m.errorLog, m.showDebugLogs)
-			if m.errorLogCursorLine < len(reversed) {
-				lineLen := len([]rune(ui.ErrorLogEntryPlainText(reversed[m.errorLogCursorLine])))
-				if m.errorLogCursorCol < lineLen-1 {
-					m.errorLogCursorCol++
-				}
-			}
-		}
-		return m, nil
+		return m.handleErrorLogOverlayKeyL()
 
 	case "0":
-		if m.errorLogLineInput != "" {
-			m.errorLogLineInput += "0"
-			return m, nil
-		}
-		if m.errorLogVisualMode == 'v' {
-			m.errorLogCursorCol = 0
-		}
-		return m, nil
+		return m.handleErrorLogOverlayKeyZero()
 
 	case "$":
-		m.errorLogLineInput = ""
-		if m.errorLogVisualMode == 'v' {
-			reversed := ui.FilteredErrorLogEntries(m.errorLog, m.showDebugLogs)
-			if m.errorLogCursorLine < len(reversed) {
-				lineLen := len([]rune(ui.ErrorLogEntryPlainText(reversed[m.errorLogCursorLine])))
-				m.errorLogCursorCol = max(lineLen-1, 0)
-			}
-		}
-		return m, nil
+		return m.handleErrorLogOverlayKeyDollar()
 
 	case "y":
 		m.errorLogLineInput = ""
 		return m.errorLogYank()
 
 	case "d":
-		m.errorLogLineInput = ""
-		if m.errorLogVisualMode != 0 {
-			// Don't toggle debug in visual mode — 'd' is ambiguous.
-			return m, nil
-		}
-		m.showDebugLogs = !m.showDebugLogs
-		m.errorLogScroll = 0
-		m.errorLogCursorLine = 0
-		return m, nil
+		return m.handleErrorLogOverlayKeyD()
 
 	case "j", "down":
 		m.errorLogLineInput = ""
@@ -298,15 +232,7 @@ func (m Model) handleErrorLogOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "g":
-		m.errorLogLineInput = ""
-		if m.pendingG {
-			m.pendingG = false
-			m.errorLogCursorLine = 0
-			m.errorLogScroll = 0
-			return m, nil
-		}
-		m.pendingG = true
-		return m, nil
+		return m.handleErrorLogOverlayKeyG()
 
 	case "G":
 		if m.errorLogLineInput != "" {
@@ -1032,5 +958,123 @@ func (m Model) handleQuitConfirmOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) 
 	case "ctrl+c":
 		return m.closeTabOrQuit()
 	}
+	return m, nil
+}
+
+func (m Model) handleOverlayKeyOverlayQuotaDashboard(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if msg.String() == "esc" || msg.String() == "q" {
+		m.overlay = overlayNone
+	}
+	return m, nil
+}
+
+func (m Model) handleErrorLogOverlayKeyEsc() (tea.Model, tea.Cmd) {
+	m.errorLogLineInput = ""
+	m.overlayErrorLog = false
+	m.errorLogScroll = 0
+	m.errorLogFullscreen = false
+	m.errorLogVisualMode = 0
+	m.errorLogCursorLine = 0
+	return m, nil
+}
+
+func (m Model) handleErrorLogOverlayKeyF() (tea.Model, tea.Cmd) {
+	m.errorLogLineInput = ""
+	m.errorLogFullscreen = !m.errorLogFullscreen
+	// Reset scroll when toggling to avoid out-of-bounds.
+	m.errorLogScroll = 0
+	return m, nil
+}
+
+func (m Model) handleErrorLogOverlayKeyV() (tea.Model, tea.Cmd) {
+	m.errorLogLineInput = ""
+	if m.errorLogVisualMode == 'V' {
+		m.errorLogVisualMode = 0
+	} else {
+		m.errorLogVisualMode = 'V'
+		m.errorLogVisualStart = m.errorLogCursorLine
+	}
+	return m, nil
+}
+
+func (m Model) handleErrorLogOverlayKeyV2() (tea.Model, tea.Cmd) {
+	m.errorLogLineInput = ""
+	if m.errorLogVisualMode == 'v' {
+		m.errorLogVisualMode = 0
+	} else {
+		m.errorLogVisualMode = 'v'
+		m.errorLogVisualStart = m.errorLogCursorLine
+		m.errorLogVisualStartCol = m.errorLogCursorCol
+	}
+	return m, nil
+}
+
+func (m Model) handleErrorLogOverlayKeyH() (tea.Model, tea.Cmd) {
+	m.errorLogLineInput = ""
+	if m.errorLogVisualMode == 'v' && m.errorLogCursorCol > 0 {
+		m.errorLogCursorCol--
+	}
+	return m, nil
+}
+
+func (m Model) handleErrorLogOverlayKeyL() (tea.Model, tea.Cmd) {
+	m.errorLogLineInput = ""
+	if m.errorLogVisualMode == 'v' {
+		// Clamp to line length.
+		reversed := ui.FilteredErrorLogEntries(m.errorLog, m.showDebugLogs)
+		if m.errorLogCursorLine < len(reversed) {
+			lineLen := len([]rune(ui.ErrorLogEntryPlainText(reversed[m.errorLogCursorLine])))
+			if m.errorLogCursorCol < lineLen-1 {
+				m.errorLogCursorCol++
+			}
+		}
+	}
+	return m, nil
+}
+
+func (m Model) handleErrorLogOverlayKeyZero() (tea.Model, tea.Cmd) {
+	if m.errorLogLineInput != "" {
+		m.errorLogLineInput += "0"
+		return m, nil
+	}
+	if m.errorLogVisualMode == 'v' {
+		m.errorLogCursorCol = 0
+	}
+	return m, nil
+}
+
+func (m Model) handleErrorLogOverlayKeyDollar() (tea.Model, tea.Cmd) {
+	m.errorLogLineInput = ""
+	if m.errorLogVisualMode == 'v' {
+		reversed := ui.FilteredErrorLogEntries(m.errorLog, m.showDebugLogs)
+		if m.errorLogCursorLine < len(reversed) {
+			lineLen := len([]rune(ui.ErrorLogEntryPlainText(reversed[m.errorLogCursorLine])))
+			m.errorLogCursorCol = max(lineLen-1, 0)
+		}
+	}
+	return m, nil
+}
+
+func (m Model) handleErrorLogOverlayKeyD() (tea.Model, tea.Cmd) {
+	m.errorLogLineInput = ""
+	if m.errorLogVisualMode != 0 {
+		// Don't toggle debug in visual mode — 'd' is ambiguous.
+		return m, nil
+	}
+	m.showDebugLogs = !m.showDebugLogs
+	m.errorLogScroll = 0
+	m.errorLogCursorLine = 0
+	return m, nil
+}
+
+func (m Model) handleErrorLogOverlayKeyG() (tea.Model, tea.Cmd) {
+	m.errorLogLineInput = ""
+	if m.pendingG {
+		m.pendingG = false
+		m.errorLogCursorLine = 0
+		m.errorLogScroll = 0
+		return m, nil
+	}
+	m.pendingG = true
 	return m, nil
 }

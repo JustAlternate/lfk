@@ -83,14 +83,7 @@ func (m Model) handleColumnToggleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	switch msg.String() {
 	case "esc", "q":
-		if m.columnToggleFilter != "" {
-			m.columnToggleFilter = ""
-			m.columnToggleCursor = 0
-			return m, nil
-		}
-		m.overlay = overlayNone
-		m.columnToggleItems = nil
-		return m, nil
+		return m.handleColumnToggleKeyEsc()
 
 	case "j", "down":
 		if m.columnToggleCursor < maxIdx {
@@ -99,10 +92,7 @@ func (m Model) handleColumnToggleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "k", "up":
-		if m.columnToggleCursor > 0 {
-			m.columnToggleCursor--
-		}
-		return m, nil
+		return m.handleColumnToggleKeyK()
 
 	case "ctrl+d":
 		m.columnToggleCursor = clampOverlayCursor(m.columnToggleCursor, 10, maxIdx)
@@ -138,48 +128,15 @@ func (m Model) handleColumnToggleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "J":
 		// Move column down in priority.
-		if m.columnToggleFilter != "" {
-			return m, nil // no reorder while filtering
-		}
-		if m.columnToggleCursor < len(m.columnToggleItems)-1 {
-			i := m.columnToggleCursor
-			m.columnToggleItems[i], m.columnToggleItems[i+1] = m.columnToggleItems[i+1], m.columnToggleItems[i]
-			m.columnToggleCursor++
-		}
-		return m, nil
+		return m.handleColumnToggleKeyJ()
 
 	case "K":
 		// Move column up in priority.
-		if m.columnToggleFilter != "" {
-			return m, nil
-		}
-		if m.columnToggleCursor > 0 {
-			i := m.columnToggleCursor
-			m.columnToggleItems[i], m.columnToggleItems[i-1] = m.columnToggleItems[i-1], m.columnToggleItems[i]
-			m.columnToggleCursor--
-		}
-		return m, nil
+		return m.handleColumnToggleKeyK2()
 
 	case "enter":
 		// Apply: save visible columns in order to session state.
-		kind := strings.ToLower(m.nav.ResourceType.Kind)
-		var visible []string
-		for _, e := range m.columnToggleItems {
-			if e.visible {
-				visible = append(visible, e.key)
-			}
-		}
-		if m.sessionColumns == nil {
-			m.sessionColumns = make(map[string][]string)
-		}
-		if len(visible) == 0 {
-			delete(m.sessionColumns, kind)
-		} else {
-			m.sessionColumns[kind] = visible
-		}
-		m.overlay = overlayNone
-		m.columnToggleItems = nil
-		return m, nil
+		return m.handleColumnToggleKeyEnter()
 
 	case "/":
 		m.columnToggleFilterActive = true
@@ -187,14 +144,7 @@ func (m Model) handleColumnToggleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "R":
 		// Reset: clear session override, fall back to config/auto-detect.
-		kind := strings.ToLower(m.nav.ResourceType.Kind)
-		if m.sessionColumns != nil {
-			delete(m.sessionColumns, kind)
-		}
-		m.overlay = overlayNone
-		m.columnToggleItems = nil
-		m.setStatusMessage("Columns reset to default", false)
-		return m, scheduleStatusClear()
+		return m.handleColumnToggleKeyR()
 
 	case "ctrl+c":
 		return m.closeTabOrQuit()
@@ -257,4 +207,78 @@ func (m *Model) filteredColumnToggleItems() []columnToggleEntry {
 		}
 	}
 	return filtered
+}
+
+func (m Model) handleColumnToggleKeyEsc() (tea.Model, tea.Cmd) {
+	if m.columnToggleFilter != "" {
+		m.columnToggleFilter = ""
+		m.columnToggleCursor = 0
+		return m, nil
+	}
+	m.overlay = overlayNone
+	m.columnToggleItems = nil
+	return m, nil
+}
+
+func (m Model) handleColumnToggleKeyK() (tea.Model, tea.Cmd) {
+	if m.columnToggleCursor > 0 {
+		m.columnToggleCursor--
+	}
+	return m, nil
+}
+
+func (m Model) handleColumnToggleKeyJ() (tea.Model, tea.Cmd) {
+	if m.columnToggleFilter != "" {
+		return m, nil // no reorder while filtering
+	}
+	if m.columnToggleCursor < len(m.columnToggleItems)-1 {
+		i := m.columnToggleCursor
+		m.columnToggleItems[i], m.columnToggleItems[i+1] = m.columnToggleItems[i+1], m.columnToggleItems[i]
+		m.columnToggleCursor++
+	}
+	return m, nil
+}
+
+func (m Model) handleColumnToggleKeyK2() (tea.Model, tea.Cmd) {
+	if m.columnToggleFilter != "" {
+		return m, nil
+	}
+	if m.columnToggleCursor > 0 {
+		i := m.columnToggleCursor
+		m.columnToggleItems[i], m.columnToggleItems[i-1] = m.columnToggleItems[i-1], m.columnToggleItems[i]
+		m.columnToggleCursor--
+	}
+	return m, nil
+}
+
+func (m Model) handleColumnToggleKeyEnter() (tea.Model, tea.Cmd) {
+	kind := strings.ToLower(m.nav.ResourceType.Kind)
+	var visible []string
+	for _, e := range m.columnToggleItems {
+		if e.visible {
+			visible = append(visible, e.key)
+		}
+	}
+	if m.sessionColumns == nil {
+		m.sessionColumns = make(map[string][]string)
+	}
+	if len(visible) == 0 {
+		delete(m.sessionColumns, kind)
+	} else {
+		m.sessionColumns[kind] = visible
+	}
+	m.overlay = overlayNone
+	m.columnToggleItems = nil
+	return m, nil
+}
+
+func (m Model) handleColumnToggleKeyR() (tea.Model, tea.Cmd) {
+	kind := strings.ToLower(m.nav.ResourceType.Kind)
+	if m.sessionColumns != nil {
+		delete(m.sessionColumns, kind)
+	}
+	m.overlay = overlayNone
+	m.columnToggleItems = nil
+	m.setStatusMessage("Columns reset to default", false)
+	return m, scheduleStatusClear()
 }

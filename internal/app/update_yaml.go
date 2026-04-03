@@ -432,61 +432,22 @@ func (m Model) handleYAMLKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	switch msg.String() {
 	case "?", "f1":
-		m.helpPreviousMode = modeYAML
-		m.mode = modeHelp
-		m.helpScroll = 0
-		m.helpFilter.Clear()
-		m.helpSearchActive = false
-		m.helpContextMode = "YAML View"
-		return m, nil
+		return m.handleYAMLKeyQuestion()
 	case "V":
 		// Enter visual line selection mode.
-		m.yamlVisualMode = true
-		m.yamlVisualType = 'V'
-		m.yamlVisualStart = m.yamlCursor
-		m.yamlVisualCol = m.yamlVisualCurCol
-		return m, nil
+		return m.handleYAMLKeyV()
 	case "v":
 		// Enter character visual selection mode; anchor at current cursor column.
-		m.yamlVisualMode = true
-		m.yamlVisualType = 'v'
-		m.yamlVisualStart = m.yamlCursor
-		m.yamlVisualCol = m.yamlVisualCurCol
-		return m, nil
+		return m.handleYAMLKeyV2()
 	case "ctrl+v":
 		// Enter block visual selection mode; anchor at current cursor column.
-		m.yamlVisualMode = true
-		m.yamlVisualType = 'B'
-		m.yamlVisualStart = m.yamlCursor
-		m.yamlVisualCol = m.yamlVisualCurCol
-		return m, nil
+		return m.handleYAMLKeyCtrlV()
 	case "q", "esc":
-		if m.yamlSearchText.Value != "" {
-			// Clear search first.
-			m.yamlSearchText.Clear()
-			m.yamlMatchLines = nil
-			m.yamlMatchIdx = 0
-			return m, nil
-		}
-		m.mode = modeExplorer
-		m.yamlScroll = 0
-		m.yamlCursor = 0
-		m.yamlWrap = false
-		return m, nil
+		return m.handleYAMLKeyQ()
 	case "ctrl+c":
-		m.mode = modeExplorer
-		m.yamlScroll = 0
-		m.yamlCursor = 0
-		m.yamlWrap = false
-		m.yamlSearchText.Clear()
-		m.yamlMatchLines = nil
-		return m, nil
+		return m.handleYAMLKeyCtrlC()
 	case "/":
-		m.yamlSearchMode = true
-		m.yamlSearchText.Clear()
-		m.yamlMatchLines = nil
-		m.yamlMatchIdx = 0
-		return m, nil
+		return m.handleYAMLKeySlash()
 	case "n":
 		// Next match: first check for another match on the current line after cursor.
 		if len(m.yamlMatchLines) > 0 {
@@ -560,33 +521,10 @@ func (m Model) handleYAMLKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "Z":
 		// Toggle all folds: if any section is expanded, collapse all; otherwise expand all.
-		if m.yamlCollapsed == nil {
-			m.yamlCollapsed = make(map[string]bool)
-		}
-		anyExpanded := false
-		for _, sec := range m.yamlSections {
-			if isMultiLineSection(sec) && !m.yamlCollapsed[sec.key] {
-				anyExpanded = true
-				break
-			}
-		}
-		if anyExpanded {
-			for _, sec := range m.yamlSections {
-				if isMultiLineSection(sec) {
-					m.yamlCollapsed[sec.key] = true
-				}
-			}
-		} else {
-			m.yamlCollapsed = make(map[string]bool)
-		}
-		m.clampYAMLScroll()
-		return m, nil
+		return m.handleYAMLKeyZ()
 	case "h", "left":
 		// Move cursor column left.
-		if m.yamlVisualCurCol > yamlFoldPrefixLen {
-			m.yamlVisualCurCol--
-		}
-		return m, nil
+		return m.handleYAMLKeyH()
 	case "l", "right":
 		// Move cursor column right.
 		m.yamlVisualCurCol++
@@ -594,12 +532,7 @@ func (m Model) handleYAMLKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "0":
 		// If digits are pending, append 0 (e.g. 10G, 20G).
 		// Otherwise move cursor to beginning of line.
-		if m.yamlLineInput != "" {
-			m.yamlLineInput += "0"
-		} else {
-			m.yamlVisualCurCol = yamlFoldPrefixLen
-		}
-		return m, nil
+		return m.handleYAMLKeyZero()
 	case "1", "2", "3", "4", "5", "6", "7", "8", "9":
 		m.yamlLineInput += msg.String()
 		return m, nil
@@ -758,22 +691,9 @@ func (m Model) handleYAMLKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.ensureYAMLCursorVisible()
 		return m, nil
 	case "k", "up":
-		m.yamlLineInput = ""
-		if m.yamlCursor > 0 {
-			m.yamlCursor--
-		}
-		m.ensureYAMLCursorVisible()
-		return m, nil
+		return m.handleYAMLKeyK()
 	case "g":
-		m.yamlLineInput = ""
-		if m.pendingG {
-			m.pendingG = false
-			m.yamlCursor = 0
-			m.yamlScroll = 0
-			return m, nil
-		}
-		m.pendingG = true
-		return m, nil
+		return m.handleYAMLKeyG()
 	case "G":
 		if m.yamlLineInput != "" {
 			lineNum, _ := strconv.Atoi(m.yamlLineInput)
@@ -806,13 +726,7 @@ func (m Model) handleYAMLKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.ensureYAMLCursorVisible()
 		return m, nil
 	case "ctrl+u":
-		m.yamlLineInput = ""
-		m.yamlCursor -= m.height / 2
-		if m.yamlCursor < 0 {
-			m.yamlCursor = 0
-		}
-		m.ensureYAMLCursorVisible()
-		return m, nil
+		return m.handleYAMLKeyCtrlU()
 	case "ctrl+f":
 		m.yamlLineInput = ""
 		m.yamlCursor += m.height
@@ -822,13 +736,7 @@ func (m Model) handleYAMLKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.ensureYAMLCursorVisible()
 		return m, nil
 	case "ctrl+b":
-		m.yamlLineInput = ""
-		m.yamlCursor -= m.height
-		if m.yamlCursor < 0 {
-			m.yamlCursor = 0
-		}
-		m.ensureYAMLCursorVisible()
-		return m, nil
+		return m.handleYAMLKeyCtrlB()
 	default:
 		m.yamlLineInput = ""
 	}
@@ -1008,4 +916,152 @@ func (m *Model) findYAMLMatchFromCursor() int {
 		}
 	}
 	return 0
+}
+
+func (m Model) handleYAMLKeyQuestion() (tea.Model, tea.Cmd) {
+	m.helpPreviousMode = modeYAML
+	m.mode = modeHelp
+	m.helpScroll = 0
+	m.helpFilter.Clear()
+	m.helpSearchActive = false
+	m.helpContextMode = "YAML View"
+	return m, nil
+}
+
+func (m Model) handleYAMLKeyV() (tea.Model, tea.Cmd) {
+	m.yamlVisualMode = true
+	m.yamlVisualType = 'V'
+	m.yamlVisualStart = m.yamlCursor
+	m.yamlVisualCol = m.yamlVisualCurCol
+	return m, nil
+}
+
+func (m Model) handleYAMLKeyV2() (tea.Model, tea.Cmd) {
+	m.yamlVisualMode = true
+	m.yamlVisualType = 'v'
+	m.yamlVisualStart = m.yamlCursor
+	m.yamlVisualCol = m.yamlVisualCurCol
+	return m, nil
+}
+
+func (m Model) handleYAMLKeyCtrlV() (tea.Model, tea.Cmd) {
+	m.yamlVisualMode = true
+	m.yamlVisualType = 'B'
+	m.yamlVisualStart = m.yamlCursor
+	m.yamlVisualCol = m.yamlVisualCurCol
+	return m, nil
+}
+
+func (m Model) handleYAMLKeyQ() (tea.Model, tea.Cmd) {
+	if m.yamlSearchText.Value != "" {
+		// Clear search first.
+		m.yamlSearchText.Clear()
+		m.yamlMatchLines = nil
+		m.yamlMatchIdx = 0
+		return m, nil
+	}
+	m.mode = modeExplorer
+	m.yamlScroll = 0
+	m.yamlCursor = 0
+	m.yamlWrap = false
+	return m, nil
+}
+
+func (m Model) handleYAMLKeyCtrlC() (tea.Model, tea.Cmd) {
+	m.mode = modeExplorer
+	m.yamlScroll = 0
+	m.yamlCursor = 0
+	m.yamlWrap = false
+	m.yamlSearchText.Clear()
+	m.yamlMatchLines = nil
+	return m, nil
+}
+
+func (m Model) handleYAMLKeySlash() (tea.Model, tea.Cmd) {
+	m.yamlSearchMode = true
+	m.yamlSearchText.Clear()
+	m.yamlMatchLines = nil
+	m.yamlMatchIdx = 0
+	return m, nil
+}
+
+func (m Model) handleYAMLKeyZ() (tea.Model, tea.Cmd) {
+	if m.yamlCollapsed == nil {
+		m.yamlCollapsed = make(map[string]bool)
+	}
+	anyExpanded := false
+	for _, sec := range m.yamlSections {
+		if isMultiLineSection(sec) && !m.yamlCollapsed[sec.key] {
+			anyExpanded = true
+			break
+		}
+	}
+	if anyExpanded {
+		for _, sec := range m.yamlSections {
+			if isMultiLineSection(sec) {
+				m.yamlCollapsed[sec.key] = true
+			}
+		}
+	} else {
+		m.yamlCollapsed = make(map[string]bool)
+	}
+	m.clampYAMLScroll()
+	return m, nil
+}
+
+func (m Model) handleYAMLKeyH() (tea.Model, tea.Cmd) {
+	if m.yamlVisualCurCol > yamlFoldPrefixLen {
+		m.yamlVisualCurCol--
+	}
+	return m, nil
+}
+
+func (m Model) handleYAMLKeyZero() (tea.Model, tea.Cmd) {
+	if m.yamlLineInput != "" {
+		m.yamlLineInput += "0"
+	} else {
+		m.yamlVisualCurCol = yamlFoldPrefixLen
+	}
+	return m, nil
+}
+
+func (m Model) handleYAMLKeyK() (tea.Model, tea.Cmd) {
+	m.yamlLineInput = ""
+	if m.yamlCursor > 0 {
+		m.yamlCursor--
+	}
+	m.ensureYAMLCursorVisible()
+	return m, nil
+}
+
+func (m Model) handleYAMLKeyG() (tea.Model, tea.Cmd) {
+	m.yamlLineInput = ""
+	if m.pendingG {
+		m.pendingG = false
+		m.yamlCursor = 0
+		m.yamlScroll = 0
+		return m, nil
+	}
+	m.pendingG = true
+	return m, nil
+}
+
+func (m Model) handleYAMLKeyCtrlU() (tea.Model, tea.Cmd) {
+	m.yamlLineInput = ""
+	m.yamlCursor -= m.height / 2
+	if m.yamlCursor < 0 {
+		m.yamlCursor = 0
+	}
+	m.ensureYAMLCursorVisible()
+	return m, nil
+}
+
+func (m Model) handleYAMLKeyCtrlB() (tea.Model, tea.Cmd) {
+	m.yamlLineInput = ""
+	m.yamlCursor -= m.height
+	if m.yamlCursor < 0 {
+		m.yamlCursor = 0
+	}
+	m.ensureYAMLCursorVisible()
+	return m, nil
 }

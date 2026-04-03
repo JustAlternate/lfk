@@ -159,19 +159,9 @@ func (m Model) handleEventTimelineOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd
 
 	switch key {
 	case "esc":
-		if m.eventTimelineSearchQuery != "" {
-			m.eventTimelineSearchQuery = ""
-			return m, nil
-		}
-		m.eventTimelineLineInput = ""
-		m.eventTimelineFullscreen = false
-		m.eventTimelineVisualMode = 0
-		m.overlay = overlayNone
+		return m.handleEventTimelineOverlayKeyEsc()
 	case "q":
-		m.eventTimelineLineInput = ""
-		m.eventTimelineFullscreen = false
-		m.eventTimelineVisualMode = 0
-		m.overlay = overlayNone
+		return m.handleEventTimelineOverlayKeyQ()
 
 	// Cursor movement.
 	case "j", "down":
@@ -181,78 +171,34 @@ func (m Model) handleEventTimelineOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd
 		}
 		m.ensureEventCursorVisible()
 	case "k", "up":
-		m.eventTimelineLineInput = ""
-		if m.eventTimelineCursor > 0 {
-			m.eventTimelineCursor--
-		}
-		m.ensureEventCursorVisible()
+		return m.handleEventTimelineOverlayKeyK()
 	case "h", "left":
-		m.eventTimelineLineInput = ""
-		if m.eventTimelineCursorCol > 0 {
-			m.eventTimelineCursorCol--
-		}
+		return m.handleEventTimelineOverlayKeyH()
 	case "l", "right":
 		m.eventTimelineLineInput = ""
 		m.eventTimelineCursorCol++
 
 	// Line navigation.
 	case "0":
-		if m.eventTimelineLineInput != "" {
-			m.eventTimelineLineInput += "0"
-			return m, nil
-		}
-		m.eventTimelineCursorCol = 0
+		return m.handleEventTimelineOverlayKeyZero()
 	case "$":
-		m.eventTimelineLineInput = ""
-		if m.eventTimelineCursor >= 0 && m.eventTimelineCursor < len(m.eventTimelineLines) {
-			lineLen := len([]rune(m.eventTimelineLines[m.eventTimelineCursor]))
-			if lineLen > 0 {
-				m.eventTimelineCursorCol = lineLen - 1
-			}
-		}
+		return m.handleEventTimelineOverlayKeyDollar()
 	case "^":
-		m.eventTimelineLineInput = ""
-		if m.eventTimelineCursor >= 0 && m.eventTimelineCursor < len(m.eventTimelineLines) {
-			m.eventTimelineCursorCol = firstNonWhitespace(m.eventTimelineLines[m.eventTimelineCursor])
-		}
+		return m.handleEventTimelineOverlayKeyCaret()
 
 	// Word motions.
 	case "w":
-		m.eventTimelineLineInput = ""
-		if m.eventTimelineCursor >= 0 && m.eventTimelineCursor < len(m.eventTimelineLines) {
-			m.eventTimelineCursorCol = nextWordStart(m.eventTimelineLines[m.eventTimelineCursor], m.eventTimelineCursorCol)
-		}
+		return m.handleEventTimelineOverlayKeyW()
 	case "W":
-		m.eventTimelineLineInput = ""
-		if m.eventTimelineCursor >= 0 && m.eventTimelineCursor < len(m.eventTimelineLines) {
-			m.eventTimelineCursorCol = nextWORDStart(m.eventTimelineLines[m.eventTimelineCursor], m.eventTimelineCursorCol)
-		}
+		return m.handleEventTimelineOverlayKeyW2()
 	case "b":
-		m.eventTimelineLineInput = ""
-		if m.eventTimelineCursor >= 0 && m.eventTimelineCursor < len(m.eventTimelineLines) {
-			nc := prevWordStart(m.eventTimelineLines[m.eventTimelineCursor], m.eventTimelineCursorCol)
-			if nc >= 0 {
-				m.eventTimelineCursorCol = nc
-			}
-		}
+		return m.handleEventTimelineOverlayKeyB()
 	case "B":
-		m.eventTimelineLineInput = ""
-		if m.eventTimelineCursor >= 0 && m.eventTimelineCursor < len(m.eventTimelineLines) {
-			nc := prevWORDStart(m.eventTimelineLines[m.eventTimelineCursor], m.eventTimelineCursorCol)
-			if nc >= 0 {
-				m.eventTimelineCursorCol = nc
-			}
-		}
+		return m.handleEventTimelineOverlayKeyB2()
 	case "e":
-		m.eventTimelineLineInput = ""
-		if m.eventTimelineCursor >= 0 && m.eventTimelineCursor < len(m.eventTimelineLines) {
-			m.eventTimelineCursorCol = wordEnd(m.eventTimelineLines[m.eventTimelineCursor], m.eventTimelineCursorCol)
-		}
+		return m.handleEventTimelineOverlayKeyE()
 	case "E":
-		m.eventTimelineLineInput = ""
-		if m.eventTimelineCursor >= 0 && m.eventTimelineCursor < len(m.eventTimelineLines) {
-			m.eventTimelineCursorCol = WORDEnd(m.eventTimelineLines[m.eventTimelineCursor], m.eventTimelineCursorCol)
-		}
+		return m.handleEventTimelineOverlayKeyE2()
 
 	// Page movement.
 	case "ctrl+d":
@@ -263,12 +209,7 @@ func (m Model) handleEventTimelineOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd
 		}
 		m.ensureEventCursorVisible()
 	case "ctrl+u":
-		m.eventTimelineLineInput = ""
-		m.eventTimelineCursor -= m.eventContentHeight() / 2
-		if m.eventTimelineCursor < 0 {
-			m.eventTimelineCursor = 0
-		}
-		m.ensureEventCursorVisible()
+		return m.handleEventTimelineOverlayKeyCtrlU()
 	case "ctrl+f":
 		m.eventTimelineLineInput = ""
 		m.eventTimelineCursor += m.eventContentHeight()
@@ -277,23 +218,11 @@ func (m Model) handleEventTimelineOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd
 		}
 		m.ensureEventCursorVisible()
 	case "ctrl+b":
-		m.eventTimelineLineInput = ""
-		m.eventTimelineCursor -= m.eventContentHeight()
-		if m.eventTimelineCursor < 0 {
-			m.eventTimelineCursor = 0
-		}
-		m.ensureEventCursorVisible()
+		return m.handleEventTimelineOverlayKeyCtrlB()
 
 	// Jump to top/bottom.
 	case "g":
-		m.eventTimelineLineInput = ""
-		if m.pendingG {
-			m.pendingG = false
-			m.eventTimelineCursor = 0
-			m.ensureEventCursorVisible()
-		} else {
-			m.pendingG = true
-		}
+		return m.handleEventTimelineOverlayKeyG()
 	case "G":
 		if m.eventTimelineLineInput != "" {
 			lineNum, _ := strconv.Atoi(m.eventTimelineLineInput)
@@ -314,35 +243,19 @@ func (m Model) handleEventTimelineOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd
 
 	// Visual modes.
 	case "v":
-		m.eventTimelineLineInput = ""
-		m.eventTimelineVisualMode = 'v'
-		m.eventTimelineVisualStart = m.eventTimelineCursor
-		m.eventTimelineVisualCol = m.eventTimelineCursorCol
+		return m.handleEventTimelineOverlayKeyV()
 	case "V":
-		m.eventTimelineLineInput = ""
-		m.eventTimelineVisualMode = 'V'
-		m.eventTimelineVisualStart = m.eventTimelineCursor
-		m.eventTimelineVisualCol = m.eventTimelineCursorCol
+		return m.handleEventTimelineOverlayKeyV2()
 	case "ctrl+v":
-		m.eventTimelineLineInput = ""
-		m.eventTimelineVisualMode = 'B'
-		m.eventTimelineVisualStart = m.eventTimelineCursor
-		m.eventTimelineVisualCol = m.eventTimelineCursorCol
+		return m.handleEventTimelineOverlayKeyCtrlV()
 
 	// Copy current line (yy).
 	case "y":
-		m.eventTimelineLineInput = ""
-		if m.eventTimelineCursor >= 0 && m.eventTimelineCursor < len(m.eventTimelineLines) {
-			text := m.eventTimelineLines[m.eventTimelineCursor]
-			m.setStatusMessage("Copied 1 line", false)
-			return m, tea.Batch(copyToSystemClipboard(text), scheduleStatusClear())
-		}
+		return m.handleEventTimelineOverlayKeyY()
 
 	// Search.
 	case "/":
-		m.eventTimelineLineInput = ""
-		m.eventTimelineSearchActive = true
-		m.eventTimelineSearchInput.Clear()
+		return m.handleEventTimelineOverlayKeySlash()
 	case "n":
 		m.eventTimelineLineInput = ""
 		m.findNextEventMatch(true)
@@ -352,10 +265,7 @@ func (m Model) handleEventTimelineOverlayKey(msg tea.KeyMsg) (tea.Model, tea.Cmd
 
 	// Fullscreen: switch to dedicated mode (preserves title/tab/hint bars).
 	case "f":
-		m.eventTimelineLineInput = ""
-		m.overlay = overlayNone
-		m.mode = modeEventViewer
-		m.ensureEventCursorVisible()
+		return m.handleEventTimelineOverlayKeyF()
 
 	// Word wrap toggle.
 	case "tab", "z", ">":
@@ -382,26 +292,11 @@ func (m Model) handleEventTimelineVisualKey(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 		m.eventTimelineVisualMode = 0
 		return m, nil
 	case "V":
-		if m.eventTimelineVisualMode == 'V' {
-			m.eventTimelineVisualMode = 0
-		} else {
-			m.eventTimelineVisualMode = 'V'
-		}
-		return m, nil
+		return m.handleEventTimelineVisualKeyV()
 	case "v":
-		if m.eventTimelineVisualMode == 'v' {
-			m.eventTimelineVisualMode = 0
-		} else {
-			m.eventTimelineVisualMode = 'v'
-		}
-		return m, nil
+		return m.handleEventTimelineVisualKeyV2()
 	case "ctrl+v":
-		if m.eventTimelineVisualMode == 'B' {
-			m.eventTimelineVisualMode = 0
-		} else {
-			m.eventTimelineVisualMode = 'B'
-		}
-		return m, nil
+		return m.handleEventTimelineVisualKeyCtrlV()
 
 	// Movement extends selection.
 	case "j", "down":
@@ -410,10 +305,7 @@ func (m Model) handleEventTimelineVisualKey(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 		}
 		m.ensureEventCursorVisible()
 	case "k", "up":
-		if m.eventTimelineCursor > 0 {
-			m.eventTimelineCursor--
-		}
-		m.ensureEventCursorVisible()
+		return m.handleEventTimelineVisualKeyK()
 	case "h", "left":
 		if m.eventTimelineCursorCol > 0 {
 			m.eventTimelineCursorCol--
@@ -423,12 +315,7 @@ func (m Model) handleEventTimelineVisualKey(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 	case "0":
 		m.eventTimelineCursorCol = 0
 	case "$":
-		if m.eventTimelineCursor >= 0 && m.eventTimelineCursor < len(m.eventTimelineLines) {
-			lineLen := len([]rune(m.eventTimelineLines[m.eventTimelineCursor]))
-			if lineLen > 0 {
-				m.eventTimelineCursorCol = lineLen - 1
-			}
-		}
+		return m.handleEventTimelineVisualKeyDollar()
 	case "^":
 		if m.eventTimelineCursor >= 0 && m.eventTimelineCursor < len(m.eventTimelineLines) {
 			m.eventTimelineCursorCol = firstNonWhitespace(m.eventTimelineLines[m.eventTimelineCursor])
@@ -442,17 +329,9 @@ func (m Model) handleEventTimelineVisualKey(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 			m.eventTimelineCursorCol = nextWORDStart(m.eventTimelineLines[m.eventTimelineCursor], m.eventTimelineCursorCol)
 		}
 	case "b":
-		if m.eventTimelineCursor >= 0 && m.eventTimelineCursor < len(m.eventTimelineLines) {
-			if nc := prevWordStart(m.eventTimelineLines[m.eventTimelineCursor], m.eventTimelineCursorCol); nc >= 0 {
-				m.eventTimelineCursorCol = nc
-			}
-		}
+		return m.handleEventTimelineVisualKeyB()
 	case "B":
-		if m.eventTimelineCursor >= 0 && m.eventTimelineCursor < len(m.eventTimelineLines) {
-			if nc := prevWORDStart(m.eventTimelineLines[m.eventTimelineCursor], m.eventTimelineCursorCol); nc >= 0 {
-				m.eventTimelineCursorCol = nc
-			}
-		}
+		return m.handleEventTimelineVisualKeyB2()
 	case "e":
 		if m.eventTimelineCursor >= 0 && m.eventTimelineCursor < len(m.eventTimelineLines) {
 			m.eventTimelineCursorCol = wordEnd(m.eventTimelineLines[m.eventTimelineCursor], m.eventTimelineCursorCol)
@@ -465,13 +344,7 @@ func (m Model) handleEventTimelineVisualKey(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 		m.eventTimelineCursor = maxIdx
 		m.ensureEventCursorVisible()
 	case "g":
-		if m.pendingG {
-			m.pendingG = false
-			m.eventTimelineCursor = 0
-			m.ensureEventCursorVisible()
-		} else {
-			m.pendingG = true
-		}
+		return m.handleEventTimelineVisualKeyG()
 	case "ctrl+d":
 		m.eventTimelineCursor += m.eventContentHeight() / 2
 		if m.eventTimelineCursor > maxIdx {
@@ -479,91 +352,11 @@ func (m Model) handleEventTimelineVisualKey(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 		}
 		m.ensureEventCursorVisible()
 	case "ctrl+u":
-		m.eventTimelineCursor -= m.eventContentHeight() / 2
-		if m.eventTimelineCursor < 0 {
-			m.eventTimelineCursor = 0
-		}
-		m.ensureEventCursorVisible()
+		return m.handleEventTimelineVisualKeyCtrlU()
 
 	// Copy selected text.
 	case "y":
-		selStart := min(m.eventTimelineVisualStart, m.eventTimelineCursor)
-		selEnd := max(m.eventTimelineVisualStart, m.eventTimelineCursor)
-		if selStart < 0 {
-			selStart = 0
-		}
-		if selEnd >= len(m.eventTimelineLines) {
-			selEnd = len(m.eventTimelineLines) - 1
-		}
-		var clipText string
-		switch m.eventTimelineVisualMode {
-		case 'v': // Character mode: partial first/last lines.
-			var parts []string
-			anchorCol := m.eventTimelineVisualCol
-			cursorCol := m.eventTimelineCursorCol
-			startCol, endCol := anchorCol, cursorCol
-			if m.eventTimelineVisualStart > m.eventTimelineCursor {
-				startCol, endCol = cursorCol, anchorCol
-			}
-			for i := selStart; i <= selEnd; i++ {
-				line := m.eventTimelineLines[i]
-				runes := []rune(line)
-				if selStart == selEnd {
-					cs := min(anchorCol, cursorCol)
-					ce := max(anchorCol, cursorCol) + 1
-					if cs > len(runes) {
-						cs = len(runes)
-					}
-					if ce > len(runes) {
-						ce = len(runes)
-					}
-					parts = append(parts, string(runes[cs:ce]))
-				} else if i == selStart {
-					cs := startCol
-					if cs > len(runes) {
-						cs = len(runes)
-					}
-					parts = append(parts, string(runes[cs:]))
-				} else if i == selEnd {
-					ce := endCol + 1
-					if ce > len(runes) {
-						ce = len(runes)
-					}
-					parts = append(parts, string(runes[:ce]))
-				} else {
-					parts = append(parts, line)
-				}
-			}
-			clipText = strings.Join(parts, "\n")
-		case 'B': // Block mode: rectangular column range.
-			colStart := min(m.eventTimelineVisualCol, m.eventTimelineCursorCol)
-			colEnd := max(m.eventTimelineVisualCol, m.eventTimelineCursorCol) + 1
-			var parts []string
-			for i := selStart; i <= selEnd; i++ {
-				line := m.eventTimelineLines[i]
-				runes := []rune(line)
-				cs := colStart
-				ce := colEnd
-				if cs > len(runes) {
-					cs = len(runes)
-				}
-				if ce > len(runes) {
-					ce = len(runes)
-				}
-				parts = append(parts, string(runes[cs:ce]))
-			}
-			clipText = strings.Join(parts, "\n")
-		default: // Line mode: whole lines.
-			var parts []string
-			for i := selStart; i <= selEnd; i++ {
-				parts = append(parts, m.eventTimelineLines[i])
-			}
-			clipText = strings.Join(parts, "\n")
-		}
-		lineCount := selEnd - selStart + 1
-		m.eventTimelineVisualMode = 0
-		m.setStatusMessage(fmt.Sprintf("Copied %d line(s)", lineCount), false)
-		return m, tea.Batch(copyToSystemClipboard(clipText), scheduleStatusClear())
+		return m.handleEventTimelineVisualKeyY()
 
 	case "ctrl+c":
 		return m.closeTabOrQuit()
@@ -603,5 +396,368 @@ func (m Model) handleEventTimelineSearchKey(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 			m.eventTimelineSearchInput.Insert(key)
 		}
 	}
+	return m, nil
+}
+
+func (m Model) handleEventTimelineVisualKeyV() (tea.Model, tea.Cmd) {
+	if m.eventTimelineVisualMode == 'V' {
+		m.eventTimelineVisualMode = 0
+	} else {
+		m.eventTimelineVisualMode = 'V'
+	}
+	return m, nil
+}
+
+func (m Model) handleEventTimelineVisualKeyV2() (tea.Model, tea.Cmd) {
+	if m.eventTimelineVisualMode == 'v' {
+		m.eventTimelineVisualMode = 0
+	} else {
+		m.eventTimelineVisualMode = 'v'
+	}
+	return m, nil
+}
+
+func (m Model) handleEventTimelineVisualKeyCtrlV() (tea.Model, tea.Cmd) {
+	if m.eventTimelineVisualMode == 'B' {
+		m.eventTimelineVisualMode = 0
+	} else {
+		m.eventTimelineVisualMode = 'B'
+	}
+	return m, nil
+}
+
+func (m Model) handleEventTimelineVisualKeyK() (tea.Model, tea.Cmd) {
+	if m.eventTimelineCursor > 0 {
+		m.eventTimelineCursor--
+	}
+	m.ensureEventCursorVisible()
+	return m, nil
+}
+
+func (m Model) handleEventTimelineVisualKeyDollar() (tea.Model, tea.Cmd) {
+	if m.eventTimelineCursor >= 0 && m.eventTimelineCursor < len(m.eventTimelineLines) {
+		lineLen := len([]rune(m.eventTimelineLines[m.eventTimelineCursor]))
+		if lineLen > 0 {
+			m.eventTimelineCursorCol = lineLen - 1
+		}
+	}
+	return m, nil
+}
+
+func (m Model) handleEventTimelineVisualKeyB() (tea.Model, tea.Cmd) {
+	if m.eventTimelineCursor >= 0 && m.eventTimelineCursor < len(m.eventTimelineLines) {
+		if nc := prevWordStart(m.eventTimelineLines[m.eventTimelineCursor], m.eventTimelineCursorCol); nc >= 0 {
+			m.eventTimelineCursorCol = nc
+		}
+	}
+	return m, nil
+}
+
+func (m Model) handleEventTimelineVisualKeyB2() (tea.Model, tea.Cmd) {
+	if m.eventTimelineCursor >= 0 && m.eventTimelineCursor < len(m.eventTimelineLines) {
+		if nc := prevWORDStart(m.eventTimelineLines[m.eventTimelineCursor], m.eventTimelineCursorCol); nc >= 0 {
+			m.eventTimelineCursorCol = nc
+		}
+	}
+	return m, nil
+}
+
+func (m Model) handleEventTimelineVisualKeyG() (tea.Model, tea.Cmd) {
+	if m.pendingG {
+		m.pendingG = false
+		m.eventTimelineCursor = 0
+		m.ensureEventCursorVisible()
+	} else {
+		m.pendingG = true
+	}
+	return m, nil
+}
+
+func (m Model) handleEventTimelineVisualKeyCtrlU() (tea.Model, tea.Cmd) {
+	m.eventTimelineCursor -= m.eventContentHeight() / 2
+	if m.eventTimelineCursor < 0 {
+		m.eventTimelineCursor = 0
+	}
+	m.ensureEventCursorVisible()
+	return m, nil
+}
+
+func (m Model) handleEventTimelineVisualKeyY() (tea.Model, tea.Cmd) {
+	selStart := min(m.eventTimelineVisualStart, m.eventTimelineCursor)
+	selEnd := max(m.eventTimelineVisualStart, m.eventTimelineCursor)
+	if selStart < 0 {
+		selStart = 0
+	}
+	if selEnd >= len(m.eventTimelineLines) {
+		selEnd = len(m.eventTimelineLines) - 1
+	}
+	var clipText string
+	switch m.eventTimelineVisualMode {
+	case 'v': // Character mode: partial first/last lines.
+		var parts []string
+		anchorCol := m.eventTimelineVisualCol
+		cursorCol := m.eventTimelineCursorCol
+		startCol, endCol := anchorCol, cursorCol
+		if m.eventTimelineVisualStart > m.eventTimelineCursor {
+			startCol, endCol = cursorCol, anchorCol
+		}
+		for i := selStart; i <= selEnd; i++ {
+			line := m.eventTimelineLines[i]
+			runes := []rune(line)
+			if selStart == selEnd {
+				cs := min(anchorCol, cursorCol)
+				ce := max(anchorCol, cursorCol) + 1
+				if cs > len(runes) {
+					cs = len(runes)
+				}
+				if ce > len(runes) {
+					ce = len(runes)
+				}
+				parts = append(parts, string(runes[cs:ce]))
+			} else if i == selStart {
+				cs := startCol
+				if cs > len(runes) {
+					cs = len(runes)
+				}
+				parts = append(parts, string(runes[cs:]))
+			} else if i == selEnd {
+				ce := endCol + 1
+				if ce > len(runes) {
+					ce = len(runes)
+				}
+				parts = append(parts, string(runes[:ce]))
+			} else {
+				parts = append(parts, line)
+			}
+		}
+		clipText = strings.Join(parts, "\n")
+	case 'B': // Block mode: rectangular column range.
+		colStart := min(m.eventTimelineVisualCol, m.eventTimelineCursorCol)
+		colEnd := max(m.eventTimelineVisualCol, m.eventTimelineCursorCol) + 1
+		var parts []string
+		for i := selStart; i <= selEnd; i++ {
+			line := m.eventTimelineLines[i]
+			runes := []rune(line)
+			cs := colStart
+			ce := colEnd
+			if cs > len(runes) {
+				cs = len(runes)
+			}
+			if ce > len(runes) {
+				ce = len(runes)
+			}
+			parts = append(parts, string(runes[cs:ce]))
+		}
+		clipText = strings.Join(parts, "\n")
+	default: // Line mode: whole lines.
+		var parts []string
+		for i := selStart; i <= selEnd; i++ {
+			parts = append(parts, m.eventTimelineLines[i])
+		}
+		clipText = strings.Join(parts, "\n")
+	}
+	lineCount := selEnd - selStart + 1
+	m.eventTimelineVisualMode = 0
+	m.setStatusMessage(fmt.Sprintf("Copied %d line(s)", lineCount), false)
+	return m, tea.Batch(copyToSystemClipboard(clipText), scheduleStatusClear())
+}
+
+func (m Model) handleEventTimelineOverlayKeyEsc() (tea.Model, tea.Cmd) {
+	if m.eventTimelineSearchQuery != "" {
+		m.eventTimelineSearchQuery = ""
+		return m, nil
+	}
+	m.eventTimelineLineInput = ""
+	m.eventTimelineFullscreen = false
+	m.eventTimelineVisualMode = 0
+	m.overlay = overlayNone
+	return m, nil
+}
+
+func (m Model) handleEventTimelineOverlayKeyQ() (tea.Model, tea.Cmd) {
+	m.eventTimelineLineInput = ""
+	m.eventTimelineFullscreen = false
+	m.eventTimelineVisualMode = 0
+	m.overlay = overlayNone
+	return m, nil
+}
+
+func (m Model) handleEventTimelineOverlayKeyK() (tea.Model, tea.Cmd) {
+	m.eventTimelineLineInput = ""
+	if m.eventTimelineCursor > 0 {
+		m.eventTimelineCursor--
+	}
+	m.ensureEventCursorVisible()
+	return m, nil
+}
+
+func (m Model) handleEventTimelineOverlayKeyH() (tea.Model, tea.Cmd) {
+	m.eventTimelineLineInput = ""
+	if m.eventTimelineCursorCol > 0 {
+		m.eventTimelineCursorCol--
+	}
+	return m, nil
+}
+
+func (m Model) handleEventTimelineOverlayKeyZero() (tea.Model, tea.Cmd) {
+	if m.eventTimelineLineInput != "" {
+		m.eventTimelineLineInput += "0"
+		return m, nil
+	}
+	m.eventTimelineCursorCol = 0
+	return m, nil
+}
+
+func (m Model) handleEventTimelineOverlayKeyDollar() (tea.Model, tea.Cmd) {
+	m.eventTimelineLineInput = ""
+	if m.eventTimelineCursor >= 0 && m.eventTimelineCursor < len(m.eventTimelineLines) {
+		lineLen := len([]rune(m.eventTimelineLines[m.eventTimelineCursor]))
+		if lineLen > 0 {
+			m.eventTimelineCursorCol = lineLen - 1
+		}
+	}
+	return m, nil
+}
+
+func (m Model) handleEventTimelineOverlayKeyCaret() (tea.Model, tea.Cmd) {
+	m.eventTimelineLineInput = ""
+	if m.eventTimelineCursor >= 0 && m.eventTimelineCursor < len(m.eventTimelineLines) {
+		m.eventTimelineCursorCol = firstNonWhitespace(m.eventTimelineLines[m.eventTimelineCursor])
+	}
+	return m, nil
+}
+
+func (m Model) handleEventTimelineOverlayKeyW() (tea.Model, tea.Cmd) {
+	m.eventTimelineLineInput = ""
+	if m.eventTimelineCursor >= 0 && m.eventTimelineCursor < len(m.eventTimelineLines) {
+		m.eventTimelineCursorCol = nextWordStart(m.eventTimelineLines[m.eventTimelineCursor], m.eventTimelineCursorCol)
+	}
+	return m, nil
+}
+
+func (m Model) handleEventTimelineOverlayKeyW2() (tea.Model, tea.Cmd) {
+	m.eventTimelineLineInput = ""
+	if m.eventTimelineCursor >= 0 && m.eventTimelineCursor < len(m.eventTimelineLines) {
+		m.eventTimelineCursorCol = nextWORDStart(m.eventTimelineLines[m.eventTimelineCursor], m.eventTimelineCursorCol)
+	}
+	return m, nil
+}
+
+func (m Model) handleEventTimelineOverlayKeyB() (tea.Model, tea.Cmd) {
+	m.eventTimelineLineInput = ""
+	if m.eventTimelineCursor >= 0 && m.eventTimelineCursor < len(m.eventTimelineLines) {
+		nc := prevWordStart(m.eventTimelineLines[m.eventTimelineCursor], m.eventTimelineCursorCol)
+		if nc >= 0 {
+			m.eventTimelineCursorCol = nc
+		}
+	}
+	return m, nil
+}
+
+func (m Model) handleEventTimelineOverlayKeyB2() (tea.Model, tea.Cmd) {
+	m.eventTimelineLineInput = ""
+	if m.eventTimelineCursor >= 0 && m.eventTimelineCursor < len(m.eventTimelineLines) {
+		nc := prevWORDStart(m.eventTimelineLines[m.eventTimelineCursor], m.eventTimelineCursorCol)
+		if nc >= 0 {
+			m.eventTimelineCursorCol = nc
+		}
+	}
+	return m, nil
+}
+
+func (m Model) handleEventTimelineOverlayKeyE() (tea.Model, tea.Cmd) {
+	m.eventTimelineLineInput = ""
+	if m.eventTimelineCursor >= 0 && m.eventTimelineCursor < len(m.eventTimelineLines) {
+		m.eventTimelineCursorCol = wordEnd(m.eventTimelineLines[m.eventTimelineCursor], m.eventTimelineCursorCol)
+	}
+	return m, nil
+}
+
+func (m Model) handleEventTimelineOverlayKeyE2() (tea.Model, tea.Cmd) {
+	m.eventTimelineLineInput = ""
+	if m.eventTimelineCursor >= 0 && m.eventTimelineCursor < len(m.eventTimelineLines) {
+		m.eventTimelineCursorCol = WORDEnd(m.eventTimelineLines[m.eventTimelineCursor], m.eventTimelineCursorCol)
+	}
+	return m, nil
+}
+
+func (m Model) handleEventTimelineOverlayKeyCtrlU() (tea.Model, tea.Cmd) {
+	m.eventTimelineLineInput = ""
+	m.eventTimelineCursor -= m.eventContentHeight() / 2
+	if m.eventTimelineCursor < 0 {
+		m.eventTimelineCursor = 0
+	}
+	m.ensureEventCursorVisible()
+	return m, nil
+}
+
+func (m Model) handleEventTimelineOverlayKeyCtrlB() (tea.Model, tea.Cmd) {
+	m.eventTimelineLineInput = ""
+	m.eventTimelineCursor -= m.eventContentHeight()
+	if m.eventTimelineCursor < 0 {
+		m.eventTimelineCursor = 0
+	}
+	m.ensureEventCursorVisible()
+	return m, nil
+}
+
+func (m Model) handleEventTimelineOverlayKeyG() (tea.Model, tea.Cmd) {
+	m.eventTimelineLineInput = ""
+	if m.pendingG {
+		m.pendingG = false
+		m.eventTimelineCursor = 0
+		m.ensureEventCursorVisible()
+	} else {
+		m.pendingG = true
+	}
+	return m, nil
+}
+
+func (m Model) handleEventTimelineOverlayKeyV() (tea.Model, tea.Cmd) {
+	m.eventTimelineLineInput = ""
+	m.eventTimelineVisualMode = 'v'
+	m.eventTimelineVisualStart = m.eventTimelineCursor
+	m.eventTimelineVisualCol = m.eventTimelineCursorCol
+	return m, nil
+}
+
+func (m Model) handleEventTimelineOverlayKeyV2() (tea.Model, tea.Cmd) {
+	m.eventTimelineLineInput = ""
+	m.eventTimelineVisualMode = 'V'
+	m.eventTimelineVisualStart = m.eventTimelineCursor
+	m.eventTimelineVisualCol = m.eventTimelineCursorCol
+	return m, nil
+}
+
+func (m Model) handleEventTimelineOverlayKeyCtrlV() (tea.Model, tea.Cmd) {
+	m.eventTimelineLineInput = ""
+	m.eventTimelineVisualMode = 'B'
+	m.eventTimelineVisualStart = m.eventTimelineCursor
+	m.eventTimelineVisualCol = m.eventTimelineCursorCol
+	return m, nil
+}
+
+func (m Model) handleEventTimelineOverlayKeyY() (tea.Model, tea.Cmd) {
+	m.eventTimelineLineInput = ""
+	if m.eventTimelineCursor >= 0 && m.eventTimelineCursor < len(m.eventTimelineLines) {
+		text := m.eventTimelineLines[m.eventTimelineCursor]
+		m.setStatusMessage("Copied 1 line", false)
+		return m, tea.Batch(copyToSystemClipboard(text), scheduleStatusClear())
+	}
+	return m, nil
+}
+
+func (m Model) handleEventTimelineOverlayKeySlash() (tea.Model, tea.Cmd) {
+	m.eventTimelineLineInput = ""
+	m.eventTimelineSearchActive = true
+	m.eventTimelineSearchInput.Clear()
+	return m, nil
+}
+
+func (m Model) handleEventTimelineOverlayKeyF() (tea.Model, tea.Cmd) {
+	m.eventTimelineLineInput = ""
+	m.overlay = overlayNone
+	m.mode = modeEventViewer
+	m.ensureEventCursorVisible()
 	return m, nil
 }

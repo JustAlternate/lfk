@@ -80,16 +80,7 @@ func (m Model) overlayHintBar() string {
 		})
 
 	case overlayLogContainerSelect:
-		hints := []ui.HintEntry{
-			{Key: "space", Desc: "select"},
-			{Key: "enter", Desc: "apply"},
-			{Key: "/", Desc: "filter"},
-		}
-		if m.logParentKind != "" {
-			hints = append(hints, ui.HintEntry{Key: "P", Desc: "switch pod"})
-		}
-		hints = append(hints, ui.HintEntry{Key: "esc", Desc: "close"})
-		return m.renderHints(hints)
+		return m.overlayHintBarOverlayLogContainerSelect()
 
 	case overlayBookmarks:
 		switch m.bookmarkSearchMode {
@@ -121,18 +112,7 @@ func (m Model) overlayHintBar() string {
 		}
 
 	case overlayTemplates:
-		if m.templateSearchMode {
-			return m.renderHints([]ui.HintEntry{
-				{Key: "type", Desc: "filter"},
-				{Key: "enter", Desc: "apply"},
-				{Key: "esc", Desc: "clear"},
-			})
-		}
-		return m.renderHints([]ui.HintEntry{
-			{Key: "enter", Desc: "select"},
-			{Key: "/", Desc: "filter"},
-			{Key: "esc", Desc: "close"},
-		})
+		return m.overlayHintBarOverlayTemplates()
 
 	case overlayColorscheme:
 		return m.renderHints([]ui.HintEntry{
@@ -175,31 +155,7 @@ func (m Model) overlayHintBar() string {
 		})
 
 	case overlayEventTimeline:
-		if m.eventTimelineSearchActive {
-			return m.renderHints([]ui.HintEntry{
-				{Key: "type", Desc: "search"},
-				{Key: "enter", Desc: "find"},
-				{Key: "esc", Desc: "cancel"},
-			})
-		}
-		if m.eventTimelineVisualMode != 0 {
-			return m.renderHints([]ui.HintEntry{
-				{Key: "j/k", Desc: "extend"},
-				{Key: "y", Desc: "copy"},
-				{Key: "v/V", Desc: "switch mode"},
-				{Key: "esc", Desc: "cancel"},
-			})
-		}
-		return m.renderHints([]ui.HintEntry{
-			{Key: "j/k", Desc: "move"},
-			{Key: "g/G", Desc: "top/bottom"},
-			{Key: "v/V", Desc: "select"},
-			{Key: "y", Desc: "copy"},
-			{Key: "/", Desc: "search"},
-			{Key: "f", Desc: "fullscreen"},
-			{Key: ">", Desc: "wrap"},
-			{Key: "esc", Desc: "close"},
-		})
+		return m.overlayHintBarOverlayEventTimeline()
 
 	case overlayAlerts:
 		return m.renderHints([]ui.HintEntry{
@@ -217,44 +173,10 @@ func (m Model) overlayHintBar() string {
 		})
 
 	case overlaySecretEditor:
-		if m.secretEditing {
-			return m.renderHints([]ui.HintEntry{
-				{Key: "ctrl+s", Desc: "save"},
-				{Key: "enter", Desc: "newline"},
-				{Key: "tab", Desc: "switch"},
-				{Key: "esc", Desc: "cancel"},
-			})
-		}
-		return m.renderHints([]ui.HintEntry{
-			{Key: "jk", Desc: "nav"},
-			{Key: "v", Desc: "toggle"},
-			{Key: "V", Desc: "all"},
-			{Key: "e", Desc: "edit"},
-			{Key: "a", Desc: "add"},
-			{Key: "y", Desc: "copy"},
-			{Key: "D", Desc: "del"},
-			{Key: "s", Desc: "save"},
-			{Key: "esc", Desc: "close"},
-		})
+		return m.overlayHintBarOverlaySecretEditor()
 
 	case overlayConfigMapEditor:
-		if m.configMapEditing {
-			return m.renderHints([]ui.HintEntry{
-				{Key: "ctrl+s", Desc: "save"},
-				{Key: "enter", Desc: "newline"},
-				{Key: "tab", Desc: "switch"},
-				{Key: "esc", Desc: "cancel"},
-			})
-		}
-		return m.renderHints([]ui.HintEntry{
-			{Key: "jk", Desc: "nav"},
-			{Key: "e", Desc: "edit"},
-			{Key: "a", Desc: "add"},
-			{Key: "y", Desc: "copy"},
-			{Key: "D", Desc: "del"},
-			{Key: "s", Desc: "save"},
-			{Key: "esc", Desc: "close"},
-		})
+		return m.overlayHintBarOverlayConfigMapEditor()
 
 	case overlayRollback, overlayHelmRollback:
 		return m.renderHints([]ui.HintEntry{
@@ -264,23 +186,7 @@ func (m Model) overlayHintBar() string {
 		})
 
 	case overlayLabelEditor:
-		if m.labelEditing {
-			return m.renderHints([]ui.HintEntry{
-				{Key: "ctrl+s", Desc: "save"},
-				{Key: "tab", Desc: "switch"},
-				{Key: "esc", Desc: "cancel"},
-			})
-		}
-		return m.renderHints([]ui.HintEntry{
-			{Key: "Tab", Desc: "switch"},
-			{Key: "jk", Desc: "nav"},
-			{Key: "e", Desc: "edit"},
-			{Key: "a", Desc: "add"},
-			{Key: "y", Desc: "copy"},
-			{Key: "D", Desc: "del"},
-			{Key: "s", Desc: "save"},
-			{Key: "esc", Desc: "close"},
-		})
+		return m.overlayHintBarOverlayLabelEditor()
 
 	case overlayAutoSync:
 		return m.renderHints([]ui.HintEntry{
@@ -291,47 +197,10 @@ func (m Model) overlayHintBar() string {
 		})
 
 	case overlayFinalizerSearch:
-		if m.finalizerSearchFilterActive {
-			return m.renderHints([]ui.HintEntry{
-				{Key: "type", Desc: "filter"},
-				{Key: "enter", Desc: "apply"},
-				{Key: "esc", Desc: "clear"},
-			})
-		}
-		return m.renderHints([]ui.HintEntry{
-			{Key: "space", Desc: "select"},
-			{Key: "ctrl+a", Desc: "all"},
-			{Key: "enter", Desc: "remove"},
-			{Key: "/", Desc: "filter"},
-			{Key: "esc", Desc: "close"},
-		})
+		return m.overlayHintBarOverlayFinalizerSearch()
 
 	case overlayCanI:
-		if m.canISearchActive {
-			return m.renderHints([]ui.HintEntry{
-				{Key: "type", Desc: "search"},
-				{Key: "enter", Desc: "apply"},
-				{Key: "esc", Desc: "clear"},
-			})
-		}
-		if m.canISearchQuery != "" {
-			return m.renderHints([]ui.HintEntry{
-				{Key: "j/k", Desc: "navigate"},
-				{Key: "/", Desc: "edit search"},
-				{Key: "esc", Desc: "clear search"},
-			})
-		}
-		filterLabel := "all"
-		if m.canIAllowedOnly {
-			filterLabel = "allowed only"
-		}
-		return m.renderHints([]ui.HintEntry{
-			{Key: "j/k", Desc: "navigate"},
-			{Key: "a", Desc: filterLabel},
-			{Key: "s", Desc: "switch subject"},
-			{Key: "/", Desc: "search groups"},
-			{Key: "q/Esc", Desc: "close"},
-		})
+		return m.overlayHintBarOverlayCanI()
 
 	case overlayCanISubject:
 		return m.renderHints([]ui.HintEntry{
@@ -341,20 +210,7 @@ func (m Model) overlayHintBar() string {
 		})
 
 	case overlayColumnToggle:
-		if m.columnToggleFilterActive {
-			return m.renderHints([]ui.HintEntry{
-				{Key: "type", Desc: "filter"},
-				{Key: "esc", Desc: "clear/close"},
-			})
-		}
-		return m.renderHints([]ui.HintEntry{
-			{Key: "space", Desc: "toggle"},
-			{Key: "J/K", Desc: "reorder"},
-			{Key: "enter", Desc: "apply"},
-			{Key: "R", Desc: "reset"},
-			{Key: "/", Desc: "filter"},
-			{Key: "esc", Desc: "close"},
-		})
+		return m.overlayHintBarOverlayColumnToggle()
 
 	case overlayExplainSearch:
 		return m.renderHints([]ui.HintEntry{
@@ -373,4 +229,184 @@ func (m Model) overlayHintBar() string {
 // for hint bar styling.
 func (m Model) renderHints(hints []ui.HintEntry) string {
 	return ui.FormatHintParts(hints)
+}
+
+func (m Model) overlayHintBarOverlayLogContainerSelect() string {
+	hints := []ui.HintEntry{
+		{Key: "space", Desc: "select"},
+		{Key: "enter", Desc: "apply"},
+		{Key: "/", Desc: "filter"},
+	}
+	if m.logParentKind != "" {
+		hints = append(hints, ui.HintEntry{Key: "P", Desc: "switch pod"})
+	}
+	hints = append(hints, ui.HintEntry{Key: "esc", Desc: "close"})
+	return m.renderHints(hints)
+}
+
+func (m Model) overlayHintBarOverlayTemplates() string {
+	if m.templateSearchMode {
+		return m.renderHints([]ui.HintEntry{
+			{Key: "type", Desc: "filter"},
+			{Key: "enter", Desc: "apply"},
+			{Key: "esc", Desc: "clear"},
+		})
+	}
+	return m.renderHints([]ui.HintEntry{
+		{Key: "enter", Desc: "select"},
+		{Key: "/", Desc: "filter"},
+		{Key: "esc", Desc: "close"},
+	})
+}
+
+func (m Model) overlayHintBarOverlayEventTimeline() string {
+	if m.eventTimelineSearchActive {
+		return m.renderHints([]ui.HintEntry{
+			{Key: "type", Desc: "search"},
+			{Key: "enter", Desc: "find"},
+			{Key: "esc", Desc: "cancel"},
+		})
+	}
+	if m.eventTimelineVisualMode != 0 {
+		return m.renderHints([]ui.HintEntry{
+			{Key: "j/k", Desc: "extend"},
+			{Key: "y", Desc: "copy"},
+			{Key: "v/V", Desc: "switch mode"},
+			{Key: "esc", Desc: "cancel"},
+		})
+	}
+	return m.renderHints([]ui.HintEntry{
+		{Key: "j/k", Desc: "move"},
+		{Key: "g/G", Desc: "top/bottom"},
+		{Key: "v/V", Desc: "select"},
+		{Key: "y", Desc: "copy"},
+		{Key: "/", Desc: "search"},
+		{Key: "f", Desc: "fullscreen"},
+		{Key: ">", Desc: "wrap"},
+		{Key: "esc", Desc: "close"},
+	})
+}
+
+func (m Model) overlayHintBarOverlaySecretEditor() string {
+	if m.secretEditing {
+		return m.renderHints([]ui.HintEntry{
+			{Key: "ctrl+s", Desc: "save"},
+			{Key: "enter", Desc: "newline"},
+			{Key: "tab", Desc: "switch"},
+			{Key: "esc", Desc: "cancel"},
+		})
+	}
+	return m.renderHints([]ui.HintEntry{
+		{Key: "jk", Desc: "nav"},
+		{Key: "v", Desc: "toggle"},
+		{Key: "V", Desc: "all"},
+		{Key: "e", Desc: "edit"},
+		{Key: "a", Desc: "add"},
+		{Key: "y", Desc: "copy"},
+		{Key: "D", Desc: "del"},
+		{Key: "s", Desc: "save"},
+		{Key: "esc", Desc: "close"},
+	})
+}
+
+func (m Model) overlayHintBarOverlayConfigMapEditor() string {
+	if m.configMapEditing {
+		return m.renderHints([]ui.HintEntry{
+			{Key: "ctrl+s", Desc: "save"},
+			{Key: "enter", Desc: "newline"},
+			{Key: "tab", Desc: "switch"},
+			{Key: "esc", Desc: "cancel"},
+		})
+	}
+	return m.renderHints([]ui.HintEntry{
+		{Key: "jk", Desc: "nav"},
+		{Key: "e", Desc: "edit"},
+		{Key: "a", Desc: "add"},
+		{Key: "y", Desc: "copy"},
+		{Key: "D", Desc: "del"},
+		{Key: "s", Desc: "save"},
+		{Key: "esc", Desc: "close"},
+	})
+}
+
+func (m Model) overlayHintBarOverlayLabelEditor() string {
+	if m.labelEditing {
+		return m.renderHints([]ui.HintEntry{
+			{Key: "ctrl+s", Desc: "save"},
+			{Key: "tab", Desc: "switch"},
+			{Key: "esc", Desc: "cancel"},
+		})
+	}
+	return m.renderHints([]ui.HintEntry{
+		{Key: "Tab", Desc: "switch"},
+		{Key: "jk", Desc: "nav"},
+		{Key: "e", Desc: "edit"},
+		{Key: "a", Desc: "add"},
+		{Key: "y", Desc: "copy"},
+		{Key: "D", Desc: "del"},
+		{Key: "s", Desc: "save"},
+		{Key: "esc", Desc: "close"},
+	})
+}
+
+func (m Model) overlayHintBarOverlayFinalizerSearch() string {
+	if m.finalizerSearchFilterActive {
+		return m.renderHints([]ui.HintEntry{
+			{Key: "type", Desc: "filter"},
+			{Key: "enter", Desc: "apply"},
+			{Key: "esc", Desc: "clear"},
+		})
+	}
+	return m.renderHints([]ui.HintEntry{
+		{Key: "space", Desc: "select"},
+		{Key: "ctrl+a", Desc: "all"},
+		{Key: "enter", Desc: "remove"},
+		{Key: "/", Desc: "filter"},
+		{Key: "esc", Desc: "close"},
+	})
+}
+
+func (m Model) overlayHintBarOverlayCanI() string {
+	if m.canISearchActive {
+		return m.renderHints([]ui.HintEntry{
+			{Key: "type", Desc: "search"},
+			{Key: "enter", Desc: "apply"},
+			{Key: "esc", Desc: "clear"},
+		})
+	}
+	if m.canISearchQuery != "" {
+		return m.renderHints([]ui.HintEntry{
+			{Key: "j/k", Desc: "navigate"},
+			{Key: "/", Desc: "edit search"},
+			{Key: "esc", Desc: "clear search"},
+		})
+	}
+	filterLabel := "all"
+	if m.canIAllowedOnly {
+		filterLabel = "allowed only"
+	}
+	return m.renderHints([]ui.HintEntry{
+		{Key: "j/k", Desc: "navigate"},
+		{Key: "a", Desc: filterLabel},
+		{Key: "s", Desc: "switch subject"},
+		{Key: "/", Desc: "search groups"},
+		{Key: "q/Esc", Desc: "close"},
+	})
+}
+
+func (m Model) overlayHintBarOverlayColumnToggle() string {
+	if m.columnToggleFilterActive {
+		return m.renderHints([]ui.HintEntry{
+			{Key: "type", Desc: "filter"},
+			{Key: "esc", Desc: "clear/close"},
+		})
+	}
+	return m.renderHints([]ui.HintEntry{
+		{Key: "space", Desc: "toggle"},
+		{Key: "J/K", Desc: "reorder"},
+		{Key: "enter", Desc: "apply"},
+		{Key: "R", Desc: "reset"},
+		{Key: "/", Desc: "filter"},
+		{Key: "esc", Desc: "close"},
+	})
 }

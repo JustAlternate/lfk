@@ -454,9 +454,7 @@ func (m Model) executeAction(actionLabel string) (tea.Model, tea.Cmd) {
 		m.overlay = overlayPVCResize
 		return m, nil
 	case "Scale":
-		m.scaleInput.Clear()
-		m.overlay = overlayScaleInput
-		return m, nil
+		return m.executeActionScale()
 	case "Restart":
 		// Restart a stopped/failed port forward entry.
 		if m.actionCtx.kind == "__port_forward_entry__" || m.actionCtx.kind == "__port_forwards__" {
@@ -728,15 +726,7 @@ func (m Model) executeAction(actionLabel string) (tea.Model, tea.Cmd) {
 		m.addLogEntry("DBG", fmt.Sprintf("$ helm upgrade %s -n %s --kube-context %s", name, ns, ctx))
 		return m, m.helmUpgrade()
 	case "Vuln Scan":
-		image := m.actionCtx.image
-		if image == "" {
-			m.setStatusMessage("No image found for this container", true)
-			return m, scheduleStatusClear()
-		}
-		m.addLogEntry("DBG", fmt.Sprintf("$ trivy image %s", image))
-		m.loading = true
-		m.setStatusMessage("Scanning image for vulnerabilities...", false)
-		return m, m.vulnScanImage(image)
+		return m.executeActionVulnScan()
 	case "Permissions":
 		m.loading = true
 		m.setStatusMessage("Checking RBAC permissions...", false)
@@ -750,9 +740,7 @@ func (m Model) executeAction(actionLabel string) (tea.Model, tea.Cmd) {
 		m.setStatusMessage("Loading Prometheus alerts...", false)
 		return m, m.loadAlerts()
 	case "Visualize":
-		m.loading = true
-		m.setStatusMessage("Loading network policy...", false)
-		return m, m.loadNetworkPolicy()
+		return m.executeActionVisualize()
 	case "Labels / Annotations":
 		m.labelResourceType = rt
 		return m, m.loadLabelData()
@@ -781,11 +769,7 @@ func (m Model) executeAction(actionLabel string) (tea.Model, tea.Cmd) {
 		return m, nil
 	default:
 		// Check if this is a user-defined custom action.
-		if ca, ok := findCustomAction(m.actionCtx.kind, actionLabel); ok {
-			expandedCmd := expandCustomActionTemplate(ca.Command, m.actionCtx)
-			m.addLogEntry("DBG", fmt.Sprintf("$ sh -c %q", expandedCmd))
-			return m, m.execCustomAction(expandedCmd)
-		}
+		return m.executeActionDefault(actionLabel)
 	}
 
 	return m, nil
@@ -952,4 +936,37 @@ func (m Model) closeTabOrQuit() (tea.Model, tea.Cmd) {
 	}
 	m.saveCurrentSession()
 	return m, tea.Quit
+}
+
+func (m Model) executeActionScale() (tea.Model, tea.Cmd) {
+	m.scaleInput.Clear()
+	m.overlay = overlayScaleInput
+	return m, nil
+}
+
+func (m Model) executeActionVulnScan() (tea.Model, tea.Cmd) {
+	image := m.actionCtx.image
+	if image == "" {
+		m.setStatusMessage("No image found for this container", true)
+		return m, scheduleStatusClear()
+	}
+	m.addLogEntry("DBG", fmt.Sprintf("$ trivy image %s", image))
+	m.loading = true
+	m.setStatusMessage("Scanning image for vulnerabilities...", false)
+	return m, m.vulnScanImage(image)
+}
+
+func (m Model) executeActionVisualize() (tea.Model, tea.Cmd) {
+	m.loading = true
+	m.setStatusMessage("Loading network policy...", false)
+	return m, m.loadNetworkPolicy()
+}
+
+func (m Model) executeActionDefault(actionLabel string) (tea.Model, tea.Cmd) {
+	if ca, ok := findCustomAction(m.actionCtx.kind, actionLabel); ok {
+		expandedCmd := expandCustomActionTemplate(ca.Command, m.actionCtx)
+		m.addLogEntry("DBG", fmt.Sprintf("$ sh -c %q", expandedCmd))
+		return m, m.execCustomAction(expandedCmd)
+	}
+	return m, nil
 }
