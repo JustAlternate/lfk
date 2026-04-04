@@ -1062,7 +1062,6 @@ func TestPopulateResourceDetails_PVC(t *testing.T) {
 			},
 			wantStatus: "Bound",
 			wantCols: map[string]string{
-				"Status":        "Bound",
 				"Capacity":      "10Gi",
 				"Request":       "10Gi",
 				"Volume":        "pv-abc",

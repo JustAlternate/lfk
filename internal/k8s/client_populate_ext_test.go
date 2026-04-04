@@ -501,7 +501,6 @@ func TestPopulatePersistentVolume(t *testing.T) {
 				"Storage Class":  "gp3",
 				"Volume Mode":    "Filesystem",
 				"Claim":          "default/my-pvc",
-				"Status":         "Bound",
 			},
 		},
 		{
@@ -1050,7 +1049,7 @@ func TestPopulateResourceDetailsExt_PVDispatch(t *testing.T) {
 
 	colMap := columnsToMap(ti.Columns)
 	assert.Equal(t, "50Gi", colMap["Capacity"])
-	assert.Equal(t, "Available", colMap["Status"])
+	assert.Equal(t, "Available", ti.Status)
 }
 
 // --- populateResourceDetailsExt: ResourceQuota dispatches ---

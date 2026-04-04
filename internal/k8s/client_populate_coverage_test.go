@@ -521,7 +521,6 @@ func TestPopulate_PVCBound(t *testing.T) {
 	populateResourceDetails(&ti, obj, "PersistentVolumeClaim")
 
 	colMap := columnsToMap(ti.Columns)
-	assert.Equal(t, "Bound", colMap["Status"])
 	assert.Equal(t, "Bound", ti.Status)
 	assert.Equal(t, "10Gi", colMap["Capacity"])
 	assert.Equal(t, "10Gi", colMap["Request"])

@@ -615,10 +615,9 @@ func populateNodeTaints(ti *model.Item, spec map[string]interface{}) {
 // populatePVCDetails extracts phase, capacity, request, volume name,
 // access modes, storage class, and volume mode for a PersistentVolumeClaim.
 func populatePVCDetails(ti *model.Item, status, spec map[string]interface{}) {
-	// Phase/status.
+	// Phase/status -- set ti.Status only; the built-in Status column displays it.
 	if status != nil {
 		if phase, ok := status["phase"].(string); ok {
-			ti.Columns = append(ti.Columns, model.KeyValue{Key: "Status", Value: phase})
 			ti.Status = phase
 		}
 		// Actual capacity from status (may differ from requested).

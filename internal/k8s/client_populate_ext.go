@@ -638,7 +638,6 @@ func populatePersistentVolume(ti *model.Item, status, spec map[string]interface{
 	}
 	if status != nil {
 		if phase, ok := status["phase"].(string); ok {
-			ti.Columns = append(ti.Columns, model.KeyValue{Key: "Status", Value: phase})
 			ti.Status = phase
 		}
 		if reason, ok := status["reason"].(string); ok && reason != "" {

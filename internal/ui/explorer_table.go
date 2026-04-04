@@ -624,8 +624,15 @@ func RenderTable(headerLabel string, items []model.Item, cursor int, width, heig
 		if hasStatus {
 			ActiveSortableColumns = append(ActiveSortableColumns, "Status")
 		}
+		// Add extra columns, skipping any that duplicate built-in column names.
+		builtinCols := map[string]bool{
+			"Namespace": hasNs, "Name": true, "Ready": hasReady,
+			"Restarts": hasRestarts, "Status": hasStatus, "Age": hasAge,
+		}
 		for _, ec := range extraCols {
-			ActiveSortableColumns = append(ActiveSortableColumns, ec.key)
+			if !builtinCols[ec.key] {
+				ActiveSortableColumns = append(ActiveSortableColumns, ec.key)
+			}
 		}
 		if hasAge {
 			ActiveSortableColumns = append(ActiveSortableColumns, "Age")
