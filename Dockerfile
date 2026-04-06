@@ -21,7 +21,7 @@ RUN CGO_ENABLED=0 go build -ldflags "\
     -o /lfk .
 
 # Runtime stage
-FROM alpine:3.21
+FROM alpine:3.23
 
 RUN apk add --no-cache ca-certificates helm kubectl
 
