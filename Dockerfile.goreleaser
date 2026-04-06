@@ -1,8 +1,14 @@
 FROM alpine:3.21
-RUN apk add --no-cache kubectl helm ca-certificates
+
+RUN apk add --no-cache ca-certificates helm kubectl
+
 RUN addgroup -S lfk && adduser -S lfk -G lfk
+
 COPY lfk /usr/local/bin/lfk
+
 ENV TERM=xterm-256color
 ENV COLORTERM=truecolor
+
 USER lfk
+
 ENTRYPOINT ["lfk"]
