@@ -23,6 +23,8 @@ Thumbs.db
 *.prof
 coverage.txt
 coverage.html
+test-report.json
+.scannerwork/
 
 # Vendor (if not committed)
 # vendor/

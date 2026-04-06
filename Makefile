@@ -1,4 +1,4 @@
-.PHONY: setup lint lint-fix test coverage build generate-themes
+.PHONY: setup lint lint-fix test coverage build generate-themes sonar
 
 setup:
 	git config core.hooksPath .githooks
@@ -17,6 +17,10 @@ coverage: ## Run tests with coverage report
 	go tool cover -func=coverage.out | tail -1
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Open coverage.html in your browser for details"
+
+sonar: ## Run SonarCloud scan locally (requires SONAR_TOKEN env var and sonar-scanner CLI)
+	go test -coverprofile=coverage.out -json ./... > test-report.json
+	sonar-scanner -Dsonar.host.url=https://sonarcloud.io -Dsonar.token=$(SONAR_TOKEN)
 
 build: setup
 	go build -o lfk .
