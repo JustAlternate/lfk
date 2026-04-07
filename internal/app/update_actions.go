@@ -588,7 +588,7 @@ func (m Model) executeActionExec() (tea.Model, tea.Cmd) {
 	if m.actionCtx.containerName != "" {
 		cArg = " -c " + m.actionCtx.containerName
 	}
-	m.addLogEntry("DBG", fmt.Sprintf("$ kubectl exec -it %s%s -n %s --context %s -- /bin/sh -c 'clear; (bash || ash || sh)'", name, cArg, ns, ctx))
+	m.addLogEntry("DBG", fmt.Sprintf("$ kubectl exec -it %s%s -n %s --context %s -- /bin/sh -c 'clear; command -v bash >/dev/null && exec bash || { command -v ash >/dev/null && exec ash || exec sh; }'", name, cArg, ns, ctx))
 	return m, m.execKubectlExec()
 }
 

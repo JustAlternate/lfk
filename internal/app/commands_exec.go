@@ -28,7 +28,7 @@ func (m Model) execKubectlExec() tea.Cmd {
 	if m.actionCtx.containerName != "" {
 		args = append(args, "-c", m.actionCtx.containerName)
 	}
-	args = append(args, "--", "/bin/sh", "-c", "clear; (bash || ash || sh)")
+	args = append(args, "--", "/bin/sh", "-c", "clear; command -v bash >/dev/null && exec bash || { command -v ash >/dev/null && exec ash || exec sh; }")
 
 	logger.Info("Starting kubectl exec", "args", strings.Join(args, " "))
 	cmd := exec.Command(kubectlPath, args...)
