@@ -345,7 +345,7 @@ Contributions are welcome! Here is how to get started.
 
 ### Prerequisites
 
-- Go 1.26 or later
+- Go 1.26.2 or later
 - Access to a Kubernetes cluster (for testing)
 - `kubectl` configured and working
 - `golangci-lint` ([install](https://golangci-lint.run/welcome/install/))
