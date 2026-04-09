@@ -203,7 +203,7 @@ func (m Model) renderDetailsOnly(width, height int) string {
 			yaml = m.yamlContent
 		}
 		if yaml != "" {
-			bottomContent = ui.RenderYAMLContent(m.maskYAMLIfSecret(yaml), width, bodyHeight)
+			bottomContent = ui.RenderYAMLContent(yaml, width, bodyHeight)
 		} else {
 			bottomContent = ui.DimStyle.Render("No details available")
 		}
@@ -251,7 +251,7 @@ func (m Model) renderFullYAMLPreview(width, height int) string {
 	if yaml == "" {
 		return ui.DimStyle.Render("Loading YAML...")
 	}
-	return ui.RenderYAMLContent(m.maskYAMLIfSecret(yaml), width, height)
+	return ui.RenderYAMLContent(yaml, width, height)
 }
 
 func (m Model) renderRightResourceTypes(width, height int) string {
@@ -352,7 +352,7 @@ func (m Model) renderSplitPreview(width, height int) string {
 			yaml = m.yamlContent
 		}
 		if yaml != "" {
-			bottomContent = ui.RenderYAMLContent(m.maskYAMLIfSecret(yaml), width, detailsHeight)
+			bottomContent = ui.RenderYAMLContent(yaml, width, detailsHeight)
 		} else {
 			bottomContent = ui.DimStyle.Render("No details available")
 		}
@@ -368,18 +368,9 @@ func (m Model) renderFallbackYAML(width, height int) string {
 		yaml = m.yamlContent
 	}
 	if yaml != "" {
-		return ui.RenderYAMLContent(m.maskYAMLIfSecret(yaml), width, height)
+		return ui.RenderYAMLContent(yaml, width, height)
 	}
 	return ui.DimStyle.Render("No preview")
-}
-
-// maskYAMLIfSecret masks secret data values in YAML content when the current
-// resource is a Secret and secret display is toggled off.
-func (m Model) maskYAMLIfSecret(yaml string) string {
-	if !m.showSecretValues && m.nav.ResourceType.Kind == "Secret" {
-		return ui.MaskSecretYAML(yaml)
-	}
-	return yaml
 }
 
 func (m Model) resourceTypeHasChildren() bool {

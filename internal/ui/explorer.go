@@ -260,50 +260,10 @@ func resolveIcon(icon string) string {
 // Keys are "namespace/name" or "name" for non-namespaced resources.
 var ActiveSelectedItems map[string]bool
 
-// ActiveShowSecretValues controls whether decoded secret values are shown in previews.
+// ActiveShowSecretValues controls whether secret values are revealed in the
+// resource details pane. When false, columns prefixed with `secret:` are
+// rendered as `********`. The YAML preview is not affected by this toggle.
 var ActiveShowSecretValues bool
-
-// MaskSecretYAML replaces values under `data:` and `stringData:` top-level keys
-// in Kubernetes Secret YAML with "********". This prevents leaking secret values
-// in YAML previews when secret display is toggled off.
-func MaskSecretYAML(yaml string) string {
-	lines := strings.Split(yaml, "\n")
-	inDataBlock := false
-	result := make([]string, 0, len(lines))
-	for _, line := range lines {
-		trimmed := strings.TrimRight(line, " \t")
-		// Detect top-level `data:` or `stringData:` keys (no leading whitespace).
-		if trimmed == "data:" || trimmed == "stringData:" {
-			inDataBlock = true
-			result = append(result, line)
-			continue
-		}
-		// If we're in a data block, check if the line is an indented key-value pair.
-		if inDataBlock {
-			// A non-empty line without leading whitespace ends the data block.
-			if len(trimmed) > 0 && (trimmed[0] != ' ' && trimmed[0] != '\t') {
-				inDataBlock = false
-				result = append(result, line)
-				continue
-			}
-			// Empty lines within the block are kept as-is.
-			if trimmed == "" {
-				result = append(result, line)
-				continue
-			}
-			// Indented key: value line -> mask the value.
-			if colonIdx := strings.Index(line, ": "); colonIdx > 0 {
-				result = append(result, line[:colonIdx]+": \"********\"")
-				continue
-			}
-			// Indented key with colon at end (multiline value) or continuation lines.
-			result = append(result, line)
-			continue
-		}
-		result = append(result, line)
-	}
-	return strings.Join(result, "\n")
-}
 
 // selectionMarker is the unicode checkmark prepended to selected items.
 const selectionMarker = "\u2713 "

@@ -73,7 +73,7 @@ func helpSections() []helpSection {
 				{kb.FilterPresets, "Quick filter presets"},
 				{kb.ErrorLog, "Error log"},
 				{kb.LevelCluster + "/" + kb.LevelTypes + "/" + kb.LevelResources, "Jump to clusters/types/resources level"},
-				{helpKeyDisplay(kb.SecretToggle), "Toggle secret value visibility"},
+				{helpKeyDisplay(kb.SecretToggle), "Toggle secret value visibility (details pane only)"},
 				{kb.APIExplorer, "API Explorer (resource structure)"},
 				{kb.RBACBrowser, "RBAC permissions browser (can-i)"},
 				{kb.ColumnToggle, "Column visibility toggle (show/hide and reorder columns)"},
