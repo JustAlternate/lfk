@@ -12,7 +12,7 @@ func TestBuildSidebarItems_CategorizesBuiltIns(t *testing.T) {
 		{Kind: "Pod", APIGroup: "", APIVersion: "v1", Resource: "pods", Namespaced: true},
 		{Kind: "Deployment", APIGroup: "apps", APIVersion: "v1", Resource: "deployments", Namespaced: true},
 		{Kind: "Service", APIGroup: "", APIVersion: "v1", Resource: "services", Namespaced: true},
-		{Kind: "CSIDriver", APIGroup: "storage.k8s.io", APIVersion: "v1", Resource: "csidrivers", Namespaced: false},
+		{Kind: "StorageClass", APIGroup: "storage.k8s.io", APIVersion: "v1", Resource: "storageclasses", Namespaced: false},
 	}
 
 	items := BuildSidebarItems(discovered)
@@ -29,8 +29,8 @@ func TestBuildSidebarItems_CategorizesBuiltIns(t *testing.T) {
 	require.Contains(t, cats, "Services")
 	assert.Equal(t, "Networking", cats["Services"].Category)
 
-	require.Contains(t, cats, "CSIDrivers")
-	assert.Equal(t, "Storage", cats["CSIDrivers"].Category)
+	require.Contains(t, cats, "StorageClasses")
+	assert.Equal(t, "Storage", cats["StorageClasses"].Category)
 }
 
 // collectByDisplay indexes items by their display Name for assertions.
@@ -151,6 +151,44 @@ func TestBuildSidebarItems_PinnedGroupsOrdering(t *testing.T) {
 	}
 	require.NotNil(t, firstNonCore)
 	assert.Equal(t, "example.com", firstNonCore.Category, "pinned group must appear before unpinned")
+}
+
+// TestBuildSidebarItems_RareResourcesHiddenByDefault verifies that entries
+// marked Rare in BuiltInMetadata are skipped from the default sidebar and
+// only surface when ShowRareResources is true. Also verifies that
+// uncategorized core Kubernetes resources are hidden by default and
+// appear under the "Advanced" category when the toggle is on.
+func TestBuildSidebarItems_RareResourcesHiddenByDefault(t *testing.T) {
+	defer func(orig bool) { ShowRareResources = orig }(ShowRareResources)
+
+	discovered := []ResourceTypeEntry{
+		// Non-rare entry: always visible.
+		{Kind: "Pod", APIGroup: "", APIVersion: "v1", Resource: "pods", Namespaced: true},
+		// Rare curated entry.
+		{Kind: "CSIDriver", APIGroup: "storage.k8s.io", APIVersion: "v1", Resource: "csidrivers", Namespaced: false},
+		// Uncategorized core K8s resource.
+		{Kind: "TokenReview", APIGroup: "authentication.k8s.io", APIVersion: "v1", Resource: "tokenreviews", Namespaced: false},
+	}
+
+	// Default (ShowRareResources = false): rare entries hidden.
+	ShowRareResources = false
+	defaultItems := BuildSidebarItems(discovered)
+	defaultNames := collectByDisplay(defaultItems)
+	assert.Contains(t, defaultNames, "Pods", "Pod must always appear")
+	assert.NotContains(t, defaultNames, "CSIDrivers", "rare curated entry must be hidden by default")
+	assert.NotContains(t, defaultNames, "Tokenreviews", "uncategorized core resource must be hidden by default")
+
+	// With toggle ON: rare curated surfaces in its category, uncategorized
+	// core resources surface under "Advanced".
+	ShowRareResources = true
+	toggleItems := BuildSidebarItems(discovered)
+	toggleNames := collectByDisplay(toggleItems)
+	require.Contains(t, toggleNames, "CSIDrivers")
+	assert.Equal(t, "Storage", toggleNames["CSIDrivers"].Category)
+
+	require.Contains(t, toggleNames, "Tokenreviews")
+	assert.Equal(t, AdvancedCategory, toggleNames["Tokenreviews"].Category)
+	assert.Equal(t, "TokenReview", toggleNames["Tokenreviews"].Kind)
 }
 
 // TestBuildSidebarItems_CuratedOrderWithinCategory verifies that items in

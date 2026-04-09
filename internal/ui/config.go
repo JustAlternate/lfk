@@ -60,6 +60,7 @@ type Keybindings struct {
 	ExpandCollapse  string `json:"expand_collapse" yaml:"expand_collapse"`
 	PinGroup        string `json:"pin_group" yaml:"pin_group"`
 	ColumnToggle    string `json:"column_toggle" yaml:"column_toggle"`
+	ToggleRare      string `json:"toggle_rare" yaml:"toggle_rare"`
 
 	// Actions
 	NamespaceSelector string `json:"namespace_selector" yaml:"namespace_selector"`
@@ -122,7 +123,7 @@ func DefaultKeybindings() Keybindings {
 		SortNext: ">", SortPrev: "<", SortFlip: "=", SortReset: "-",
 		SaveResource: "W", Monitoring: "@",
 		QuotaDashboard: "Q", ExpandCollapse: "z", PinGroup: "p",
-		ColumnToggle: ",",
+		ColumnToggle: ",", ToggleRare: "H",
 
 		// Actions
 		NamespaceSelector: "\\", AllNamespaces: "A", ActionMenu: "x",

@@ -573,6 +573,7 @@ type Model struct {
 	// Collapsible tree view state for resource types.
 	expandedGroup     string // currently expanded category (accordion behavior)
 	allGroupsExpanded bool   // override: show all groups expanded (toggled by hotkey)
+	showRareResources bool   // override: show rarely used resources and uncategorized core built-ins (H hotkey)
 
 	// Error log: global buffer of application errors for the error log overlay.
 	errorLog               []ui.ErrorLogEntry

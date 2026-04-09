@@ -110,8 +110,39 @@ func (m Model) handleExplorerToolKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd, bool)
 		return m.handleExplorerActionKeyErrorLog()
 	case kb.TerminalToggle:
 		return m.handleExplorerActionKeyTerminalToggle()
+	case kb.ToggleRare:
+		return m.handleExplorerActionKeyToggleRare()
 	}
 	return m, nil, false
+}
+
+// handleExplorerActionKeyToggleRare toggles the global ShowRareResources
+// flag. When enabled, the sidebar surfaces curated entries marked Rare
+// (CSI internals, admission webhooks, etc.) plus uncategorized core
+// Kubernetes resources under the synthetic "Advanced" category. The state
+// is not persisted and resets on each launch.
+func (m Model) handleExplorerActionKeyToggleRare() (tea.Model, tea.Cmd, bool) {
+	m.showRareResources = !m.showRareResources
+	model.ShowRareResources = m.showRareResources
+	// Rebuild the sidebar at LevelResourceTypes so the change is visible
+	// immediately. Preserve cursor identity so the user doesn't lose their
+	// place when items appear or disappear.
+	if m.nav.Level == model.LevelResourceTypes {
+		prevName, prevNs, prevExtra, prevKind := m.cursorItemKey()
+		if discovered, ok := m.discoveredResources[m.nav.Context]; ok && len(discovered) > 0 {
+			m.middleItems = model.BuildSidebarItems(discovered)
+		} else {
+			m.middleItems = model.BuildSidebarItems(model.SeedResources())
+		}
+		m.itemCache[m.navKey()] = m.middleItems
+		m.restoreCursorToItem(prevName, prevNs, prevExtra, prevKind)
+	}
+	if m.showRareResources {
+		m.setStatusMessage("Rarely used resource types: ON", false)
+	} else {
+		m.setStatusMessage("Rarely used resource types: OFF", false)
+	}
+	return m, scheduleStatusClear(), true
 }
 
 // handleExplorerDirectActionKeys handles configurable direct action keybindings.

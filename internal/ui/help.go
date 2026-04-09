@@ -53,6 +53,7 @@ func helpSections() []helpSection {
 				{kb.Enter, "Open YAML view / navigate into"},
 				{kb.ExpandCollapse, "Toggle expand/collapse all resource groups"},
 				{kb.PinGroup, "Pin/unpin CRD group (at resource types level)"},
+				{kb.ToggleRare, "Toggle rarely used resource types (CSI, webhooks, advanced) in the sidebar"},
 			},
 		},
 		{

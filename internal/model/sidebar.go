@@ -32,10 +32,20 @@ func BuildSidebarItems(discovered []ResourceTypeEntry) []Item {
 // items that matched BuiltInMetadata (curated, with category/icon), and
 // items for unknown resources in non-core groups that should appear as
 // generic CRD entries.
+//
+// When ShowRareResources is false (default), entries marked Rare in
+// BuiltInMetadata are skipped, and uncategorized core Kubernetes
+// resources (TokenReview, Binding, ComponentStatus, etc.) remain hidden.
+// When ShowRareResources is true, both sets surface: rare curated entries
+// appear in their assigned category, and uncategorized core resources
+// appear under the synthetic "Advanced" category.
 func partitionDiscovered(discovered []ResourceTypeEntry) (categorized, crdGroups []Item) {
 	for _, rt := range discovered {
 		key := rt.APIGroup + "/" + rt.Resource
 		if meta, ok := BuiltInMetadata[key]; ok {
+			if meta.Rare && !ShowRareResources {
+				continue
+			}
 			categorized = append(categorized, Item{
 				Name:       meta.DisplayName,
 				Kind:       rt.Kind,
@@ -47,7 +57,19 @@ func partitionDiscovered(discovered []ResourceTypeEntry) (categorized, crdGroups
 			continue
 		}
 		if CoreK8sGroups[rt.APIGroup] {
-			continue // hide obscure built-ins
+			if !ShowRareResources {
+				continue // hide obscure built-ins unless the user asked to see them
+			}
+			// Surface uncategorized core K8s resources under "Advanced".
+			categorized = append(categorized, Item{
+				Name:       titleCaseFirst(rt.Resource),
+				Kind:       rt.Kind,
+				Extra:      rt.ResourceRef(),
+				Category:   AdvancedCategory,
+				Icon:       "⧫",
+				Deprecated: rt.Deprecated,
+			})
+			continue
 		}
 		// Unknown resource in a CRD group — show with generic icon.
 		crdGroups = append(crdGroups, Item{

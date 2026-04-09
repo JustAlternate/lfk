@@ -13,6 +13,7 @@ var CoreCategories = []string{
 	"Access Control",
 	"Helm",
 	"API and CRDs",
+	"Advanced", // surfaced only when ShowRareResources is true
 }
 
 // IsCoreCategory reports whether name is one of the fixed CoreCategories.
@@ -51,7 +52,21 @@ type DisplayMetadata struct {
 	Category    string // e.g., "Workloads", "Storage"
 	DisplayName string // e.g., "Deployments"
 	Icon        string // Unicode glyph
+	Rare        bool   // if true, hidden from the sidebar unless ShowRareResources is toggled on
 }
+
+// ShowRareResources, when true, causes BuildSidebarItems to surface
+// BuiltInMetadata entries marked Rare=true as well as uncategorized core
+// Kubernetes resources that are otherwise hidden. The app toggles this via
+// a keybinding. It is a package-level var (like PinnedGroups) so
+// BuildSidebarItems can read it without a signature change.
+var ShowRareResources bool
+
+// AdvancedCategory is the category name used for uncategorized core
+// Kubernetes resources (TokenReview, Binding, ComponentStatus, etc.) when
+// ShowRareResources is true. It is appended to CoreCategories so the
+// section appears at the end of the core sidebar area.
+const AdvancedCategory = "Advanced"
 
 // CoreK8sGroups lists the API groups that belong to the core Kubernetes API
 // surface. Discovered resources whose group matches this set AND whose
@@ -116,21 +131,25 @@ var BuiltInMetadata = map[string]DisplayMetadata{
 	"/resourcequotas":                      {Category: "Config", DisplayName: "ResourceQuotas", Icon: "⊞"},
 	"/limitranges":                         {Category: "Config", DisplayName: "LimitRanges", Icon: "⊟"},
 	"autoscaling/horizontalpodautoscalers": {Category: "Config", DisplayName: "HPA", Icon: "⇔"},
-	"autoscaling.k8s.io/verticalpodautoscalers":                    {Category: "Config", DisplayName: "VPA", Icon: "⇕"},
-	"policy/poddisruptionbudgets":                                  {Category: "Config", DisplayName: "PodDisruptionBudgets", Icon: "⊘"},
-	"scheduling.k8s.io/priorityclasses":                            {Category: "Config", DisplayName: "PriorityClasses", Icon: "⇑"},
-	"node.k8s.io/runtimeclasses":                                   {Category: "Config", DisplayName: "RuntimeClasses", Icon: "⊙"},
-	"coordination.k8s.io/leases":                                   {Category: "Config", DisplayName: "Leases", Icon: "⏱"},
-	"admissionregistration.k8s.io/mutatingwebhookconfigurations":   {Category: "Config", DisplayName: "MutatingWebhookConfigurations", Icon: "⚙"},
-	"admissionregistration.k8s.io/validatingwebhookconfigurations": {Category: "Config", DisplayName: "ValidatingWebhookConfigurations", Icon: "⚙"},
+	"autoscaling.k8s.io/verticalpodautoscalers":                      {Category: "Config", DisplayName: "VPA", Icon: "⇕"},
+	"policy/poddisruptionbudgets":                                    {Category: "Config", DisplayName: "PodDisruptionBudgets", Icon: "⊘"},
+	"scheduling.k8s.io/priorityclasses":                              {Category: "Config", DisplayName: "PriorityClasses", Icon: "⇑"},
+	"node.k8s.io/runtimeclasses":                                     {Category: "Config", DisplayName: "RuntimeClasses", Icon: "⊙", Rare: true},
+	"coordination.k8s.io/leases":                                     {Category: "Config", DisplayName: "Leases", Icon: "⏱", Rare: true},
+	"admissionregistration.k8s.io/mutatingwebhookconfigurations":     {Category: "Config", DisplayName: "MutatingWebhookConfigurations", Icon: "⚙", Rare: true},
+	"admissionregistration.k8s.io/validatingwebhookconfigurations":   {Category: "Config", DisplayName: "ValidatingWebhookConfigurations", Icon: "⚙", Rare: true},
+	"admissionregistration.k8s.io/validatingadmissionpolicies":       {Category: "Config", DisplayName: "ValidatingAdmissionPolicies", Icon: "⚙", Rare: true},
+	"admissionregistration.k8s.io/validatingadmissionpolicybindings": {Category: "Config", DisplayName: "ValidatingAdmissionPolicyBindings", Icon: "⚙", Rare: true},
+	"flowcontrol.apiserver.k8s.io/flowschemas":                       {Category: "Config", DisplayName: "FlowSchemas", Icon: "⚙", Rare: true},
+	"flowcontrol.apiserver.k8s.io/prioritylevelconfigurations":       {Category: "Config", DisplayName: "PriorityLevelConfigurations", Icon: "⚙", Rare: true},
 
 	// ---- Networking ----
 	"/services":                                {Category: "Networking", DisplayName: "Services", Icon: "⇌"},
-	"/endpoints":                               {Category: "Networking", DisplayName: "Endpoints", Icon: "⇢"},
+	"/endpoints":                               {Category: "Networking", DisplayName: "Endpoints", Icon: "⇢", Rare: true},
 	"networking.k8s.io/ingresses":              {Category: "Networking", DisplayName: "Ingresses", Icon: "↳"},
 	"networking.k8s.io/networkpolicies":        {Category: "Networking", DisplayName: "NetworkPolicies", Icon: "⛊"},
 	"networking.k8s.io/ingressclasses":         {Category: "Networking", DisplayName: "IngressClasses", Icon: "↳"},
-	"discovery.k8s.io/endpointslices":          {Category: "Networking", DisplayName: "EndpointSlices", Icon: "⇢"},
+	"discovery.k8s.io/endpointslices":          {Category: "Networking", DisplayName: "EndpointSlices", Icon: "⇢", Rare: true},
 	"gateway.networking.k8s.io/gatewayclasses": {Category: "Networking", DisplayName: "GatewayClasses", Icon: "⇶"},
 	"gateway.networking.k8s.io/httproutes":     {Category: "Networking", DisplayName: "HTTPRoutes", Icon: "⇶"},
 	"gateway.networking.k8s.io/tlsroutes":      {Category: "Networking", DisplayName: "TLSRoutes", Icon: "⇶"},
@@ -140,10 +159,10 @@ var BuiltInMetadata = map[string]DisplayMetadata{
 	"/persistentvolumeclaims":             {Category: "Storage", DisplayName: "PersistentVolumeClaims", Icon: "⊞"},
 	"/persistentvolumes":                  {Category: "Storage", DisplayName: "PersistentVolumes", Icon: "⊞"},
 	"storage.k8s.io/storageclasses":       {Category: "Storage", DisplayName: "StorageClasses", Icon: "▤"},
-	"storage.k8s.io/csidrivers":           {Category: "Storage", DisplayName: "CSIDrivers", Icon: "▤"},
-	"storage.k8s.io/csinodes":             {Category: "Storage", DisplayName: "CSINodes", Icon: "▤"},
-	"storage.k8s.io/csistoragecapacities": {Category: "Storage", DisplayName: "CSIStorageCapacities", Icon: "▤"},
-	"storage.k8s.io/volumeattachments":    {Category: "Storage", DisplayName: "VolumeAttachments", Icon: "▤"},
+	"storage.k8s.io/csidrivers":           {Category: "Storage", DisplayName: "CSIDrivers", Icon: "▤", Rare: true},
+	"storage.k8s.io/csinodes":             {Category: "Storage", DisplayName: "CSINodes", Icon: "▤", Rare: true},
+	"storage.k8s.io/csistoragecapacities": {Category: "Storage", DisplayName: "CSIStorageCapacities", Icon: "▤", Rare: true},
+	"storage.k8s.io/volumeattachments":    {Category: "Storage", DisplayName: "VolumeAttachments", Icon: "▤", Rare: true},
 
 	// ---- Access Control ----
 	"/serviceaccounts":                              {Category: "Access Control", DisplayName: "ServiceAccounts", Icon: "⊕"},
@@ -153,7 +172,7 @@ var BuiltInMetadata = map[string]DisplayMetadata{
 	"rbac.authorization.k8s.io/clusterrolebindings": {Category: "Access Control", DisplayName: "ClusterRoleBindings", Icon: "⚿"},
 
 	// ---- API and CRDs ----
-	"apiregistration.k8s.io/apiservices":             {Category: "API and CRDs", DisplayName: "API Services", Icon: "⧫"},
+	"apiregistration.k8s.io/apiservices":             {Category: "API and CRDs", DisplayName: "API Services", Icon: "⧫", Rare: true},
 	"apiextensions.k8s.io/customresourcedefinitions": {Category: "API and CRDs", DisplayName: "Custom Resource Definitions", Icon: "⧫"},
 
 	// ---- LFK pseudo-resources ----
@@ -331,13 +350,17 @@ var BuiltInOrderRank = map[string]int{
 	"autoscaling/horizontalpodautoscalers": 32,
 	"/resourcequotas":                      33,
 	"/limitranges":                         34,
-	"autoscaling.k8s.io/verticalpodautoscalers":                    35,
-	"policy/poddisruptionbudgets":                                  36,
-	"scheduling.k8s.io/priorityclasses":                            37,
-	"node.k8s.io/runtimeclasses":                                   38,
-	"coordination.k8s.io/leases":                                   39,
-	"admissionregistration.k8s.io/mutatingwebhookconfigurations":   40,
-	"admissionregistration.k8s.io/validatingwebhookconfigurations": 41,
+	"autoscaling.k8s.io/verticalpodautoscalers":                      35,
+	"policy/poddisruptionbudgets":                                    36,
+	"scheduling.k8s.io/priorityclasses":                              37,
+	"node.k8s.io/runtimeclasses":                                     38,
+	"coordination.k8s.io/leases":                                     39,
+	"admissionregistration.k8s.io/mutatingwebhookconfigurations":     40,
+	"admissionregistration.k8s.io/validatingwebhookconfigurations":   41,
+	"admissionregistration.k8s.io/validatingadmissionpolicies":       42,
+	"admissionregistration.k8s.io/validatingadmissionpolicybindings": 43,
+	"flowcontrol.apiserver.k8s.io/flowschemas":                       44,
+	"flowcontrol.apiserver.k8s.io/prioritylevelconfigurations":       45,
 
 	// Networking
 	"/services":                                50,
