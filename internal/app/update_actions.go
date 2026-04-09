@@ -893,12 +893,14 @@ func (m Model) executeActionDrain() (tea.Model, tea.Cmd) { //nolint:unparam // c
 	return m, nil
 }
 
-// executeActionTaint handles the "Taint" action.
+// executeActionTaint handles the "Taint" action. The bare "taint" subcommand
+// does not classify as cmdKubectl, so the pre-fill must include the
+// "kubectl" prefix to reach executeKubectlCommand on submit.
 func (m Model) executeActionTaint() (tea.Model, tea.Cmd) { //nolint:unparam // consistent action handler signature
 	name := m.actionCtx.name
 	m.commandBarActive = true
 	m.commandBarInput.Clear()
-	m.commandBarInput.Insert("taint node " + name + " ")
+	m.commandBarInput.Insert("kubectl taint node " + name + " ")
 	m.commandBarSuggestions = nil
 	m.commandBarSelectedSuggestion = 0
 	return m, nil
@@ -907,8 +909,9 @@ func (m Model) executeActionTaint() (tea.Model, tea.Cmd) { //nolint:unparam // c
 // executeActionUntaint handles the "Untaint" action.
 func (m Model) executeActionUntaint() (tea.Model, tea.Cmd) { //nolint:unparam // consistent action handler signature
 	name := m.actionCtx.name
-	// Pre-fill with existing taint keys for convenient removal.
-	prefill := "taint node " + name + " "
+	// Pre-fill with existing taint keys for convenient removal. The
+	// "kubectl" prefix is required so the command classifies as cmdKubectl.
+	prefill := "kubectl taint node " + name + " "
 	for _, col := range m.actionCtx.columns {
 		if col.Key == "Taints" && col.Value != "" {
 			// Parse taint strings and append removal syntax (key-).

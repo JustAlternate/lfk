@@ -92,11 +92,11 @@ func (m Model) statusBar() string {
 				ui.BarDimStyle.Render(ghost) +
 				ui.BarDimStyle.Render("\u2588")
 		} else {
-			// Normal mode: cursor at current position.
-			prompt = ui.HelpKeyStyle.Render(":") +
-				m.commandBarInput.CursorLeft() +
-				ui.BarDimStyle.Render("\u2588") +
-				m.commandBarInput.CursorRight()
+			// Normal mode: overlay the cursor on the character at its position
+			// (reverse-video) instead of inserting a block between characters.
+			// Inserting would visually push the text after the cursor to the
+			// right by one column and create the impression of a space.
+			prompt = ui.HelpKeyStyle.Render(":") + renderInputWithCursor(m.commandBarInput.Value, m.commandBarInput.Cursor)
 		}
 		return ui.StatusBarBgStyle.Width(m.width).MaxWidth(m.width).Render(prompt)
 	}
@@ -104,12 +104,12 @@ func (m Model) statusBar() string {
 	// Show filter/search input in status bar when active.
 	if m.filterActive {
 		filterModeInd := ui.SearchModeIndicator(m.filterInput.Value)
-		prompt := ui.HelpKeyStyle.Render("filter") + ui.BarDimStyle.Render(": ") + ui.BarDimStyle.Render(filterModeInd) + m.filterInput.CursorLeft() + ui.BarDimStyle.Render("\u2588") + m.filterInput.CursorRight()
+		prompt := ui.HelpKeyStyle.Render("filter") + ui.BarDimStyle.Render(": ") + ui.BarDimStyle.Render(filterModeInd) + renderInputWithCursor(m.filterInput.Value, m.filterInput.Cursor)
 		return ui.StatusBarBgStyle.Width(m.width).MaxWidth(m.width).Render(prompt)
 	}
 	if m.searchActive {
 		searchModeInd := ui.SearchModeIndicator(m.searchInput.Value)
-		prompt := ui.HelpKeyStyle.Render("search") + ui.BarDimStyle.Render(": ") + ui.BarDimStyle.Render(searchModeInd) + m.searchInput.CursorLeft() + ui.BarDimStyle.Render("\u2588") + m.searchInput.CursorRight()
+		prompt := ui.HelpKeyStyle.Render("search") + ui.BarDimStyle.Render(": ") + ui.BarDimStyle.Render(searchModeInd) + renderInputWithCursor(m.searchInput.Value, m.searchInput.Cursor)
 		return ui.StatusBarBgStyle.Width(m.width).MaxWidth(m.width).Render(prompt)
 	}
 	// When a status message is active, show it exclusively (hide key hints).
@@ -696,4 +696,22 @@ func clampErrorLogLines(content string, maxW, maxH int) string {
 		lines[i] = ui.Truncate(line, maxW)
 	}
 	return strings.Join(lines, "\n")
+}
+
+// renderInputWithCursor renders a text input value with a reverse-video
+// cursor overlaid on the character at the given byte position. When the
+// cursor is past the end of the value, a highlighted space is appended.
+//
+// Unlike the previous "insert block between characters" approach, this
+// overlays the cursor on the character it points at, so moving left or
+// right does not push the surrounding text around and create the
+// appearance of an inserted space.
+func renderInputWithCursor(value string, cursor int) string {
+	if cursor < 0 {
+		cursor = 0
+	}
+	if cursor >= len(value) {
+		return value + ui.CursorBlockStyle.Render(" ")
+	}
+	return value[:cursor] + ui.CursorBlockStyle.Render(string(value[cursor])) + value[cursor+1:]
 }
