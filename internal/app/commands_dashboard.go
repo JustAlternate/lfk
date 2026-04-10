@@ -209,6 +209,9 @@ func countPodStats(podItems []model.Item) podStats {
 }
 
 // fetchWarningEvents fetches events and returns (limited for inline, all for column).
+// Events are ordered most-recently-observed first (LastSeen, not CreatedAt) so a
+// long-running incident that just fired again sits at the top of the dashboard
+// instead of being buried under one-off events that happened to start later.
 func fetchWarningEvents(reqCtx context.Context, kctx string, client *k8s.Client) (limited, all []model.Item) {
 	eventItems, _ := client.GetResources(reqCtx, kctx, "", model.ResourceTypeEntry{
 		Kind: "Event", APIGroup: "", APIVersion: "v1", Resource: "events", Namespaced: true,
@@ -220,7 +223,7 @@ func fetchWarningEvents(reqCtx context.Context, kctx string, client *k8s.Client)
 		}
 	}
 	sort.Slice(warnings, func(i, j int) bool {
-		return warnings[i].CreatedAt.After(warnings[j].CreatedAt)
+		return warnings[i].LastSeen.After(warnings[j].LastSeen)
 	})
 	all = warnings
 	limited = warnings
