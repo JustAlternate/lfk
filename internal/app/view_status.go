@@ -45,18 +45,28 @@ func (m Model) middleColumnHeader() string {
 	}
 }
 
+// breadcrumb builds the "lfk > context > Type > Name > Owned" path rendered
+// in the title bar. It mirrors labelForNav (see tabs.go) — both must use
+// model.DisplayNameFor for the resource type because API-discovery-produced
+// ResourceTypeEntry values do NOT populate DisplayName themselves. Reading
+// nav.ResourceType.DisplayName directly silently drops the type for almost
+// every real-world resource, leaving the title bar showing only the context.
 func (m Model) breadcrumb() string {
 	parts := []string{"lfk"}
 	if m.nav.Context != "" {
 		parts = append(parts, m.nav.Context)
 	}
-	if m.nav.ResourceType.DisplayName != "" {
-		parts = append(parts, m.nav.ResourceType.DisplayName)
+	if name := model.DisplayNameFor(m.nav.ResourceType); name != "" {
+		parts = append(parts, name)
 	}
 	if m.nav.ResourceName != "" {
 		parts = append(parts, m.nav.ResourceName)
 	}
-	if m.nav.OwnedName != "" {
+	// navigateChildResource sets both ResourceName and OwnedName to the same
+	// value when entering a Pod (so the containers view knows its parent).
+	// Skip the duplicate so the breadcrumb reads "lfk > ctx > Pods > my-pod"
+	// instead of "lfk > ctx > Pods > my-pod > my-pod".
+	if m.nav.OwnedName != "" && m.nav.OwnedName != m.nav.ResourceName {
 		parts = append(parts, m.nav.OwnedName)
 	}
 	return strings.Join(parts, " > ")
