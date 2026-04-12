@@ -188,104 +188,23 @@ func VimScrollOff(scroll, cursor, numEntries, height, scrollOff int, displayLine
 // Maps category name to the total number of items in that category.
 var ActiveCategoryCounts map[string]int
 
-// simpleIcons maps unicode icons to short ASCII labels for "simple" icon mode.
-var simpleIcons = map[string]string{
-	"⬤": "[Po]",
-	"◆": "[De]",
-	"◈": "[RS]",
-	"◇": "[SS]",
-	"●": "[DS]",
-	"▶": "[Jo]",
-	"⟳": "[CJ]",
-	"≡": "[CM]",
-	"⊡": "[Se]",
-	"⇔": "[HP]",
-	"⊞": "[PV]",
-	"⊟": "[LR]",
-	"⊘": "[PD]",
-	"⇑": "[PC]",
-	"⊙": "[RC]",
-	"⏱": "[Le]",
-	"⚙": "[WH]",
-	"⇌": "[Sv]",
-	"↳": "[In]",
-	"⛊": "[NP]",
-	"⇢": "[EP]",
-	"⇶": "[GW]",
-	"▤": "[SC]",
-	"▣": "[NS]",
-	"⎈": "[Ar]",
-	"⎋": "[He]",
-	"⊕": "[SA]",
-	"⚿": "[Ro]",
-	"⬡": "[No]",
-	"⧫": "[CR]",
-	"↯": "[Ev]",
-	"◎": "[OV]",
-	"⇋": "[PF]",
-}
-
-// emojiIcons maps unicode icons to emoji for "emoji" icon mode.
-var emojiIcons = map[string]string{
-	"⬤": "🔵",  // Pods
-	"◆": "🚀",  // Deployments
-	"◈": "📦",  // ReplicaSets
-	"◇": "🗄️", // StatefulSets
-	"●": "🔄",  // DaemonSets
-	"▶": "⚡️", // Jobs
-	"⟳": "⏰️", // CronJobs
-	"≡": "📋",  // ConfigMaps
-	"⊡": "🔒",  // Secrets
-	"⇔": "📊",  // HPA
-	"⊞": "📏",  // ResourceQuotas / PVCs / PVs
-	"⊟": "📐",  // LimitRanges
-	"⇕": "📈",  // VPA
-	"⊘": "🛡️", // PodDisruptionBudgets
-	"⇌": "🔀",  // Services
-	"↳": "🌐",  // Ingresses / IngressClasses
-	"⛊": "🔥",  // NetworkPolicies
-	"⇢": "📍",  // Endpoints / EndpointSlices
-	"⇶": "🚪",  // Gateway API resources
-	"▤": "💾",  // StorageClasses
-	"⊕": "👤",  // ServiceAccounts
-	"⚿": "🔑",  // Roles / RoleBindings / ClusterRoles / ClusterRoleBindings
-	"▣": "📦",  // Namespaces
-	"↯": "🔔",  // Events
-	"⬡": "🖥️", // Nodes
-	"⧫": "🔷",  // CRDs / API Services
-	"⎋": "⛵",  // Helm
-	"⎈": "☸️", // ArgoCD
-	"⇑": "🏷️", // PriorityClasses
-	"⊙": "⚙️", // RuntimeClasses
-	"⏱": "⏱️", // Leases
-	"⚙": "🔧",  // Webhook Configurations
-	"◎": "🏠",  // Cluster Dashboard
-	"⇋": "🔗",  // Port Forwards
-}
-
-// resolveIcon returns the appropriate icon string based on the current IconMode.
-// In "unicode" mode, icons are returned as-is. In "simple" mode, they are mapped
-// to short ASCII labels. In "emoji" mode, they are mapped to emoji. In "none" mode,
-// an empty string is returned.
-func resolveIcon(icon string) string {
-	if icon == "" {
+// resolveIcon returns the glyph for the active IconMode, or empty string for
+// "none" and zero-value icons. Unknown IconMode values fall back to Unicode.
+func resolveIcon(icon model.Icon) string {
+	if icon.IsEmpty() {
 		return ""
 	}
 	switch IconMode {
 	case "none":
 		return ""
+	case "nerdfont":
+		return icon.NerdFont
 	case "simple":
-		if simple, ok := simpleIcons[icon]; ok {
-			return simple
-		}
-		return "[?]"
+		return icon.Simple
 	case "emoji":
-		if e, ok := emojiIcons[icon]; ok {
-			return e
-		}
-		return icon
-	default: // "unicode"
-		return icon
+		return icon.Emoji
+	default: // "unicode" and any unexpected value
+		return icon.Unicode
 	}
 }
 

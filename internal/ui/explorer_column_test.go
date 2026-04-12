@@ -348,7 +348,7 @@ func TestFormatItem(t *testing.T) {
 		ActiveHighlightQuery = ""
 		defer func() { ActiveHighlightQuery = origQuery }()
 
-		item := model.Item{Name: "pod", Icon: "⬤"}
+		item := model.Item{Name: "pod", Icon: model.Icon{Unicode: "⬤"}}
 		result := FormatItem(item, 40)
 		assert.Contains(t, result, "pod")
 	})
@@ -404,7 +404,7 @@ func TestFormatItemPlain(t *testing.T) {
 		IconMode = "unicode"
 		defer func() { IconMode = origMode }()
 
-		item := model.Item{Name: "pod", Icon: "⬤"}
+		item := model.Item{Name: "pod", Icon: model.Icon{Unicode: "⬤"}}
 		result := FormatItemPlain(item, 40)
 		assert.Contains(t, result, "pod")
 		// In plain mode, icon is plain text (no styled IconStyle).

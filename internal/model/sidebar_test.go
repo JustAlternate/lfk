@@ -21,7 +21,7 @@ func TestBuildSidebarItems_CategorizesBuiltIns(t *testing.T) {
 	cats := collectByDisplay(items)
 	require.Contains(t, cats, "Pods")
 	assert.Equal(t, "Workloads", cats["Pods"].Category)
-	assert.Equal(t, "⬤", cats["Pods"].Icon)
+	assert.Equal(t, "□", cats["Pods"].Icon.Unicode)
 
 	require.Contains(t, cats, "Deployments")
 	assert.Equal(t, "Workloads", cats["Deployments"].Category)
@@ -81,7 +81,7 @@ func TestBuildSidebarItems_ShowsCRDsAsGenericEntries(t *testing.T) {
 	}
 	require.NotNil(t, widget)
 	assert.Equal(t, "example.com", widget.Category)
-	assert.Equal(t, "⧫", widget.Icon)
+	assert.Equal(t, "⧫", widget.Icon.Unicode)
 	assert.Equal(t, "Widgets", widget.Name)
 }
 
@@ -117,7 +117,7 @@ func TestBuildSidebarItems_PseudoResourcesCategorized(t *testing.T) {
 	assert.Equal(t, "Helm", cats["Releases"].Category)
 	assert.Equal(t, "HelmRelease", cats["Releases"].Kind)
 	assert.Equal(t, "_helm/v1/releases", cats["Releases"].Extra)
-	assert.Equal(t, "⎋", cats["Releases"].Icon)
+	assert.Equal(t, "⎈", cats["Releases"].Icon.Unicode)
 
 	require.Contains(t, cats, "Port Forwards")
 	assert.Equal(t, "Networking", cats["Port Forwards"].Category)
