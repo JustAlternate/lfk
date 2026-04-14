@@ -532,6 +532,16 @@ func (m Model) updateResourcesLoaded(msg resourcesLoadedMsg) (tea.Model, tea.Cmd
 
 func (m Model) updateResourcesLoadedPreview(msg resourcesLoadedMsg) (tea.Model, tea.Cmd) {
 	m.previewLoading = false
+	// Filter by selected namespaces when multi-select is active.
+	if len(m.selectedNamespaces) > 1 {
+		filtered := make([]model.Item, 0, len(msg.items))
+		for _, item := range msg.items {
+			if item.Namespace == "" || m.selectedNamespaces[item.Namespace] {
+				filtered = append(filtered, item)
+			}
+		}
+		msg.items = filtered
+	}
 	m.rightItems = msg.items
 	// Filter events in children view to warnings-only when enabled.
 	if m.warningEventsOnly && len(m.rightItems) > 0 && m.rightItems[0].Kind == "Event" {
@@ -561,7 +571,7 @@ func (m Model) updateResourcesLoadedMain(msg resourcesLoadedMsg) (tea.Model, tea
 	if len(m.selectedNamespaces) > 1 {
 		filtered := make([]model.Item, 0, len(msg.items))
 		for _, item := range msg.items {
-			if m.selectedNamespaces[item.Namespace] {
+			if item.Namespace == "" || m.selectedNamespaces[item.Namespace] {
 				filtered = append(filtered, item)
 			}
 		}

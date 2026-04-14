@@ -391,12 +391,12 @@ func DefaultAbbreviations() map[string]string {
 }
 
 // LoadConfig loads the config file (theme, keybindings, abbreviations, etc.) and applies them.
-func LoadConfig() {
+func LoadConfig(configOverride string) {
 	theme := DefaultTheme()
 	kb := DefaultKeybindings()
 	abbr := DefaultAbbreviations()
 
-	cfg, ok := loadConfigFile()
+	cfg, ok := loadConfigFile(configOverride)
 	if !ok {
 		ApplyTheme(theme)
 		ActiveKeybindings = kb
@@ -417,17 +417,24 @@ func LoadConfig() {
 }
 
 // loadConfigFile reads and parses the YAML config file.
-func loadConfigFile() (configFile, bool) {
-	configDir := os.Getenv("XDG_CONFIG_HOME")
-	if configDir == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return configFile{}, false
+// When configOverride is non-empty, it is used directly instead of the default
+// XDG-based path.
+func loadConfigFile(configOverride string) (configFile, bool) {
+	var configPath string
+	if configOverride != "" {
+		configPath = configOverride
+	} else {
+		configDir := os.Getenv("XDG_CONFIG_HOME")
+		if configDir == "" {
+			home, err := os.UserHomeDir()
+			if err != nil {
+				return configFile{}, false
+			}
+			configDir = filepath.Join(home, ".config")
 		}
-		configDir = filepath.Join(home, ".config")
+		configPath = filepath.Join(configDir, "lfk", "config.yaml")
 	}
 
-	configPath := filepath.Join(configDir, "lfk", "config.yaml")
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return configFile{}, false

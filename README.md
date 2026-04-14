@@ -204,12 +204,35 @@ All other features (KEDA, External Secrets, Argo Workflows, cert-manager, ArgoCD
 # Use default kubeconfig (~/.kube/config + ~/.kube/config.d/*)
 lfk
 
-# Use a specific kubeconfig
+# Start in a specific context
+lfk --context my-cluster
+
+# Start in a specific namespace (disables all-namespaces mode)
+lfk -n kube-system
+
+# Start with multiple namespaces selected
+lfk -n default -n kube-system
+
+# Combine context and namespace
+lfk --context production -n monitoring
+
+# Use a specific config file (overrides ~/.config/lfk/config.yaml)
+lfk -c /path/to/config.yaml
+lfk --config /path/to/config.yaml
+
+# Use a specific kubeconfig file (overrides default discovery)
+lfk --kubeconfig /path/to/kubeconfig
+
+# Use a specific kubeconfig via environment variable
 KUBECONFIG=/path/to/config lfk
 
-# Use multiple kubeconfigs
+# Use multiple kubeconfigs via environment variable
 KUBECONFIG=/path/to/config1:/path/to/config2 lfk
 ```
+
+When `--context` or `--namespace` flags are provided, the saved session state is
+ignored and the app opens directly in the specified context/namespace. The user
+can still change the namespace during the session.
 
 ## Navigation Hierarchy
 
