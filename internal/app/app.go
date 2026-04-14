@@ -93,6 +93,11 @@ const (
 // sortColDefault is the default sort column name.
 const sortColDefault = "Name"
 
+// sortColEventLastSeen is a sentinel used internally by sortMiddleItems
+// to override the default "Name" sort for Events. It is NOT a user-visible
+// column name and must not appear in the sortable-column cycle.
+const sortColEventLastSeen = "__event_last_seen__"
+
 // sortColumnIndex returns the index of sortColumnName in ActiveSortableColumns,
 // or 0 if not found.
 func sortColumnIndex(name string) int {
