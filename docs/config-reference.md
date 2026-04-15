@@ -11,7 +11,7 @@ The configuration file is located at `~/.config/lfk/config.yaml`. All fields are
 | `icons` | string | `"auto"` | Icon display mode. One of: `"auto"` (detects Nerd Font terminals; default), `"unicode"`, `"nerdfont"` (Material Design Icons; requires Nerd Font in terminal), `"simple"` (ASCII labels), `"emoji"`, or `"none"`. Unknown values fall back to `"unicode"`. Can be overridden at runtime by the `LFK_ICONS` environment variable. |
 | `log_path` | string | `"~/.local/share/lfk/lfk.log"` | Path to the application log file. |
 | `dashboard` | bool | `true` | Show cluster dashboard when entering a context. Set to `false` to go directly to resource types. |
-| `monitoring` | map[string]object | `{}` | Per-cluster monitoring endpoint configuration. Keys are context names or `"default"`. See [Monitoring](#monitoring) section. |
+| `monitoring` | map[string]object | `{}` | Per-cluster monitoring endpoint configuration. Keys are context names or `"_global"`. See [Monitoring](#monitoring) section. |
 | `resource_columns` | map[string]list | `{}` | Per-resource-type column configuration. Keys are resource Kind names (case-insensitive). When not set for a kind, columns are auto-detected. |
 | `clusters` | map[string]object | `{}` | Per-cluster configuration overrides. Keys are context names. See [Clusters](#clusters) section. |
 | `theme` | object | *(see Theme section)* | Custom color theme overrides. |
@@ -46,7 +46,7 @@ you want) in your config, or export `LFK_ICONS=nerdfont` in your shell.
 
 Configure Prometheus and Alertmanager endpoints for the monitoring dashboard (`@` key) and alert views. By default, lfk auto-discovers monitoring services by trying common service names across common namespaces. Use this section to override the endpoints per cluster or set a default for all clusters.
 
-Keys are kubeconfig context names. The special key `"default"` applies to any cluster without an explicit entry.
+Keys are kubeconfig context names. The special key `"_global"` applies to any cluster without an explicit entry.
 
 ```yaml
 monitoring:
@@ -61,8 +61,8 @@ monitoring:
       services: ["alertmanager-main"]
       port: "9093"
     node_metrics: prometheus   # "prometheus" or "metrics-api" (default: auto-detect)
-  # Default for all other clusters:
-  default:
+  # Global fallback for all other clusters:
+  _global:
     prometheus:
       namespaces: ["monitoring", "observability"]
       services: ["prometheus-server", "prometheus"]
